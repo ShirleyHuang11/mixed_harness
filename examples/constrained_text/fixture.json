@@ -1,0 +1,22 @@
+[
+ {"id": "r01", "instruction": "Apologise for a late delivery.", "constraints": [{"kind": "max_words", "value": 25}, {"kind": "must_include", "value": "sorry"}]},
+ {"id": "r02", "instruction": "Confirm a refund was issued.", "constraints": [{"kind": "must_include", "value": "refund"}, {"kind": "ends_with", "value": "."}]},
+ {"id": "r03", "instruction": "Thank a customer for waiting.", "constraints": [{"kind": "max_words", "value": 15}, {"kind": "must_include", "value": "thank"}]},
+ {"id": "r04", "instruction": "Explain that the office is closed on Sunday.", "constraints": [{"kind": "must_include", "value": "Sunday"}, {"kind": "must_not_include", "value": "unfortunately"}]},
+ {"id": "r05", "instruction": "Ask the customer for their order number.", "constraints": [{"kind": "must_include", "value": "order number"}, {"kind": "ends_with", "value": "?"}]},
+ {"id": "r06", "instruction": "Confirm an appointment for Tuesday at 10am.", "constraints": [{"kind": "must_include", "value": "Tuesday"}, {"kind": "must_include", "value": "10"}, {"kind": "max_words", "value": 20}]},
+ {"id": "r07", "instruction": "Decline a discount request politely.", "constraints": [{"kind": "must_not_include", "value": "no"}, {"kind": "min_words", "value": 8}]},
+ {"id": "r08", "instruction": "Tell the customer their card has been blocked.", "constraints": [{"kind": "must_include", "value": "blocked"}, {"kind": "max_words", "value": 18}]},
+ {"id": "r09", "instruction": "Wish the customer a good weekend.", "constraints": [{"kind": "must_include", "value": "weekend"}, {"kind": "max_words", "value": 10}]},
+ {"id": "r10", "instruction": "Explain that a password reset link was sent.", "constraints": [{"kind": "must_include", "value": "link"}, {"kind": "must_include", "value": "email"}]},
+ {"id": "r11", "instruction": "Confirm a subscription was cancelled.", "constraints": [{"kind": "must_include", "value": "cancelled"}, {"kind": "ends_with", "value": "."}]},
+ {"id": "r12", "instruction": "Ask the customer to try restarting the app.", "constraints": [{"kind": "must_include", "value": "restart"}, {"kind": "max_words", "value": 20}]},
+ {"id": "r13", "instruction": "Apologise for a billing error.", "constraints": [{"kind": "must_include", "value": "sorry"}, {"kind": "must_include", "value": "billing"}]},
+ {"id": "r14", "instruction": "Confirm the address change.", "constraints": [{"kind": "must_include", "value": "address"}, {"kind": "max_words", "value": 15}]},
+ {"id": "r15", "instruction": "Tell the customer a technician will call tomorrow.", "constraints": [{"kind": "must_include", "value": "tomorrow"}, {"kind": "must_include", "value": "call"}]},
+ {"id": "r16", "instruction": "Thank the customer for their feedback.", "constraints": [{"kind": "must_include", "value": "feedback"}, {"kind": "ends_with", "value": "."}]},
+ {"id": "r17", "instruction": "Explain that the item is out of stock.", "constraints": [{"kind": "must_include", "value": "stock"}, {"kind": "must_not_include", "value": "never"}]},
+ {"id": "r18", "instruction": "Confirm the delivery date is Friday.", "constraints": [{"kind": "must_include", "value": "Friday"}, {"kind": "max_words", "value": 12}]},
+ {"id": "r19", "instruction": "Ask whether the customer wants a replacement or a refund.", "constraints": [{"kind": "must_include", "value": "replacement"}, {"kind": "must_include", "value": "refund"}, {"kind": "ends_with", "value": "?"}]},
+ {"id": "r20", "instruction": "Close the conversation warmly.", "constraints": [{"kind": "min_words", "value": 5}, {"kind": "max_words", "value": 15}]}
+]

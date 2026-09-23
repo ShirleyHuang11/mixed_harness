@@ -1,0 +1,10 @@
+{"name": "constrained_reply", "objective": "Write a short customer reply that satisfies every listed constraint.",
+ "observation_fields": ["instruction", "constraints"],
+ "action_space": {"kind": "open"}, "evaluator": {"kind": "code_check"},
+ "decisions_per_episode": 1, "latency_budget_ms": null,
+ "output_schema": {"type": "object", "required": ["text"], "properties": {"text": {"type": "string", "minLength": 1}}},
+ "examples": [
+  {"observation": {"instruction": "Apologise for a late delivery.", "constraints": [{"kind": "max_words", "value": 25}, {"kind": "must_include", "value": "sorry"}]},
+   "expected": "We are sorry your delivery arrived late; a credit has been added to your account."},
+  {"observation": {"instruction": "Confirm the refund was issued.", "constraints": [{"kind": "must_include", "value": "refund"}, {"kind": "ends_with", "value": "."}]},
+   "expected": "Your refund has been issued and will appear within five business days."}]}

@@ -1,0 +1,10 @@
+{"name": "banking_intents", "objective": "Route a customer message to the single best intent label.",
+ "observation_fields": ["text", "labels"],
+ "action_space": {"kind": "labels", "labels": ["card_lost", "refund", "balance", "transfer", "other"]},
+ "evaluator": {"kind": "exact_match"}, "decisions_per_episode": 1, "latency_budget_ms": 1000,
+ "examples": [
+  {"observation": {"text": "I can't find my card anywhere"}, "expected": "card_lost"},
+  {"observation": {"text": "I want my money back for this charge"}, "expected": "refund"},
+  {"observation": {"text": "how much do I have in my account"}, "expected": "balance"},
+  {"observation": {"text": "send 50 to my sister"}, "expected": "transfer"},
+  {"observation": {"text": "what are your opening hours"}, "expected": "other"}]}
