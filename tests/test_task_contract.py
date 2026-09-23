@@ -275,7 +275,7 @@ def test_ordinary_bad_policy_is_still_a_candidate_failure(tmp_path):
 def test_runtime_hash_includes_optional_python_node_implementation(tmp_path, monkeypatch):
     import auto_jev.frozen as frozen
     for name in ('spec.py', 'flow.py', 'runtime.py', 'crypto.py', 'providers.py', 'vercel.py',
-                 'paper.py', 'observations.py', 'data.py', 'storage.py', 'frozen.py'):
+                 'paper.py', 'observations.py', 'data.py', 'storage.py', 'frozen.py', 'schema.py', 'llm.py'):
         (tmp_path / name).write_text(name)
     monkeypatch.setattr(frozen, '__file__', str(tmp_path / 'frozen.py'))
     before = frozen.source_hash()
