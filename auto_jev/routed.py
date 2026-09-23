@@ -6,6 +6,7 @@ import uuid
 from .evolution import run_evolution
 from .spec import spec_hash, validate_spec
 from .storage import RunStore, atomic_write_json, now_iso
+from . import triage_store
 from .triage import ROUTES, route_of_spec, seed_for_route, triage, validate_task
 
 SEED_ROUTE_OF = {'settled': 'jev', 'open_ended': 'llm', 'hybrid': 'hybrid'}
@@ -25,8 +26,8 @@ def run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, 
     if route is not None and route not in ROUTES:
         raise ValueError('route must be one of ' + ', '.join(ROUTES))
     store = store or RunStore()
-    # triage_store hook (Task 9): questions default to the stored, improved version.
-    decision = triage(task, jev, questions=triage_questions, jev_model=getattr(jev, 'model', 'typesafe-ai/jev'))
+    stored_questions, questions_version = triage_store.current_questions(store)
+    decision = triage(task, jev, questions=triage_questions or stored_questions, jev_model=getattr(jev, 'model', 'typesafe-ai/jev'))
     route_source = 'override' if route is not None else 'triage'
     route = route or decision['route']
     routed_id, path = _routed_dir(store, task_id)
@@ -48,7 +49,9 @@ def run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, 
     best = store.get_candidate(summary['run_id'], summary['best_hash'])['spec']
     result = {**summary, 'routed_id': routed_id, 'task_id': task_id, 'created_at': now_iso(), 'decision': decision,
               'route': route, 'route_source': route_source, 'seed_hash': spec_hash(spec), 'seed_route': SEED_ROUTE_OF[route],
-              'seed_llm_model': spec.get('llm_model'), 'final_route': route_of_spec(best), 'budget': budget}
-    # triage_store hook (Task 9): record history and attempt one improvement here.
+              'seed_llm_model': spec.get('llm_model'), 'final_route': route_of_spec(best), 'budget': budget,
+              'questions_version': questions_version if triage_questions is None else None, 'task': {'name': task['name']}}
+    triage_store.record(store, result)
+    result['triage_improvement'] = triage_store.improve(store, jev, proposer)
     atomic_write_json(path / 'summary.json', result)
     return result

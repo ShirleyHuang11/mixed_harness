@@ -98,3 +98,19 @@ def test_unknown_route_override_is_rejected(tmp_path):
         run_routed_evolution(task, train[:1], train[1:2], jev=ScriptedJev(), llm=LLMClient(kind='mock'),
                              proposer=echo_proposer, store=RunStore(tmp_path), evaluator=classify.evaluate_episode,
                              task_id='banking', route='teleport', evolution_rounds=1, reflection_batch_size=1)
+
+
+def test_routed_run_records_history_and_attempts_improvement(tmp_path):
+    from auto_jev import triage_store
+    task, train = classify.load('train')
+    _, validation = classify.load('validation')
+    jev = ScriptedJev({'route': {'settled': 0.9, 'open_ended': 0.05, 'hybrid': 0.05},
+                       'action': {'card_lost': 0.2, 'refund': 0.6, 'balance': 0.1, 'transfer': 0.05, 'other': 0.05}})
+    store = RunStore(tmp_path)
+    first = run_routed_evolution(task, train[:2], validation[:2], jev=jev, llm=LLMClient(kind='mock'), proposer=echo_proposer,
+                                 store=store, evaluator=classify.evaluate_episode, task_id='banking', evolution_rounds=1, reflection_batch_size=1)
+    assert first['questions_version'] == 0 and first['triage_improvement']['status'] == 'skipped'
+    second = run_routed_evolution(task, train[2:4], validation[2:4], jev=jev, llm=LLMClient(kind='mock'), proposer=echo_proposer,
+                                  store=store, evaluator=classify.evaluate_episode, task_id='banking2', evolution_rounds=1, reflection_batch_size=1)
+    assert len(triage_store.history(store)) == 2
+    assert second['triage_improvement']['status'] in ('accepted', 'rejected', 'error')
