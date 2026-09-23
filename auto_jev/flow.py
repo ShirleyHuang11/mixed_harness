@@ -113,7 +113,7 @@ def compile_flow(spec):
     graph = {}
     for node in nodes:
         node_id = node['id']
-        if node.get('kind') == 'python' and (version != 3 or 'depends_on' not in node):
+        if node.get('kind') == 'python' and (version < 3 or 'depends_on' not in node):
             raise ValueError('Python nodes require version 3 and explicit depends_on')
         if node.get('kind') == 'llm' and version < 4:
             raise ValueError('LLM nodes require pipeline version 4')
