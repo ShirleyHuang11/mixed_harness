@@ -130,11 +130,12 @@ def route_of_spec(spec):
 
 _SETTLED_CATALOG = '''def run(obs, nodes, memory):
     options = {}
-    if isinstance(obs.get("labels"), list) and obs["labels"]:
-        for label in obs["labels"]:
+    labels = obs.get("labels") if isinstance(obs.get("labels"), list) and obs.get("labels") else __LABELS__
+    if labels:
+        for label in labels:
             options[str(label)] = "The correct answer is " + str(label) + "."
     else:
-        for item in obs.get(CATALOG_FIELD) or []:
+        for item in obs.get(__CATALOG_FIELD__) or []:
             if isinstance(item, dict) and isinstance(item.get("id"), str):
                 options[item["id"]] = str(item)
             elif isinstance(item, str):
@@ -143,7 +144,7 @@ _SETTLED_CATALOG = '''def run(obs, nodes, memory):
         options["none"] = "No option was available."
     return {"options": list(options), "questions": {"action": {
         "type": "choice",
-        "instructions": OBJECTIVE + " Choose exactly one option ID for the observation.",
+        "instructions": __OBJECTIVE__ + " Choose exactly one option ID for the observation.",
         "criteria": options}}}
 '''
 
@@ -156,8 +157,8 @@ _SETTLED_DECISION = '''def run(obs, nodes, memory):
 '''
 
 _OPEN_PROMPT = '''def run(obs, nodes, memory):
-    lines = [OBJECTIVE, ""]
-    for field in FIELDS:
+    lines = [__OBJECTIVE__, ""]
+    for field in __FIELDS__:
         lines.append(field + ": " + str(obs.get(field)))
     lines.append("")
     lines.append("Write the best output for this input.")
@@ -169,8 +170,8 @@ _OPEN_VALIDATE = '''def run(obs, nodes, memory):
 '''
 
 _HYBRID_PROMPT = '''def run(obs, nodes, memory):
-    lines = [OBJECTIVE, ""]
-    for field in FIELDS:
+    lines = [__OBJECTIVE__, ""]
+    for field in __FIELDS__:
         lines.append(field + ": " + str(obs.get(field)))
     lines.append("")
     lines.append("Write 3 different candidate outputs for this input.")
@@ -185,7 +186,7 @@ _HYBRID_CRITERIA = '''def run(obs, nodes, memory):
         criteria["c" + str(index)] = text if text else "(empty candidate)"
     return {"candidates": candidates, "questions": {"best": {
         "type": "choice",
-        "instructions": OBJECTIVE + " Choose the candidate that best serves this input.",
+        "instructions": __OBJECTIVE__ + " Choose the candidate that best serves this input.",
         "criteria": criteria}}}
 '''
 
@@ -199,9 +200,11 @@ _HYBRID_DECISION = '''def run(obs, nodes, memory):
 
 def _fill(source, task):
     fields = task['observation_fields']
-    return (source.replace('OBJECTIVE', json.dumps(task['objective']))
-                  .replace('FIELDS', json.dumps(fields))
-                  .replace('CATALOG_FIELD', json.dumps(task['action_space'].get('catalog_field') or 'legal_actions')))
+    labels = task['action_space'].get('labels') if task['action_space']['kind'] == 'labels' else []
+    return (source.replace('__OBJECTIVE__', json.dumps(task['objective']))
+                  .replace('__FIELDS__', json.dumps(fields))
+                  .replace('__LABELS__', json.dumps(list(labels or [])))
+                  .replace('__CATALOG_FIELD__', json.dumps(task['action_space'].get('catalog_field') or 'legal_actions')))
 
 
 def seed_for_route(route, task):

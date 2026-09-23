@@ -17,7 +17,13 @@ _FENCE = re.compile(r'```(?:json)?\s*(.*?)```', re.S)
 
 
 class LLMProviderError(RuntimeError):
-    pass
+    """Transport, credential or cache failure: infrastructure, never a candidate score."""
+    task_infrastructure_error = True
+
+
+class LLMOutputError(LLMProviderError, ValueError):
+    """The model answered but the answer is unusable: a candidate-level failure."""
+    task_infrastructure_error = False
 
 
 def extract_json(text):
@@ -31,7 +37,7 @@ def extract_json(text):
     start = min((index for index in (stripped.find('{'), stripped.find('[')) if index >= 0), default=-1)
     end = max(stripped.rfind('}'), stripped.rfind(']'))
     if start < 0 or end < start:
-        raise LLMProviderError('LLM response contains no JSON document')
+        raise LLMOutputError('LLM response contains no JSON document')
     return stripped[start:end + 1]
 
 
@@ -80,14 +86,14 @@ class LLMClient:
             raise LLMProviderError('No recorded response for this input; cache-only replay cannot call the API')
         text, actual_model, usage = self._call(prompt, output_schema, model, max_tokens)
         if not isinstance(text, str) or not text.strip():
-            raise LLMProviderError('Empty LLM response')
+            raise LLMOutputError('Empty LLM response')
         value = text.strip()
         if output_schema is not None:
             try:
                 value = json.loads(extract_json(text))
                 validate_json_schema(value, output_schema)
             except ValueError as exc:
-                raise LLMProviderError(f'LLM output failed schema validation: {exc}') from None
+                raise LLMOutputError(f'LLM output failed schema validation: {exc}') from None
         result = {'text': text, 'value': value, 'model': actual_model, 'usage': usage, 'cache_hit': False,
                   'request_hash': key, 'elapsed_ms': (time.perf_counter() - start) * 1000, 'cost_usd': None,
                   'client_metadata': {**copy.deepcopy(self.metadata), 'requested_model': model, 'actual_model': actual_model}}

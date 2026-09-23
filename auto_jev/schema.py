@@ -16,12 +16,38 @@ def _type_ok(value, name):
     return isinstance(value, TYPES[name])
 
 
-def validate_json_schema(value, schema, path='$'):
+def check_schema(schema, path='$'):
+    """Reject a malformed schema with ValueError before any value is checked against it."""
     if not isinstance(schema, dict):
         raise ValueError(f'{path}: schema must be an object')
     unknown = set(schema) - SUPPORTED
     if unknown:
         raise ValueError(f'{path}: unsupported schema keywords {sorted(unknown)}')
+    if 'type' in schema:
+        names = schema['type'] if isinstance(schema['type'], list) else [schema['type']]
+        if not names or not all(isinstance(n, str) and (n in TYPES or n in ('number', 'integer')) for n in names):
+            raise ValueError(f'{path}: invalid schema type {schema["type"]!r}')
+    if 'enum' in schema and (not isinstance(schema['enum'], list) or not schema['enum']):
+        raise ValueError(f'{path}: enum must be a nonempty list')
+    for key in ('minimum', 'maximum', 'minLength', 'maxLength', 'minItems', 'maxItems'):
+        if key in schema and (isinstance(schema[key], bool) or not isinstance(schema[key], (int, float))):
+            raise ValueError(f'{path}: {key} must be a number')
+    if 'required' in schema and (not isinstance(schema['required'], list) or not all(isinstance(k, str) for k in schema['required'])):
+        raise ValueError(f'{path}: required must be a list of strings')
+    if 'properties' in schema:
+        if not isinstance(schema['properties'], dict):
+            raise ValueError(f'{path}: properties must be an object')
+        for key, child in schema['properties'].items():
+            check_schema(child, f'{path}.{key}')
+    if 'items' in schema:
+        check_schema(schema['items'], f'{path}[]')
+    if 'additionalProperties' in schema and not isinstance(schema['additionalProperties'], bool):
+        raise ValueError(f'{path}: additionalProperties must be a boolean')
+    return schema
+
+
+def validate_json_schema(value, schema, path='$'):
+    check_schema(schema, path)
     if 'type' in schema:
         names = schema['type'] if isinstance(schema['type'], list) else [schema['type']]
         if not any(_type_ok(value, name) for name in names):
@@ -61,6 +87,7 @@ def validate_json_schema(value, schema, path='$'):
 
 def minimal_instance(schema, label='mock'):
     """Smallest value that satisfies the schema; used by the mock LLM."""
+    check_schema(schema)
     if 'enum' in schema:
         return schema['enum'][0]
     names = schema.get('type', 'object')

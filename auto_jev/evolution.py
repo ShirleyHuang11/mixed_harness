@@ -20,6 +20,7 @@ from gepa.gepa_utils import remove_dominated_programs
 from .spec import validate_spec,spec_hash,seed_spec,pipeline_schema,_json
 from .crypto import evaluate_episode
 from .providers import JevProviderError
+from .llm import LLMProviderError
 from .vercel import VercelError
 from .frozen import evaluate_frozen,source_hash as runtime_source_hash,digest as artifact_digest,verify_task_contract
 from .observations import OBSERVATION_CONFIG
@@ -403,7 +404,8 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
                     score=FAILURE_SCORE;status='error';result=copy.deepcopy(exc.partial_result)
                     result.update(episode_id=ep['id'],score=score,error=str(exc))
                     if 'traces' not in result:result={'episode_id':ep['id'],'score':score,'error':str(exc),'traces':[result]}
-                except (JevProviderError,VercelError,httpx.HTTPError) as exc:
+                except (JevProviderError,VercelError,httpx.HTTPError,LLMProviderError) as exc:
+                    if not getattr(exc,'task_infrastructure_error',True):raise
                     fatal_error=exc;score=FAILURE_SCORE;status='error'
                     result={'episode_id':ep['id'],'score':score,'error':str(exc),'traces':[]}
                 except (ValueError,KeyError,IndexError,TypeError,ArithmeticError) as exc:
@@ -454,7 +456,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
         if rounds.error is not None:
             reflection_abort=rounds.error
             return candidate.copy()
-        version_instruction=('Use version 3. Evolve Python source functions run(obs, nodes, memory), expression nodes, Jev nodes, and the dependency graph together. Python nodes must declare explicit depends_on for every node output they read. Jev questions_expression may construct the complete runtime question map from preceding code outputs; keep provider question/criteria constraints and only select actions offered by the task. Python executes in isolation and cannot change the evaluator or access its private state. '
+        version_instruction=(f"Use version {pipeline['version']}. "+'Evolve Python source functions run(obs, nodes, memory), expression nodes, Jev nodes, and the dependency graph together. Python nodes must declare explicit depends_on for every node output they read. Jev questions_expression may construct the complete runtime question map from preceding code outputs; keep provider question/criteria constraints and only select actions offered by the task. Python executes in isolation and cannot change the evaluator or access its private state. '
                              if pipeline['version']>=3 else 'Use version 2 to add/delete/rewire feature nodes, parallel Jev branches, multiple decision stages, question instructions, criteria, output and memory rules. ')
         if pipeline['version']>=4:version_instruction+=('Version 4 also allows llm nodes (open-ended generation with prompt_expression and an optional output_schema). Use Jev nodes for bounded judgments and llm nodes for generation; a generate-then-select structure is allowed. Node kinds may be swapped where the task allows. Never change llm_model. Stay within the stated task budget: latency and cost violations make a candidate invalid. ')
         # Legacy v1 seeds could already evolve into v2 graphs. Keep that schema

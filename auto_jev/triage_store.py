@@ -97,8 +97,13 @@ def improve(store, jev, proposer, *, min_history=2):
         result = {**outcome, 'status': status, 'reason': f'{type(exc).__name__}: {exc}'[:500]}
         append_jsonl(_dir(store) / 'improvements.jsonl', {**result, 'accepted': False})
         return result
-    before = replay_agreement(current, records, jev)
-    after = replay_agreement(proposed, records, jev)
+    try:
+        before = replay_agreement(current, records, jev)
+        after = replay_agreement(proposed, records, jev)
+    except Exception as exc:
+        result = {**outcome, 'status': 'error', 'reason': f'replay failed: {type(exc).__name__}: {exc}'[:500]}
+        append_jsonl(_dir(store) / 'improvements.jsonl', {**result, 'accepted': False})
+        return result
     accepted = after > before
     result = {**outcome, 'status': 'accepted' if accepted else 'rejected', 'agreement_before': before, 'agreement_after': after,
               'proposal_sha256': hashlib.sha256(json.dumps(proposed, sort_keys=True).encode()).hexdigest()}

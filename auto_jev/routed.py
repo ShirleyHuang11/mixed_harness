@@ -34,7 +34,8 @@ def run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, 
     atomic_write_json(path / 'decision.json', {**decision, 'route_source': route_source, 'chosen_route': route})
     spec = copy.deepcopy(seed_pipeline) if seed_pipeline is not None else seed_for_route(route, task)
     llm_model = getattr(llm, 'model', None)
-    if llm_model and any(node.get('kind') == 'llm' for node in spec['nodes']):
+    if llm_model:
+        # Always pin the LLM model so a settled seed can still grow llm nodes during evolution.
         spec['llm_model'] = llm_model
     spec = validate_spec(spec)
     context = copy.deepcopy(task_context) if task_context else {}
@@ -51,6 +52,7 @@ def run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, 
               'route': route, 'route_source': route_source, 'seed_hash': spec_hash(spec), 'seed_route': SEED_ROUTE_OF[route],
               'seed_llm_model': spec.get('llm_model'), 'final_route': route_of_spec(best), 'budget': budget,
               'questions_version': questions_version if triage_questions is None else None, 'task': {'name': task['name']}}
+    atomic_write_json(path / 'summary.json', result)
     triage_store.record(store, result)
     result['triage_improvement'] = triage_store.improve(store, jev, proposer)
     atomic_write_json(path / 'summary.json', result)
