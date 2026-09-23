@@ -14,3 +14,10 @@ replay-validated improvement step.
     uv run pytest
 
 Functional Python nodes run under `bwrap` on Linux and `sandbox-exec` on macOS.
+
+## Routing
+
+`auto_jev.routed.run_routed_evolution(task, train, validation, jev=..., llm=..., proposer=..., store=..., evaluator=..., task_id=...)`
+probes the task, asks Jev for a route (settled / open_ended / hybrid), seeds one harness from that route's
+template and runs the existing evolution once. Pass `route=` to override the triage. After each run the triage
+criteria get one replay-validated improvement step. See `docs/routed-harness.md`.
