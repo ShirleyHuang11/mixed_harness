@@ -197,9 +197,16 @@ def validate_artifact(artifact, jev, *, evaluator=None):
         verify_task_contract(artifact['task_contract'], evaluator=evaluator)
 
 
-def evaluate_frozen(artifact, episodes, jev, *, evaluator=None):
+def evaluate_frozen(artifact, episodes, jev, *, evaluator=None, llm=None):
     if artifact["task_id"] != "crypto_spot" and evaluator is None:
         raise ValueError("This task requires its evaluator")
     task = evaluator or evaluate_episode
     validate_artifact(artifact, jev, evaluator=task)
-    return [task(artifact["spec"], episode, jev, capture_traces=True, **artifact["costs"]) for episode in episodes]
+    needs_llm = any(node.get('kind') == 'llm' for node in artifact['spec'].get('nodes', []))
+    if needs_llm and llm is None:
+        raise ValueError('This frozen artifact has llm nodes and needs an llm client')
+    expected = (artifact.get('llm_metadata') or {}).get('transport')
+    if llm is not None and expected and expected != ('mock' if getattr(llm, 'mock', False) else getattr(llm, 'transport', None)):
+        raise ValueError('LLM transport differs from the frozen artifact')
+    from .evolution import call_evaluator
+    return [call_evaluator(task, artifact["spec"], episode, jev, llm, capture_traces=True, **artifact["costs"]) for episode in episodes]

@@ -24,6 +24,7 @@ from .vercel import VercelError
 from .frozen import evaluate_frozen,source_hash as runtime_source_hash,digest as artifact_digest,verify_task_contract
 from .observations import OBSERVATION_CONFIG
 from .reflection import full_feedback, archive_prompt, prompt_limit, atomic_text
+from .budget import check_budget, episode_usage, validate_budget
 from .runtime import PipelineExecutionError
 from .storage import RunStore,episode_summary,episode_data_kind,now_iso,atomic_write_json,read_json
 
@@ -31,6 +32,12 @@ FAILURE_SCORE=-1e9
 
 
 def _digest(data):return hashlib.sha256(json.dumps(data,sort_keys=True,allow_nan=False).encode()).hexdigest()
+
+
+def call_evaluator(task,spec,episode,jev,llm=None,**kwargs):
+    """Pass llm only to evaluators that declare it, so legacy adapters keep working."""
+    if 'llm' in inspect.signature(task).parameters:return task(spec,episode,jev,llm=llm,**kwargs)
+    return task(spec,episode,jev,**kwargs)
 
 
 def _archive_evaluation(store,run_id,candidate,episode_id,split,result,*,capture_traces,round_number):
@@ -103,7 +110,7 @@ class _EvolutionRounds:
         self.error=None
         self.restored=not resuming
         self.selector=self.sampler=None
-        self.jev=self.proposer=None
+        self.jev=self.proposer=self.llm=None
 
     def progress(self,**fields):
         current=self.store.get_run(self.run_id).get('progress',{})
@@ -115,7 +122,7 @@ class _EvolutionRounds:
                        converged_candidate=self.converged_candidate,
                        perfect_training_coverage={k:len(v) for k,v in self.perfect_coverage.items()},
                        round_active=self.active['number'] if self.active else None)
-        current.update(jev=dict(getattr(self.jev,'stats',{})),proposer=dict(getattr(self.proposer,'stats',{})))
+        current.update(jev=dict(getattr(self.jev,'stats',{})),proposer=dict(getattr(self.proposer,'stats',{})),llm=dict(getattr(self.llm,'stats',{}) or {}))
         self.store.update_run(self.run_id,progress=current)
 
     def event(self,kind,payload):
@@ -274,7 +281,7 @@ class _EvolutionRounds:
         return self.error is not None or self.converged_candidate is not None or (self.target is not None and self.completed>=self.target)
 
 
-def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution',max_metric_calls=None,seed=0,costs=None,seed_pipeline=None,evaluator=None,task_id='crypto_spot',reflection_batch_size=None,evolution_rounds=None,resume_run_id=None,task_context=None,task_contract=None,skip_perfect_score=False):
+def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution',max_metric_calls=None,seed=0,costs=None,seed_pipeline=None,evaluator=None,task_id='crypto_spot',reflection_batch_size=None,evolution_rounds=None,resume_run_id=None,task_context=None,task_contract=None,skip_perfect_score=False,budget=None,llm=None):
     if not train or not validation:raise ValueError('train and validation must be nonempty')
     ids=[ep['id'] for ep in train+validation]
     if len(set(ids))!=len(ids):raise ValueError('episode IDs must be unique across train and validation')
@@ -282,6 +289,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
     if isinstance(batch_size,bool) or not isinstance(batch_size,int) or not 1<=batch_size<=len(train):raise ValueError('reflection_batch_size must be between 1 and the training set size')
     if evolution_rounds is not None and (isinstance(evolution_rounds,bool) or not isinstance(evolution_rounds,int) or evolution_rounds<1):raise ValueError('evolution_rounds must be a positive integer')
     if not isinstance(skip_perfect_score,bool):raise ValueError('skip_perfect_score must be a boolean')
+    budget=validate_budget(budget) if budget is not None else None
     if max_metric_calls is None and evolution_rounds is None:max_metric_calls=24
     if max_metric_calls is not None and (isinstance(max_metric_calls,bool) or not isinstance(max_metric_calls,int) or max_metric_calls<len(validation)+2*batch_size):raise ValueError('budget must allow initial validation and a full parent/child training comparison')
     max_prompt_bytes=prompt_limit(proposer)
@@ -306,6 +314,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
             'skip_perfect_score':skip_perfect_score,'perfect_score':1.0 if skip_perfect_score else None,
             'reflection':{'mode':'full','batch_size':batch_size,'scope':'all_training' if batch_size==len(train) else 'explicit_batch','max_prompt_bytes':max_prompt_bytes,'encoding':reflection_encoding},
             'data_kind':next(iter(kinds)) if len(kinds)==1 else 'mixed','jev_mock':getattr(jev,'mock',False),
+            'budget':budget,'llm_mock':getattr(llm,'mock',None) if llm is not None else None,
             'proposer_label':getattr(proposer,'metadata',{}).get('kind','demo' if proposer is demo_proposer else 'custom'),
             'episodes':[episode_summary(e,s) for s,eps in [('train',train),('validation',validation)] for e in eps],
             'data_hashes':{e['id']:_digest(e) for e in train+validation},'objective':task_context.get('objective','highest net profit at identical initial cash' if task_id=='crypto_spot' else 'maximize task score'),
@@ -317,7 +326,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
         run_id=resume_run_id;previous=store.get_run(run_id);old=previous['config']
         has_checkpoint=(store.run_dir(run_id)/'gepa'/'gepa_state.bin').exists()
         if not has_checkpoint and (store.list_events(run_id,'round_started') or store.list_events(run_id,'round_completed')):raise ValueError('Run has evolution rounds but no GEPA checkpoint to resume')
-        for key in ('source_hash','observation_config','task_id','costs','seed','data_hashes','seed_pipeline_hash'):
+        for key in ('source_hash','observation_config','task_id','costs','seed','data_hashes','seed_pipeline_hash','budget'):
             if old.get(key)!=config[key]:raise ValueError(f'Resume contract mismatch: {key}')
         if (old.get('task_context') or {})!=task_context:raise ValueError('Resume contract mismatch: task_context')
         if old.get('task_contract')!=task_contract:raise ValueError('Resume contract mismatch: task_contract')
@@ -333,11 +342,12 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
         store.append_event(run_id,'run_resumed',{'target':evolution_rounds,'max_metric_calls':max_metric_calls,
                            'risk':'An unjournaled provider return may require another call; committed checkpoints and recorded proposals are reused.'})
     else:run_id=store.create_run(run_name,config)
-    store.update_run(run_id,status='running',config=config,error=None,jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}))
+    llm_metadata=getattr(llm,'metadata',{}) if llm is not None else {}
+    store.update_run(run_id,status='running',config=config,error=None,jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}),llm_metadata=llm_metadata)
     store.save_candidate(run_id,pipeline,spec_hash(pipeline),origin='seed')
     reflection_abort=None
     rounds=_EvolutionRounds(store,run_id,evolution_rounds,[e['id'] for e in train],resuming=has_checkpoint,skip_perfect_score=skip_perfect_score)
-    rounds.jev,rounds.proposer=jev,proposer
+    rounds.jev,rounds.proposer,rounds.llm=jev,proposer,llm
     rounds.progress(status='starting')
     resume_seed={r['episode_id']:r for r in store.list_evaluations(run_id,candidate=spec_hash(pipeline),split='validation')} if resume_run_id else {}
 
@@ -375,10 +385,15 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
                 rounds.progress(current_candidate=ident,current_episode=ep['id'],current_split=split,status='evaluating')
                 fatal_error=None;result=None
                 try:
-                    result=task(spec,ep,jev,capture_traces=True,**costs)
+                    result=call_evaluator(task,spec,ep,jev,llm,capture_traces=True,**costs)
                     score=result['score']
                     if isinstance(score,bool) or not isinstance(score,(int,float)) or not math.isfinite(score):raise ValueError('Task returned an invalid score')
                     status='ok'
+                    usage=episode_usage(result)
+                    violations=check_budget(usage,budget) if budget else []
+                    if violations:
+                        score=FAILURE_SCORE;status='over_budget'
+                        result=copy.deepcopy(result);result.update(score=score,error='over budget: '+'; '.join(violations))
                 except KeyboardInterrupt as exc:
                     rounds.error=exc
                     raise
@@ -396,7 +411,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
                     result=copy.deepcopy(result) if isinstance(result,dict) else {}
                     result.update(episode_id=ep['id'],score=score,error=str(exc))
                     result.setdefault('traces',[])
-                record={'candidate':ident,'episode_id':ep['id'],'split':split,'status':status,'score':score,
+                record={'candidate':ident,'episode_id':ep['id'],'split':split,'status':status,'score':score,'usage':episode_usage(result),
                         'net_profit':result.get('net_profit'),'return_pct':result.get('return_pct'),'max_drawdown_pct':result.get('max_drawdown_pct'),
                         'n_trades':len(result.get('trades',[])),'elapsed_ms':(time.perf_counter()-start)*1000,'error':result.get('error')}
                 history=_archive_evaluation(store,run_id,ident,ep['id'],split,result,
@@ -441,12 +456,13 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
             return candidate.copy()
         version_instruction=('Use version 3. Evolve Python source functions run(obs, nodes, memory), expression nodes, Jev nodes, and the dependency graph together. Python nodes must declare explicit depends_on for every node output they read. Jev questions_expression may construct the complete runtime question map from preceding code outputs; keep provider question/criteria constraints and only select actions offered by the task. Python executes in isolation and cannot change the evaluator or access its private state. '
                              if pipeline['version']>=3 else 'Use version 2 to add/delete/rewire feature nodes, parallel Jev branches, multiple decision stages, question instructions, criteria, output and memory rules. ')
+        if pipeline['version']>=4:version_instruction+=('Version 4 also allows llm nodes (open-ended generation with prompt_expression and an optional output_schema). Use Jev nodes for bounded judgments and llm nodes for generation; a generate-then-select structure is allowed. Node kinds may be swapped where the task allows. Never change llm_model. Stay within the stated task budget: latency and cost violations make a candidate invalid. ')
         # Legacy v1 seeds could already evolve into v2 graphs. Keep that schema
         # while pinning v3 seeds to their new code + dynamic-question contract.
         schema_version=max(2,pipeline['version'])
         schema=pipeline_schema(version=schema_version) if 'version' in inspect.signature(pipeline_schema).parameters else pipeline_schema()
         payload={'instruction':'Evolve the complete Jev dependency graph on the stated task. Return ONLY a complete PipelineSpec JSON object, with no explanation. '+version_instruction+'You are not restricted to one Jev call, the seed topology or small prompt edits. Independent nodes run in parallel; dependent nodes wait for their inputs. Inspect ALL supplied complete training trajectories including intermediate successes, failures, finalization, decisions and outcomes. Training episode outcomes are hindsight feedback, never runtime observations. Do not change the Jev model, task contracts or evaluator.',
-                           'task':{'id':task_id,'objective':config['objective'],'fixed_costs':costs,'context':task_context},'schema':schema,'parent':parent,'training_feedback':reflective_dataset}
+                           'task':{'id':task_id,'objective':config['objective'],'fixed_costs':costs,'context':task_context,'budget':budget},'schema':schema,'parent':parent,'training_feedback':reflective_dataset}
         try:
             replay=rounds.replay(parent_hash,episode_ids)
             if replay is not None:return replay
@@ -471,6 +487,7 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
             new=validate_spec(json.loads(text))
             if pipeline['version']>=2 and new['version']!=pipeline['version']:raise ValueError(f"Version {pipeline['version']} graph evolution must remain version {pipeline['version']}")
             if new['jev_model']!=pipeline['jev_model']:raise ValueError('Cannot change the fixed Jev model')
+            if new.get('llm_model')!=pipeline.get('llm_model'):raise ValueError('Cannot change the fixed LLM model')
         except (ValueError,TypeError) as exc:
             store.append_event(run_id,'proposal_rejected',{'parent':parent_hash,'reason':str(exc)[:500]})
             rounds.returned(parent_hash,episode_ids,candidate,response_path,False)
@@ -517,13 +534,13 @@ def run_evolution(train,validation,*,jev,proposer,store=None,run_name='evolution
         summary.update(goal_reached=goal_reached,stop_reason='training_perfect' if summary['converged'] else 'round_target' if evolution_rounds is not None and goal_reached else 'metric_budget' if max_metric_calls is not None and result.total_metric_calls>=max_metric_calls else 'external_stop')
         status='completed' if goal_reached or summary['converged'] else 'paused'
         rounds.progress(status=status,current_candidate=None,current_episode=None,current_split=None)
-        store.update_run(run_id,status=status,result=summary,jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}))
+        store.update_run(run_id,status=status,result=summary,jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}),llm_metadata=llm_metadata)
         return summary
     except BaseException as exc:
         # Cleanup only: never turn SystemExit/interrupts into scores or swallow
         # their control flow. The iteration callback also refuses to count them.
         rounds.progress(status='failed')
-        store.update_run(run_id,status='failed',error=f'{type(exc).__name__}: {str(exc)[:500]}',jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}))
+        store.update_run(run_id,status='failed',error=f'{type(exc).__name__}: {str(exc)[:500]}',jev_metadata=getattr(jev,'metadata',{}),proposer_metadata=getattr(proposer,'metadata',{}),llm_metadata=getattr(llm,'metadata',{}) if llm is not None else {})
         raise
 
 
@@ -541,6 +558,7 @@ def freeze_run(store,run_id,candidate_hash=None):
     config=run['config'];artifact={'version':1,'created_at':now_iso(),'run_id':run_id,'spec':candidate['spec'],'spec_hash':spec_hash(candidate['spec']),
         'task_id':config['task_id'],'costs':config['costs'],'observation_config':dict(OBSERVATION_CONFIG),'evaluation_source_hash':config.get('source_hash'),'data_hashes':config['data_hashes'],'source_hash':source_hash,
         'dependencies':{name:importlib.metadata.version(name) for name in ('auto-jev','gepa','httpx')},'jev_metadata':run.get('jev_metadata',{}),
+        'budget':config.get('budget'),'llm_metadata':run.get('llm_metadata',{}),
         'model_version_note':'Gateway alias does not guarantee a fixed underlying model version. Stored responses support exact replay; fresh requests may change.'}
     if config.get('task_context'):artifact['task_context']=copy.deepcopy(config['task_context'])
     if config.get('task_contract') is not None:artifact['task_contract']=copy.deepcopy(config['task_contract'])
