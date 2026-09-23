@@ -9,6 +9,8 @@ import pytest
 
 from auto_jev import frozen, python_nodes
 
+darwin_only = pytest.mark.skipif(sys.platform != 'darwin', reason='fixture models a macOS framework install')
+
 
 @pytest.fixture
 def installation(tmp_path, monkeypatch):
@@ -49,6 +51,7 @@ def installation(tmp_path, monkeypatch):
                            command=command)
 
 
+@darwin_only
 def test_runtime_identity_records_actual_interpreter_libraries_profile_and_os_without_execution(installation):
     result = python_nodes.runtime_identity()
     assert result['available'] is True
@@ -67,6 +70,7 @@ def test_runtime_identity_records_actual_interpreter_libraries_profile_and_os_wi
     ('source','stdlib'),('extension','native_extensions'),('executable','executable'),
     ('framework','framework'),('sandbox','sandbox_executable'),
 ])
+@darwin_only
 def test_current_runtime_resource_changes_are_detected(installation, resource, identity_field):
     before = python_nodes.runtime_identity()
     path = getattr(installation, resource)
@@ -75,6 +79,7 @@ def test_current_runtime_resource_changes_are_detected(installation, resource, i
     assert before[identity_field] != after[identity_field]
 
 
+@darwin_only
 def test_stdlib_added_sources_and_profile_changes_are_detected(installation):
     before = python_nodes.runtime_identity()
     (installation.stdlib / 'new_module.py').write_text('VALUE = 3\n')
@@ -84,6 +89,7 @@ def test_stdlib_added_sources_and_profile_changes_are_detected(installation):
     assert python_nodes.runtime_identity()['profile_sha256'] != after['profile_sha256']
 
 
+@darwin_only
 def test_disabled_site_packages_and_pyc_caches_do_not_churn_runtime_hash(installation):
     before = python_nodes.runtime_identity()
     for relative in ('site-packages/external.py','__pycache__/math_helpers.cpython-312.pyc',
@@ -94,6 +100,7 @@ def test_disabled_site_packages_and_pyc_caches_do_not_churn_runtime_hash(install
     assert python_nodes.runtime_identity() == before
 
 
+@darwin_only
 def test_runtime_selection_is_resolved_again_even_when_old_binary_still_exists(installation):
     before = python_nodes.runtime_identity()
     second = installation.executable.with_name('Python-second')
@@ -105,6 +112,7 @@ def test_runtime_selection_is_resolved_again_even_when_old_binary_still_exists(i
     assert installation.executable.is_file()
 
 
+@darwin_only
 def test_framework_alias_is_reresolved_to_current_installation(installation, tmp_path, monkeypatch):
     # An executable may remain unchanged while the parent interpreter selects a
     # different base installation. The base identity itself must also change.
@@ -125,6 +133,7 @@ def test_framework_alias_is_reresolved_to_current_installation(installation, tmp
     assert first['framework']['path'] != second['framework']['path']
 
 
+@darwin_only
 def test_system_build_and_optional_stdlib_archive_are_bound(installation):
     before = python_nodes.runtime_identity()
     data = plistlib.loads(installation.system.read_bytes())
@@ -167,5 +176,5 @@ def test_installed_runtime_can_be_fingerprinted_without_starting_workers(monkeyp
     if identity['available']:
         assert identity['stdlib']['files'] > 0
         assert identity['native_extensions']['files'] > 0
-        assert identity['os_build']['ProductBuildVersion']
+        assert any(identity['os_build'].values())
         assert identity['executable']['sha256']

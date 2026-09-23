@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import selectors
+import shutil
 import signal
 import subprocess
 import sys
@@ -99,9 +100,9 @@ def validate_python_source(source):
     return source
 
 
-def _sandbox_command():
+def _darwin_sandbox_command():
     """Return the actual interpreter plus the reviewed dyld bootstrap profile."""
-    if sys.platform != 'darwin' or not Path('/usr/bin/sandbox-exec').is_file():
+    if not Path('/usr/bin/sandbox-exec').is_file():
         raise PythonSandboxUnavailable('Functional Python requires the macOS native sandbox')
     base = Path(sys.base_prefix).resolve()
     executable = base / 'Resources/Python.app/Contents/MacOS/Python'
@@ -127,6 +128,49 @@ def _sandbox_command():
     return ['/usr/bin/sandbox-exec', '-p', profile, str(executable), '-I', '-S', '-B']
 
 
+def _linux_sandbox_command():
+    """bwrap: empty root, read-only /usr and the interpreter prefix, no network, no host env.
+
+    bwrap cannot deny reads of pre-existing .pyc files by pattern; -B prevents writes and
+    runtime_identity() binds the .py sources, so provenance covers what is compiled from.
+    """
+    bwrap = shutil.which('bwrap')
+    if not bwrap:
+        raise PythonSandboxUnavailable('Functional Python requires bwrap (bubblewrap) on Linux')
+    base = Path(sys.base_prefix).resolve()
+    executable = Path(sys._base_executable).resolve()
+    # No --clearenv: it needs bubblewrap >= 0.5 and the parent already launches the
+    # worker with an explicit minimal environment (see evaluate_python).
+    args = ['--unshare-all', '--die-with-parent', '--new-session',
+            '--ro-bind', '/usr', '/usr',
+            '--symlink', 'usr/lib', '/lib', '--symlink', 'usr/lib64', '/lib64', '--symlink', 'usr/bin', '/bin']
+    if Path('/etc/ld.so.cache').is_file():
+        args += ['--ro-bind', '/etc/ld.so.cache', '/etc/ld.so.cache']
+    if not str(base).startswith('/usr/'):
+        args += ['--ro-bind', str(base), str(base)]
+    if not str(executable).startswith('/usr/') and not str(executable).startswith(str(base)):
+        args += ['--ro-bind', str(executable), str(executable)]
+    args += ['--proc', '/proc', '--dev', '/dev', '--tmpfs', '/tmp', '--chdir', '/tmp']
+    return [str(Path(bwrap).resolve())] + args + ['--', str(executable), '-I', '-S', '-B']
+
+
+def _sandbox_command():
+    if sys.platform == 'darwin':
+        return _darwin_sandbox_command()
+    if sys.platform.startswith('linux'):
+        return _linux_sandbox_command()
+    raise PythonSandboxUnavailable('Functional Python requires a supported native sandbox (macOS or Linux)')
+
+
+def _command_layout(command):
+    """Locate the interpreter, sandbox binary, profile text and flags inside a sandbox command."""
+    if command and command[0].endswith('sandbox-exec'):
+        return {'executable': command[3], 'sandbox_executable': command[0], 'profile': command[2], 'flags': list(command[4:])}
+    separator = command.index('--')
+    return {'executable': command[separator + 1], 'sandbox_executable': command[0],
+            'profile': json.dumps(command[1:separator], separators=(',', ':')), 'flags': list(command[separator + 2:])}
+
+
 def runtime_identity():
     """Hash the currently selected Python runtime without starting a process.
 
@@ -147,6 +191,7 @@ def runtime_identity():
         command = _sandbox_command()
     except PythonSandboxUnavailable:
         return identity
+    layout = _command_layout(command)
 
     def file_identity(path):
         path = Path(path).resolve(strict=True)
@@ -176,27 +221,41 @@ def runtime_identity():
         base = Path(sys.base_prefix).resolve(strict=True)
         version = f'{sys.version_info.major}.{sys.version_info.minor}'
         stdlib = base / 'lib' / f'python{version}'
-        system_version = Path('/System/Library/CoreServices/SystemVersion.plist')
-        system_data = plistlib.loads(system_version.read_bytes())
+        extra = {}
+        if sys.platform == 'darwin':
+            system_version = Path('/System/Library/CoreServices/SystemVersion.plist')
+            system_data = plistlib.loads(system_version.read_bytes())
+            extra['framework'] = file_identity(base / 'Python')
+            extra['system_version'] = file_identity(system_version)
+            extra['os_build'] = {key: system_data.get(key) for key in
+                                 ('ProductName', 'ProductVersion', 'ProductBuildVersion')}
+        else:
+            release = Path('/etc/os-release')
+            fields = {}
+            if release.is_file():
+                for line in release.read_text().splitlines():
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        fields[key.strip()] = value.strip().strip('"')
+                extra['os_release'] = file_identity(release)
+            extra['os_build'] = {'name': fields.get('NAME'), 'version_id': fields.get('VERSION_ID'),
+                                 'pretty_name': fields.get('PRETTY_NAME'), 'kernel_release': os.uname().release}
         # CPython also searches this optional archive before the stdlib directory.
         # Record absence too, so adding a shadowing archive changes the identity.
         archive = base / 'lib' / f'python{version.replace(".", "")}.zip'
         identity.update(
             available=True,
-            executable=file_identity(command[3]),
-            framework=file_identity(base / 'Python'),
-            sandbox_executable=file_identity(command[0]),
-            profile_sha256=hashlib.sha256(command[2].encode()).hexdigest(),
-            interpreter_flags=list(command[4:]),
+            executable=file_identity(layout['executable']),
+            sandbox_executable=file_identity(layout['sandbox_executable']),
+            profile_sha256=hashlib.sha256(layout['profile'].encode()).hexdigest(),
+            interpreter_flags=list(layout['flags']),
             stdlib=tree_identity(stdlib, ('.py',)),
             native_extensions=tree_identity(stdlib / 'lib-dynload', ('.so', '.dylib')),
             stdlib_archive=({'present': True, **file_identity(archive)} if archive.is_file() else
                             {'present': False, 'path': str(archive.resolve())}),
-            system_version=file_identity(system_version),
-            os_build={key: system_data.get(key) for key in
-                      ('ProductName', 'ProductVersion', 'ProductBuildVersion')},
             excluded={'site-packages': 'not loaded with -S',
-                      '__pycache__ and .pyc': 'reading .pyc is denied by the sandbox profile'},
+                      '__pycache__ and .pyc': 'reading .pyc is denied by the macOS profile; on Linux .py sources are bound instead'},
+            **extra,
         )
     except (OSError, ValueError, plistlib.InvalidFileException) as exc:
         raise PythonSandboxUnavailable('Cannot fingerprint the selected Python runtime') from exc
@@ -221,6 +280,8 @@ try:
     resource.setrlimit(resource.RLIMIT_DATA, (LIMIT_MEMORY, LIMIT_MEMORY))
 except ValueError:
     pass
+if sys.platform.startswith('linux'):
+    resource.setrlimit(resource.RLIMIT_AS, (LIMIT_MEMORY, LIMIT_MEMORY))
 sys.setrecursionlimit(200)
 def check(value, depth=0, budget=None):
     if budget is None: budget=[100000,1000000]
@@ -298,13 +359,21 @@ def _usage_reader():
         raise PythonSandboxUnavailable('Native process memory supervision is unavailable') from exc
 
 
-def _check_memory(process):
+def _check_memory_darwin(process):
     usage = _Rusage()
     if _usage_reader()(process.pid, 0, ctypes.byref(usage)):
         if process.poll() is None:
             raise PythonSandboxUnavailable('Cannot supervise Python worker memory')
     elif usage.resident_size > MEMORY_BYTES:
         raise ValueError('Python worker exceeded the memory supervision limit')
+
+
+def _check_memory_linux(process):
+    """RLIMIT_AS is enforced by the kernel inside the bwrap worker; no host-side RSS polling."""
+    return None
+
+
+_check_memory = _check_memory_darwin if sys.platform == 'darwin' else _check_memory_linux
 
 
 def _exchange(process, packet):
@@ -381,7 +450,8 @@ def evaluate_python(source, context):
                 raise PythonSandboxUnavailable('Native Python worker transport failed') from exc
             if process.returncode == -signal.SIGABRT:
                 raise PythonSandboxUnavailable('Native Python sandbox aborted during startup; stop and review platform bootstrap permissions')
-            if not output and (b'sandbox' in diagnostic.lower() or process.returncode == 1):
+            lowered = diagnostic.lower()
+            if not output and (b'sandbox' in lowered or b'bwrap' in lowered or process.returncode == 1):
                 raise PythonSandboxUnavailable('Native Python sandbox failed to initialize: ' + diagnostic.decode(errors='replace')[:500])
             if process.returncode not in (0, 124):
                 raise ValueError('Python worker terminated: ' + str(process.returncode))

@@ -158,6 +158,7 @@ def test_bootstrap_stderr_overflow_is_infrastructure_failure_without_launching_o
         python_nodes._exchange(process, b'input')
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox-exec layout')
 def test_native_rusage_v0_layout_matches_the_platform_header():
     # sys/resource.h: 16-byte UUID followed by ten uint64_t counters.
     assert ctypes.sizeof(python_nodes._Rusage) == 96
@@ -165,17 +166,19 @@ def test_native_rusage_v0_layout_matches_the_platform_header():
     assert python_nodes._Rusage.phys_footprint.offset == 72
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox-exec layout')
 def test_memory_reader_failure_is_closed_for_a_live_worker(monkeypatch):
     monkeypatch.setattr(python_nodes, '_usage_reader', lambda: lambda *args: -1)
     live = SimpleNamespace(pid=123, poll=lambda: None)
     with pytest.raises(PythonSandboxUnavailable, match='supervise'):
-        python_nodes._check_memory(live)
+        python_nodes._check_memory_darwin(live)
     # A vanished worker no longer needs memory accounting; its exit is checked
     # separately by evaluate_python and must not mask the underlying result.
     exited = SimpleNamespace(pid=123, poll=lambda: 0)
-    python_nodes._check_memory(exited)
+    python_nodes._check_memory_darwin(exited)
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox-exec layout')
 def test_memory_threshold_is_a_candidate_error(monkeypatch):
     def read_usage(pid, flavor, pointer):
         assert flavor == 0
@@ -183,7 +186,7 @@ def test_memory_threshold_is_a_candidate_error(monkeypatch):
         return 0
     monkeypatch.setattr(python_nodes, '_usage_reader', lambda: read_usage)
     with pytest.raises(ValueError, match='memory') as caught:
-        python_nodes._check_memory(SimpleNamespace(pid=123, poll=lambda: None))
+        python_nodes._check_memory_darwin(SimpleNamespace(pid=123, poll=lambda: None))
     assert not getattr(caught.value, 'task_infrastructure_error', False)
 
 
@@ -202,6 +205,7 @@ def capture_launch_contract(monkeypatch):
     return captured
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox-exec layout')
 def test_launch_contract_discards_host_environment_and_fds(monkeypatch):
     monkeypatch.setenv('AUTO_JEV_SANDBOX_TEST_MARKER', 'synthetic-value')
     captured = capture_launch_contract(monkeypatch)
@@ -216,6 +220,7 @@ def test_launch_contract_discards_host_environment_and_fds(monkeypatch):
     assert Path(kwargs['cwd']).resolve() != Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.skipif(sys.platform != 'darwin', reason='macOS sandbox-exec layout')
 def test_actual_runtime_os_profile_denies_files_network_and_fork(tmp_path, monkeypatch):
     """Use the implementation's exact OS profile; deliberately bypass its AST.
 
