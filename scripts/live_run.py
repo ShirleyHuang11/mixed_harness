@@ -1,7 +1,8 @@
 """Smallest real-model run of the routed harness on a bundled example task.
 
 Reads credentials from the environment or a local .env (never committed):
-  AI_GATEWAY_API_KEY   Jev through Vercel AI Gateway (runtime judgments + triage)
+  TYPESAFE_API_KEY     Jev directly from TypeSafe (https://console.typesafe.ai/keys)   -> --jev-transport typesafe
+  AI_GATEWAY_API_KEY   Jev through Vercel AI Gateway                                    -> --jev-transport vercel
   ANTHROPIC_API_KEY    llm nodes; only needed for open_ended / hybrid seeds
 Reflection uses the local `claude` CLI via configs/claude_local.json (no key needed).
 
@@ -34,6 +35,10 @@ def main(argv=None):
     parser.add_argument('--train', type=int, default=6)
     parser.add_argument('--validation', type=int, default=6)
     parser.add_argument('--latency-ms', type=float, default=3000, help='p95 per-decision budget')
+    parser.add_argument('--jev-transport', choices=['auto', 'typesafe', 'vercel'], default='auto',
+                        help='auto = vercel if AI_GATEWAY_API_KEY is set, else typesafe')
+    parser.add_argument('--jev-model', default='typesafe-ai/jev',
+                        help="gateway alias; on the direct transport it maps to jev-1.13.0, or pass e.g. jev-latest")
     parser.add_argument('--llm-model', default='claude-sonnet-5')
     parser.add_argument('--proposer-config', default='configs/claude_local.json')
     parser.add_argument('--runs', default='runs')
@@ -41,14 +46,18 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     load_dotenv(Path.cwd() / '.env', override=False)
-    if not os.getenv('AI_GATEWAY_API_KEY'):
-        parser.error('AI_GATEWAY_API_KEY is not set (put it in .env or the environment)')
+    transport = args.jev_transport
+    if transport == 'auto':
+        transport = 'vercel' if os.getenv('AI_GATEWAY_API_KEY') else 'typesafe'
+    key_env = 'AI_GATEWAY_API_KEY' if transport == 'vercel' else 'TYPESAFE_API_KEY'
+    if not os.getenv(key_env):
+        parser.error(f'{key_env} is not set for --jev-transport {transport} (put it in .env or the environment)')
     namespace = args.namespace or f'live-{args.task}'
     adapter = importlib.import_module(TASKS[args.task])
     task, train = adapter.load('train')
     _, validation = adapter.load('validation')
 
-    jev = JevClient(transport='vercel', cache_dir='.cache/jev', cache_namespace=namespace)
+    jev = JevClient(transport=transport, model=args.jev_model, cache_dir='.cache/jev', cache_namespace=namespace)
     llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir='.cache/llm', cache_namespace=namespace)
     proposer = make_proposer(json.loads(Path(args.proposer_config).read_text()))
 
@@ -64,7 +73,7 @@ def main(argv=None):
         'best_score', 'rounds_completed', 'rounds_accepted', 'total_metric_calls', 'questions_version')}
     report['triage_probabilities'] = summary['decision']['probabilities']
     report['triage_improvement'] = summary['triage_improvement']['status']
-    report['jev'] = jev.stats
+    report['jev'] = {'transport': transport, 'requested_model': args.jev_model, 'actual_model': jev.metadata.get('actual_model'), **jev.stats}
     report['llm'] = llm.stats
     report['proposer'] = getattr(proposer, 'stats', {})
     print(json.dumps(report, ensure_ascii=False, indent=2))

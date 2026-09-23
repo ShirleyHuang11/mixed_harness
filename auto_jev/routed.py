@@ -33,6 +33,9 @@ def run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, 
     routed_id, path = _routed_dir(store, task_id)
     atomic_write_json(path / 'decision.json', {**decision, 'route_source': route_source, 'chosen_route': route})
     spec = copy.deepcopy(seed_pipeline) if seed_pipeline is not None else seed_for_route(route, task)
+    jev_model = getattr(jev, 'model', None)
+    if isinstance(jev_model, str) and jev_model:
+        spec['jev_model'] = jev_model
     llm_model = getattr(llm, 'model', None)
     if llm_model:
         # Always pin the LLM model so a settled seed can still grow llm nodes during evolution.

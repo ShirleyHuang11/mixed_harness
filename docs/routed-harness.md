@@ -53,9 +53,11 @@ end-to-end with mock providers in `tests/test_routed.py`.
 
 ## Live run
 
-With `AI_GATEWAY_API_KEY` (and `ANTHROPIC_API_KEY` for llm nodes) in `.env`:
+With `TYPESAFE_API_KEY` (direct, from https://console.typesafe.ai/keys) or `AI_GATEWAY_API_KEY` (Vercel AI Gateway),
+plus `ANTHROPIC_API_KEY` for llm nodes, in `.env`:
 
     uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
+    uv run python scripts/live_run.py --task classify --jev-transport typesafe --jev-model jev-latest
 
 Reflection uses the local `claude` CLI (`configs/claude_local.json`). Responses are cached under
 `.cache/{jev,llm}/<namespace>/`; reuse `--namespace` to replay. Outputs land in `runs/routed/<id>/`
