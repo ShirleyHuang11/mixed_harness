@@ -147,11 +147,12 @@ def validate_questions(questions, *, strict=False):
 
 def validate_spec(spec):
     _json(spec)
-    if not isinstance(spec,dict) or type(spec.get('version')) is not int or spec['version'] not in (1,2,3):raise ValueError('pipeline version must be 1, 2 or 3')
-    allowed={'version','name','jev_model','nodes','output','memory_update'}
+    if not isinstance(spec,dict) or type(spec.get('version')) is not int or spec['version'] not in (1,2,3,4):raise ValueError('pipeline version must be 1, 2, 3 or 4')
+    allowed={'version','name','jev_model','llm_model','nodes','output','memory_update'}
     if set(spec)-allowed:raise ValueError('unknown pipeline fields')
     if not isinstance(spec.get('name'),str) or not spec['name']:raise ValueError('pipeline name required')
     if not isinstance(spec.get('jev_model'),str) or not spec['jev_model']:raise ValueError('jev_model required')
+    if 'llm_model' in spec and (not isinstance(spec['llm_model'],str) or not spec['llm_model']):raise ValueError('llm_model must be a nonempty string')
     nodes=spec.get('nodes')
     if not isinstance(nodes,list) or len(nodes)>64:raise ValueError('nodes must be a list of at most 64')
     ids=set()
@@ -169,19 +170,29 @@ def validate_spec(spec):
         elif kind=='jev':
             fields={'id','kind','state','questions'}
             if spec['version']>=2:fields.add('depends_on')
-            if spec['version']==3:fields.add('questions_expression')
+            if spec['version']>=3:fields.add('questions_expression')
             if set(node)-fields:raise ValueError('unknown Jev node fields')
             expression(node.get('state','obs'))
-            if spec['version']==3 and ('questions' in node)==('questions_expression' in node):raise ValueError('Jev node requires exactly one of questions or questions_expression')
+            if spec['version']>=3 and ('questions' in node)==('questions_expression' in node):raise ValueError('Jev node requires exactly one of questions or questions_expression')
             if 'questions_expression' in node:expression(node['questions_expression'])
-            else:validate_questions(node.get('questions'),strict=spec['version']==3)
-        elif kind=='python' and spec['version']==3:
+            else:validate_questions(node.get('questions'),strict=spec['version']>=3)
+        elif kind=='python' and spec['version']>=3:
             if set(node)-{'id','kind','source','depends_on'}:raise ValueError('unknown Python node fields')
             if 'depends_on' not in node:raise ValueError('Python nodes require explicit depends_on')
             from .python_nodes import validate_python_source
             validate_python_source(node.get('source'))
+        elif kind=='llm' and spec['version']>=4:
+            if set(node)-{'id','kind','prompt_expression','output_schema','max_tokens','depends_on'}:raise ValueError('unknown LLM node fields')
+            if not isinstance(node.get('prompt_expression'),str):raise ValueError('LLM nodes require prompt_expression')
+            expression(node['prompt_expression'])
+            if 'output_schema' in node:
+                from .schema import validate_json_schema, minimal_instance
+                if not isinstance(node['output_schema'],dict):raise ValueError('output_schema must be an object')
+                validate_json_schema(minimal_instance(node['output_schema']),node['output_schema'])
+            if 'max_tokens' in node and (isinstance(node['max_tokens'],bool) or not isinstance(node['max_tokens'],int) or node['max_tokens']<1):raise ValueError('max_tokens must be a positive integer')
         else:raise ValueError('unknown node kind')
         ids.add(ident)
+    if spec['version']>=4 and any(n.get('kind')=='llm' for n in nodes) and 'llm_model' not in spec:raise ValueError('llm nodes require llm_model')
     expression(spec.get('output'))
     if 'memory_update' in spec:expression(spec['memory_update'])
     if spec['version']>=2:
@@ -217,14 +228,14 @@ def seed_spec():
 
 
 def pipeline_schema(version=2):
-    if type(version) is not int or version not in (1,2,3):raise ValueError('unknown schema version')
+    if type(version) is not int or version not in (1,2,3,4):raise ValueError('unknown schema version')
     schema={'type':'object','required':['version','name','jev_model','nodes','output'],'additionalProperties':False,
             'properties':{'version':{'enum':[1,2]},'name':{'type':'string'},'jev_model':{'type':'string'},'nodes':{'type':'array','maxItems':64,'items':{'oneOf':[
                 {'type':'object','required':['id','kind','expression'],'properties':{'id':{'type':'string'},'kind':{'const':'expression'},'depends_on':{'type':'array','items':{'type':'string'}},'expression':{'type':'string'}}},
                 {'type':'object','required':['id','kind','state','questions'],'properties':{'id':{'type':'string'},'kind':{'const':'jev'},'depends_on':{'type':'array','items':{'type':'string'}},'state':{'type':'string'},'questions':{'type':'object','description':'Question map: type noul/choice/score, instructions string; choice criteria is an option-description map, score criteria is a 2–10 level array.'}}}]}},'output':{'type':'string'},'memory_update':{'type':'string'}},
             'description':"Version 2 is a dependency graph. Add/delete/rewire feature and Jev nodes freely. Node order need not be topological. Dependencies are inferred from literal nodes['id'] references plus optional depends_on; independent nodes execute in parallel. Cycles and dynamic/bare nodes access in node expressions are rejected. Each node sees only its dependency outputs and immutable obs/memory. Output and memory_update run after all nodes and see all results; memory commits once. Version 1 retains sequential semantics and cannot use depends_on. Answers: nodes[id][question_id]['noul'|'choice'|'score']. Expressions support arithmetic, conditionals, indexing, slices and min,max,abs,sum,len,mean,std,last,clip,get,column; no attributes/imports/comprehensions/power. Output any JSON; crypto requires target in [0,1]."}
-    if version==3:
-        schema['properties']['version']={'const':3}
+    if version>=3:
+        schema['properties']['version']={'const':version}
         kinds=schema['properties']['nodes']['items']['oneOf']
         for kind in kinds:kind['additionalProperties']=False
         jev=kinds[1]
@@ -237,4 +248,12 @@ def pipeline_schema(version=2):
                           'source':{'type':'string','description':'Functional Python source defining run(obs, nodes, memory). Helpers, loops, comprehensions, lambdas and safe builtin/math/statistics operations allowed. No imports, classes, underscore attributes, file/network/process operations or string.format. Inputs and return are finite JSON only.'},
                           'depends_on':{'type':'array','uniqueItems':True,'items':{'type':'string'},'description':'Mandatory explicit dependency list. Only these node outputs are visible; Python dependencies are not inferred.'}}})
         schema['description']=("Version 3 extends the parallel dependency DAG with functional Python and dynamic Jev questions. Exactly one of questions or questions_expression per Jev node. Python runs in a fresh native macOS sandbox; unavailable isolation aborts. No host exec or access to files, secrets, network, or subprocesses. Safety bounds: 64KB Python source, 5 seconds wall time, 2 CPU seconds, 512MiB RSS supervision threshold (sampled about every 20ms, brief overshoot possible) and 1MB output. Code nodes may combine arbitrary features and legal actions. Expression nodes and final output/memory_update retain their restricted expression language: arithmetic, conditionals, indexing, slices, min,max,abs,sum,len,mean,std,last,clip,get,column; no attributes/comprehensions/power there. Python supports real loops/functions/comprehensions. Nodes see immutable snapshots and only dependency outputs; memory commits atomically after the entire DAG succeeds. Jev answers are nodes[id][question_id]['noul'|'choice'|'score']. Evolve code, graph, features, instructions, criteria and memory; removing all Jev nodes is allowed.")
+    if version==4:
+        schema['properties']['llm_model']={'type':'string','description':'Fixed LLM model for llm nodes; required when any llm node exists. Cannot be changed by evolution.'}
+        schema['properties']['nodes']['items']['oneOf'].append({'type':'object','required':['id','kind','prompt_expression'],'additionalProperties':False,
+            'properties':{'id':{'type':'string'},'kind':{'const':'llm'},'depends_on':{'type':'array','items':{'type':'string'}},
+                          'prompt_expression':{'type':'string','description':'Restricted expression evaluating to the prompt string. Dependencies are inferred from nodes[...] references.'},
+                          'output_schema':{'type':'object','description':'Optional JSON Schema subset (type, properties, required, additionalProperties, items, enum, minimum, maximum, minLength, maxLength, minItems, maxItems). With a schema the node output is the parsed JSON; without it, the raw text.'},
+                          'max_tokens':{'type':'integer','minimum':1}}})
+        schema['description']+=(' Version 4 adds llm nodes: a general language model call with a prompt built by expression and an optional output schema. Use llm nodes for open-ended generation (drafts, candidates, structured extraction) and Jev nodes for bounded judgments (choose, score, yes/no). A generate-then-select structure (llm proposes candidates, python turns them into choice criteria, jev selects) is allowed. Node kinds may be swapped when the task allows; the llm_model and jev_model are fixed. Stay within the stated latency and cost budget.')
     return schema

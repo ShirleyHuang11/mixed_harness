@@ -46,11 +46,14 @@ def _ms(now, origin):
 class PipelineRuntime:
     """Execute a validated pipeline spec against an injected Jev client."""
 
-    def __init__(self, spec, jev, *, max_workers=8):
+    def __init__(self, spec, jev, llm=None, *, max_workers=8):
         if isinstance(max_workers, bool) or not isinstance(max_workers, int) or max_workers < 1:
             raise ValueError('max_workers must be a positive integer')
         self.spec = validate_spec(spec)
         self.jev = jev
+        self.llm = llm
+        if llm is None and any(node.get('kind') == 'llm' for node in self.spec['nodes']):
+            raise ValueError('This pipeline has llm nodes and needs an llm client')
         self.max_workers = max_workers
         self.dependencies = compile_flow(self.spec)
         self.version = self.spec.get('version', 1)
@@ -167,6 +170,11 @@ class PipelineRuntime:
             record['expression'] = node.get('expression')
         elif node['kind'] == 'python':
             record['source'] = node['source']
+        elif node['kind'] == 'llm':
+            record['prompt_expression'] = node['prompt_expression']
+            record['output_schema'] = copy.deepcopy(node.get('output_schema'))
+            record['prompt'] = None
+            record['response'] = None
         else:
             record['state_expression'] = node.get('state', 'obs')
             record['questions'] = copy.deepcopy(node.get('questions'))
@@ -190,13 +198,22 @@ class PipelineRuntime:
             elif node['kind'] == 'python':
                 from .python_nodes import evaluate_python
                 result = evaluate_python(node['source'], context)
+            elif node['kind'] == 'llm':
+                prompt = evaluate_expression(node['prompt_expression'], context)
+                if not isinstance(prompt, str) or not prompt:
+                    raise ValueError('prompt_expression must evaluate to a nonempty string')
+                record['prompt'] = prompt
+                response = copy.deepcopy(self.llm.complete(prompt, output_schema=node.get('output_schema'),
+                                                           model=self.spec.get('llm_model'), max_tokens=node.get('max_tokens')))
+                record['response'] = response
+                result = response['value']
             else:
                 state = evaluate_expression(record['state_expression'], context)
                 record['state'] = copy.deepcopy(state)
                 if 'questions_expression' in node:
                     record['questions'] = copy.deepcopy(evaluate_expression(node['questions_expression'], context))
                 questions = record['questions']
-                if self.version == 3:
+                if self.version >= 3:
                     validate_questions(questions, strict=True)
                 response = copy.deepcopy(self.jev.judge(state, copy.deepcopy(questions), model=self.spec.get('jev_model')))
                 record['response'] = response

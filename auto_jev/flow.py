@@ -65,6 +65,8 @@ def _node_expressions(node):
         return [node.get('expression')]
     if kind == 'jev':
         return [node.get('state', 'obs')] + ([node['questions_expression']] if 'questions_expression' in node else [])
+    if kind == 'llm':
+        return [node.get('prompt_expression')]
     if kind == 'python':
         return []
     return [value for value in (node.get('expression'), node.get('state')) if value is not None]
@@ -99,7 +101,7 @@ def compile_flow(spec):
     if not isinstance(nodes, list):
         raise ValueError('spec nodes must be a list')
     version = spec.get('version', 1)
-    if isinstance(version, bool) or version not in (1, 2, 3):
+    if isinstance(version, bool) or version not in (1, 2, 3, 4):
         raise ValueError(f'unsupported pipeline version {version!r}')
     ids = _node_ids(nodes)
     if version == 1:
@@ -113,6 +115,8 @@ def compile_flow(spec):
         node_id = node['id']
         if node.get('kind') == 'python' and (version != 3 or 'depends_on' not in node):
             raise ValueError('Python nodes require version 3 and explicit depends_on')
+        if node.get('kind') == 'llm' and version < 4:
+            raise ValueError('LLM nodes require pipeline version 4')
         explicit = node.get('depends_on', [])
         if not isinstance(explicit, list) or not all(isinstance(dep, str) for dep in explicit):
             raise ValueError(f"node '{node_id}' depends_on must be a list of node id strings")

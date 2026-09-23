@@ -18,7 +18,7 @@ def digest(data):
 
 def source_hash():
     root = Path(__file__).parent
-    files = ("spec.py", "flow.py", "runtime.py", "crypto.py", "providers.py", "vercel.py", "paper.py", "observations.py", "data.py", "storage.py", "frozen.py")
+    files = ("spec.py", "flow.py", "runtime.py", "crypto.py", "providers.py", "vercel.py", "paper.py", "observations.py", "data.py", "storage.py", "frozen.py", "schema.py", "llm.py")
     if (root / 'python_nodes.py').is_file():
         files += ('python_nodes.py',)
     identity = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}
