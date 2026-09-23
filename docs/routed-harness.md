@@ -50,3 +50,13 @@ bwrap 0.4 has no `--clearenv`; the worker is launched with an explicit minimal e
 
 `examples/classify` (settled, labels) and `examples/constrained_text` (open-ended, code-checked) run
 end-to-end with mock providers in `tests/test_routed.py`.
+
+## Live run
+
+With `AI_GATEWAY_API_KEY` (and `ANTHROPIC_API_KEY` for llm nodes) in `.env`:
+
+    uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
+
+Reflection uses the local `claude` CLI (`configs/claude_local.json`). Responses are cached under
+`.cache/{jev,llm}/<namespace>/`; reuse `--namespace` to replay. Outputs land in `runs/routed/<id>/`
+(`decision.json`, `summary.json`), `runs/<run_id>/` (events, reflections, candidates) and `runs/triage/`.
