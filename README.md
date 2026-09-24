@@ -1,109 +1,70 @@
 # mixed_harness
 
-A routed decision harness: code computes the facts, a judgment model (TypeSafe's Jev) makes the bounded
-choices, and a language model writes only the text that has to be generated. The split is not hand-written.
-A triage step reads the task description and picks one of three harness shapes, and the existing GEPA
-evolution from [JevHarness](https://github.com/TianyuCodings/JevHarness) (`auto_jev`) then edits the whole
-node graph, node kinds included. After every run the triage criteria take one replay-validated improvement
-step.
+**Code computes the facts. A judgment model makes the bounded choices. A language model writes only the
+text that has to be written.** This repository turns a task description into such a harness automatically,
+evolves it with GEPA, and measures what each part costs.
 
-- Design: `docs/superpowers/specs/2026-09-22-routed-harness-level1-design.md`
-- Routed harness reference: `docs/routed-harness.md`
-- τ²-bench three-arm test: `docs/tau2.md` and `docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`
-- Interactive diagram: https://claude.ai/artifact/PDRJpw5s2nNLd4opTtxqmA
+The code is a fork of [JevHarness](https://github.com/TianyuCodings/JevHarness) (`auto_jev`), which pairs
+TypeSafe's judgment model [Jev](https://docs.typesafe.ai) with an LLM-authored decision pipeline. The fork
+adds three things: a triage step that picks the harness shape, `llm` nodes for generation, and a
+three-arm benchmark test on τ²-bench.
 
-## How a task becomes a harness
+## 1. From task to harness
 
-```mermaid
-flowchart LR
-    T[TaskDescription<br/>objective, action space,<br/>evaluator, examples] --> P[probe<br/>code, 9 fields]
-    P --> J{Jev triage<br/>settled / open_ended / hybrid}
-    J -->|settled| S1[seed: python catalog<br/>→ jev pick → python decision]
-    J -->|open_ended| S2[seed: python prompt<br/>→ llm draft → python validate]
-    J -->|hybrid| S3[seed: llm propose k<br/>→ python criteria → jev select]
-    S1 --> E[GEPA evolution, one run<br/>reflection edits the node graph<br/>and may swap node kinds]
-    S2 --> E
-    S3 --> E
-    E --> B[selected harness<br/>runs/routed/id/decision.json]
-    B --> R[record final_route vs triage_route<br/>runs/triage/history.jsonl]
-    R --> I[improve triage questions<br/>replay old vs new on history,<br/>accept only if agreement rises]
-    I -.-> J
-```
+![From task to harness](docs/media/fig1_task_to_harness.svg)
 
-The probe is deterministic and free: declared action kind, label count, whether examples carry a legal-action
-catalog, evaluator exactness, expected-output shape. Jev sees the probe evidence, the objective and five
-clipped examples, and returns a probability over the three routes. A wrong triage is corrected inside
-evolution rather than by re-running it: the summary reports both the seed route and what the selected
-harness ended up as.
+A task description (objective, action space, evaluator, a few examples) goes through a free, deterministic
+probe. Jev reads the probe's nine fields and the examples and returns a probability over three routes:
+**settled** (pick from a finite set), **open-ended** (generate free text checked by code), or **hybrid**
+(generate a few candidates, then pick). One harness is seeded from that route's template and GEPA evolves it
+once; the reflection model may rewrite the node graph, node kinds included, so a wrong triage is corrected
+inside the run. After each run the triage questions get one replay-validated improvement: a proposed
+question map is accepted only if it agrees with the recorded outcomes more often than the current one.
 
-## What one decision looks like
+## 2. One decision inside a harness
 
-The same three node kinds run inside every harness. The example below is the τ²-bench retail seed
-(`examples/tau2/seeds.py`), one agent turn:
+![One decision inside a harness](docs/media/fig2_one_decision.svg)
 
-```mermaid
-flowchart LR
-    O[observation<br/>policy, tool schemas,<br/>conversation, memory] --> F[facts · python<br/>parse ids and intents, track fetched<br/>entities, build the legal-action catalog<br/>and every question this turn might need]
-    F --> Q[judge · jev, one request<br/>action choice + confirmation +<br/>which items / variant / payment]
-    Q --> D[decision · python<br/>fill tool arguments, enforce<br/>confirm-before-write, pick a template]
-    D -->|prompt = null| K[llm nodes skipped<br/>no call, no cost]
-    D -->|template does not fit| L[draft · llm<br/>free-text reply or<br/>free-text arguments]
-    K --> A[tool call or message]
-    L --> A
-    A --> M[(memory<br/>carried to next turn)]
-    M -.-> O
-```
+Every harness is a small graph of three node kinds. **python** nodes run sandboxed code: parse the input,
+track what earlier tools returned, build the list of legal actions and every question the turn might need.
+One **jev** node asks all of those questions in a single request and gets back probabilities. A second
+python node turns the answers into a tool call or a template message. An **llm** node exists for the cases
+no template covers; when code decides it is not needed, its prompt is `null` and the runtime skips it. The
+τ²-bench retail seed in `examples/tau2/seeds.py` is exactly this graph.
 
-Every Jev question is asked in one request (adding questions barely changes its latency), and an llm node
-whose prompt evaluates to `null` is skipped by the runtime. The turn's ledger records what actually ran:
-python node count, Jev calls, LLM calls and skips, tokens, and the model ids the providers echoed.
+## 3. The τ²-bench test
 
-## The τ²-bench test: three arms, one environment
+![The tau2-bench test](docs/media/fig3_three_arms.svg)
 
-```mermaid
-flowchart TB
-    subgraph shared [same for all arms]
-        ENV[tau2 retail environment<br/>114 tasks, 16 tools, DB-state reward]
-        USR[same user simulator, same seeds]
-    end
-    ENV --> A1 & A2 & A3
-    USR --> A1 & A2 & A3
-    A1[llm_only<br/>tau2 stock agent<br/>1 LLM call per turn] --> T[table.md from artifacts:<br/>pass^1 · $/task · ms/turn ·<br/>LLM calls/turn · Jev calls/turn]
-    A2[jev_only<br/>code + Jev + templates<br/>0 LLM calls] --> T
-    A3[harness<br/>code + Jev + llm only when asked<br/>≤ 0.3 LLM calls per turn, predicted] --> T
-```
+Three agents play the same 114 retail tasks against the same simulated user with the same seeds. The
+LLM-only arm is tau2's stock agent. The Jev-only arm has no language model at all. The harness arm is the
+Jev-only graph plus an llm node that fires only when code asks for it. The runner writes one table from the
+artifacts: pass^1, dollars per task, milliseconds per turn, LLM and Jev calls per turn. Predictions, the
+resolution of the test and the decision table are written down before any run in
+`docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`; `docs/tau2.md` explains the setup and how to
+read the table.
 
-The claim under test is not accuracy above the leaderboard. It is matched pass^1 against the same LLM used
-alone, at a fraction of the cost and latency per turn, with the Jev-only arm showing where generation is
-actually needed. Predictions, resolution and the decision table are written down before any run in the
-design file. `docs/tau2.md` has the setup and the reading guide for the table.
-
-## Setup
+## Quick start
 
     uv sync --locked --extra dev
-    uv run pytest
+    uv run pytest                                   # 400+ tests, mock providers, no keys
+    uv run auto-jev doctor                          # which credentials are present
 
-Functional Python nodes run under `bwrap` on Linux and `sandbox-exec` on macOS. Credentials go in a local
-`.env` (see `.env.example`): `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` for Jev, `ANTHROPIC_API_KEY` for
-llm nodes. `uv run auto-jev doctor` prints which are present.
-
-## Routing
-
-`auto_jev.routed.run_routed_evolution(task, train, validation, jev=..., llm=..., proposer=..., store=..., evaluator=..., task_id=...)`
-probes the task, asks Jev for a route, seeds one harness from that route's template and runs the existing
-evolution once. Pass `route=` to override the triage. See `docs/routed-harness.md`.
-
-## Live run
+Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` for Jev,
+`ANTHROPIC_API_KEY` for llm nodes. Functional Python nodes run under `bwrap` on Linux and `sandbox-exec`
+on macOS.
 
     uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5
 
-## Repository map
+## Where things are
 
 | Path | What it holds |
 |---|---|
 | `auto_jev/` | spec validation, parallel runtime, Jev and LLM transports, triage, routed evolution, freezing |
-| `examples/classify`, `examples/constrained_text` | bundled settled and open-ended tasks, run end-to-end under mock providers |
-| `examples/tau2/` | tau2-bench adapter, the PipelineAgent wrapper, and the two seed harnesses |
-| `scripts/` | `live_run.py` for a small real-model routed run; `tau2_compare.py` for the three-arm test |
-| `docs/` | design files, the routed-harness reference, the tau2 guide |
+| `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end under mock providers |
+| `examples/tau2/` | the tau2-bench adapter, the PipelineAgent wrapper, and the two seed harnesses |
+| `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the three-arm test) |
+| `docs/` | design files, `routed-harness.md` (reference), `tau2.md` (benchmark guide), `media/` (figures and their specs) |
+
+The figures are generated from the JSON specs in `docs/media/specs/`; edit the spec, not the SVG.

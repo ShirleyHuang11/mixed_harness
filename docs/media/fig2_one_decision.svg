@@ -1,0 +1,66 @@
+<svg font-family="Inter, Helvetica, Arial, sans-serif" height="340" viewBox="0 0 1160 340" width="1160" xmlns="http://www.w3.org/2000/svg">
+  <rect fill="#FFFFFF" height="340" width="1160"/>
+  <defs>
+    <marker id="arrow-default" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#555555" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c0" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#2563EB" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c1" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#10B981" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c2" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#7C3AED" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c3" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#EA580C" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c4" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#C62828" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c5" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#0D47A1" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c6" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#1B5E20" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c7" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#4A148C" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c8" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#BF360C" points="0 0, 8 4, 0 8"/>
+    </marker>
+    <marker id="arrow-c9" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
+      <polygon fill="#37474F" points="0 0, 8 4, 0 8"/>
+    </marker>
+  </defs>
+  <path d="M 210.0,150.0 L 240.0,150.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 450.0,150.0 L 475.0,150.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 705.0,150.0 L 720.0,150.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 970.0,150.0 L 1000.0,150.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 845.0,182.0 L 845.0,244.0" fill="none" marker-end="url(#arrow-default)" stroke="#8B5CF6" stroke-dasharray="8,4" stroke-width="2"/>
+  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="158.0" x="766.0" y="195.0"/>
+  <text fill="#777777" font-size="10" text-anchor="middle" x="845.0" y="207.0">prompt, or null → skipped</text>
+  <path d="M 900.8,244.0 L 1012.4,182.0" fill="none" marker-end="url(#arrow-default)" stroke="#8B5CF6" stroke-dasharray="8,4" stroke-width="2"/>
+  <rect fill="#F3F4F6" height="64.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="200.0" x="10.0" y="118.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="110.0" y="147.1">observation</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="110.0" y="162.1">policy · tools · conversation · memory</text>
+  <rect fill="#DBEAFE" height="64.0" rx="8" stroke="#3B82F6" stroke-width="2" width="210.0" x="240.0" y="118.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="345.0" y="147.1">facts · python</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="345.0" y="162.1">parse, track data, build the catalog</text>
+  <rect fill="#FEF3C7" height="64.0" rx="8" stroke="#F59E0B" stroke-width="2" width="230.0" x="475.0" y="118.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="590.0" y="147.1">judge · Jev</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="590.0" y="162.1">one request, every question this turn</text>
+  <rect fill="#DBEAFE" height="64.0" rx="8" stroke="#3B82F6" stroke-width="2" width="250.0" x="720.0" y="118.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="845.0" y="147.1">decision · python</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="845.0" y="162.1">arguments · confirm before write · template</text>
+  <rect fill="#EDE9FE" height="62.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="210.0" x="740.0" y="244.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="845.0" y="272.1">draft · LLM</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="845.0" y="287.1">only when no template fits</text>
+  <rect fill="#DCFCE7" height="64.0" rx="8" stroke="#22C55E" stroke-width="2" width="140.0" x="1000.0" y="118.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="1070.0" y="147.1">tool call</text>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="1070.0" y="162.1">or message</text>
+  <text fill="#374151" font-size="15" text-anchor="middle" x="580.0" y="40.0">one turn = 1 python node · 1 Jev request · 0 or 1 LLM call</text>
+  <text fill="#6B7280" font-size="12" text-anchor="middle" x="380.0" y="275.0">the decision node also returns memory, which becomes part of the next turn's observation</text>
+</svg>

@@ -1,0 +1,185 @@
+{
+ "title": "From task to harness",
+ "canvas": {
+  "width": 1000,
+  "height": 440
+ },
+ "style": {
+  "font_family": "Inter, Helvetica, Arial, sans-serif",
+  "font_size": 13,
+  "bg_color": "#FFFFFF"
+ },
+ "nodes": [
+  {
+   "id": "task",
+   "label": "Task description",
+   "sublabel": "objective \u00b7 actions \u00b7 evaluator \u00b7 examples",
+   "x": 105,
+   "y": 200,
+   "width": 215,
+   "height": 66,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
+  },
+  {
+   "id": "probe",
+   "label": "probe",
+   "sublabel": "code \u00b7 9 fields \u00b7 free",
+   "x": 285,
+   "y": 200,
+   "width": 130,
+   "height": 60,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "triage",
+   "label": "Jev triage",
+   "sublabel": "one call \u00b7 3 routes",
+   "x": 450,
+   "y": 200,
+   "width": 140,
+   "height": 74,
+   "shape": "diamond",
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "settled",
+   "label": "settled seed",
+   "sublabel": "code \u2192 Jev pick \u2192 code",
+   "x": 650,
+   "y": 100,
+   "width": 180,
+   "height": 58,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "open",
+   "label": "open-ended seed",
+   "sublabel": "code \u2192 LLM draft \u2192 code",
+   "x": 650,
+   "y": 200,
+   "width": 180,
+   "height": 58,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6"
+  },
+  {
+   "id": "hybrid",
+   "label": "hybrid seed",
+   "sublabel": "LLM propose k \u2192 Jev select",
+   "x": 650,
+   "y": 305,
+   "width": 180,
+   "height": 58,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "gepa",
+   "label": "GEPA evolution",
+   "sublabel": "reflection rewrites the whole graph",
+   "x": 875,
+   "y": 200,
+   "width": 210,
+   "height": 66,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "history",
+   "label": "run history",
+   "sublabel": "triage route vs final route",
+   "x": 875,
+   "y": 390,
+   "width": 190,
+   "height": 58,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
+  },
+  {
+   "id": "improve",
+   "label": "improve the triage questions",
+   "sublabel": "replay old vs new \u00b7 accept only if agreement rises",
+   "x": 450,
+   "y": 390,
+   "width": 320,
+   "height": 58,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
+  }
+ ],
+ "edges": [
+  {
+   "from": "task",
+   "to": "probe"
+  },
+  {
+   "from": "probe",
+   "to": "triage",
+   "label": "evidence"
+  },
+  {
+   "from": "triage",
+   "to": "settled",
+   "label": "labels or catalog"
+  },
+  {
+   "from": "triage",
+   "to": "open",
+   "label": "free text"
+  },
+  {
+   "from": "triage",
+   "to": "hybrid",
+   "label": "compare candidates"
+  },
+  {
+   "from": "settled",
+   "to": "gepa"
+  },
+  {
+   "from": "open",
+   "to": "gepa"
+  },
+  {
+   "from": "hybrid",
+   "to": "gepa"
+  },
+  {
+   "from": "gepa",
+   "to": "history",
+   "style": "dashed",
+   "color": "#6B7280"
+  },
+  {
+   "from": "history",
+   "to": "improve",
+   "style": "dashed",
+   "color": "#6B7280"
+  },
+  {
+   "from": "improve",
+   "to": "triage",
+   "style": "dashed",
+   "color": "#6B7280",
+   "label": "next task"
+  }
+ ],
+ "groups": [
+  {
+   "id": "seeds",
+   "label": "one harness is seeded",
+   "node_ids": [
+    "settled",
+    "open",
+    "hybrid"
+   ],
+   "fill": "#FAFAFA",
+   "stroke": "#E5E7EB",
+   "padding": 26
+  }
+ ]
+}

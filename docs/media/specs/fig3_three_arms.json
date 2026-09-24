@@ -1,0 +1,105 @@
+{
+ "title": "The tau2-bench test",
+ "canvas": {
+  "width": 1000,
+  "height": 430
+ },
+ "style": {
+  "font_family": "Inter, Helvetica, Arial, sans-serif",
+  "font_size": 13,
+  "bg_color": "#FFFFFF"
+ },
+ "nodes": [
+  {
+   "id": "shared",
+   "label": "\u03c4\u00b2-bench retail, shared by all three arms",
+   "sublabel": "114 tasks \u00b7 16 tools \u00b7 reward = database state \u00b7 same user simulator, tasks and seeds",
+   "x": 495,
+   "y": 70,
+   "width": 620,
+   "height": 64,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
+  },
+  {
+   "id": "llm_only",
+   "label": "LLM-only",
+   "sublabel": "stock tau2 agent \u00b7 1 LLM call per turn",
+   "x": 190,
+   "y": 215,
+   "width": 250,
+   "height": 72,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6"
+  },
+  {
+   "id": "jev_only",
+   "label": "Jev-only",
+   "sublabel": "code + Jev + templates \u00b7 0 LLM calls",
+   "x": 495,
+   "y": 215,
+   "width": 250,
+   "height": 72,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "harness",
+   "label": "Harness",
+   "sublabel": "code + Jev \u00b7 LLM only when code asks",
+   "x": 800,
+   "y": 215,
+   "width": 250,
+   "height": 72,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "table",
+   "label": "one table, generated from the artifacts",
+   "sublabel": "pass^1 \u00b7 $ per task \u00b7 ms per turn \u00b7 LLM calls per turn \u00b7 Jev calls per turn",
+   "x": 495,
+   "y": 345,
+   "width": 560,
+   "height": 62,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  }
+ ],
+ "edges": [
+  {
+   "from": "shared",
+   "to": "llm_only"
+  },
+  {
+   "from": "shared",
+   "to": "jev_only"
+  },
+  {
+   "from": "shared",
+   "to": "harness"
+  },
+  {
+   "from": "llm_only",
+   "to": "table"
+  },
+  {
+   "from": "jev_only",
+   "to": "table"
+  },
+  {
+   "from": "harness",
+   "to": "table"
+  }
+ ],
+ "labels": [
+  {
+   "text": "claim under test: the same pass^1 as the LLM alone, at a fraction of the cost and latency per turn",
+   "x": 500,
+   "y": 410,
+   "font_size": 13,
+   "color": "#374151",
+   "anchor": "middle"
+  }
+ ]
+}

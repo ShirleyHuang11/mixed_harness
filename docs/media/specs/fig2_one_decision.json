@@ -1,0 +1,128 @@
+{
+ "title": "One decision inside a harness",
+ "canvas": {
+  "width": 1160,
+  "height": 340
+ },
+ "style": {
+  "font_family": "Inter, Helvetica, Arial, sans-serif",
+  "font_size": 13,
+  "bg_color": "#FFFFFF"
+ },
+ "nodes": [
+  {
+   "id": "obs",
+   "label": "observation",
+   "sublabel": "policy \u00b7 tools \u00b7 conversation \u00b7 memory",
+   "x": 110,
+   "y": 150,
+   "width": 200,
+   "height": 64,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
+  },
+  {
+   "id": "facts",
+   "label": "facts \u00b7 python",
+   "sublabel": "parse, track data, build the catalog",
+   "x": 345,
+   "y": 150,
+   "width": 210,
+   "height": 64,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "judge",
+   "label": "judge \u00b7 Jev",
+   "sublabel": "one request, every question this turn",
+   "x": 590,
+   "y": 150,
+   "width": 230,
+   "height": 64,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "decision",
+   "label": "decision \u00b7 python",
+   "sublabel": "arguments \u00b7 confirm before write \u00b7 template",
+   "x": 845,
+   "y": 150,
+   "width": 250,
+   "height": 64,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "llm",
+   "label": "draft \u00b7 LLM",
+   "sublabel": "only when no template fits",
+   "x": 845,
+   "y": 275,
+   "width": 210,
+   "height": 62,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6"
+  },
+  {
+   "id": "act",
+   "label": "tool call\nor message",
+   "x": 1070,
+   "y": 150,
+   "width": 140,
+   "height": 64,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  }
+ ],
+ "edges": [
+  {
+   "from": "obs",
+   "to": "facts"
+  },
+  {
+   "from": "facts",
+   "to": "judge"
+  },
+  {
+   "from": "judge",
+   "to": "decision"
+  },
+  {
+   "from": "decision",
+   "to": "act"
+  },
+  {
+   "from": "decision",
+   "to": "llm",
+   "style": "dashed",
+   "color": "#8B5CF6",
+   "label": "prompt, or null \u2192 skipped"
+  },
+  {
+   "from": "llm",
+   "to": "act",
+   "style": "dashed",
+   "color": "#8B5CF6"
+  }
+ ],
+ "labels": [
+  {
+   "text": "one turn = 1 python node \u00b7 1 Jev request \u00b7 0 or 1 LLM call",
+   "x": 580,
+   "y": 40,
+   "font_size": 15,
+   "color": "#374151",
+   "anchor": "middle"
+  },
+  {
+   "text": "the decision node also returns memory, which becomes part of the next turn's observation",
+   "x": 380,
+   "y": 275,
+   "font_size": 12,
+   "color": "#6B7280",
+   "anchor": "middle"
+  }
+ ]
+}
