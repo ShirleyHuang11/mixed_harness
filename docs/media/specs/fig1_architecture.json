@@ -1,8 +1,8 @@
 {
- "title": "From task to harness",
+ "title": "Mixed Harness architecture",
  "canvas": {
-  "width": 1000,
-  "height": 440
+  "width": 1180,
+  "height": 540
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -14,8 +14,8 @@
    "id": "task",
    "label": "Task description",
    "sublabel": "objective \u00b7 actions \u00b7 evaluator \u00b7 examples",
-   "x": 105,
-   "y": 200,
+   "x": 110,
+   "y": 150,
    "width": 215,
    "height": 66,
    "fill": "#F3F4F6",
@@ -25,8 +25,8 @@
    "id": "probe",
    "label": "probe",
    "sublabel": "code \u00b7 9 fields \u00b7 free",
-   "x": 285,
-   "y": 200,
+   "x": 300,
+   "y": 150,
    "width": 130,
    "height": 60,
    "fill": "#DBEAFE",
@@ -36,8 +36,8 @@
    "id": "triage",
    "label": "Jev triage",
    "sublabel": "one call \u00b7 3 routes",
-   "x": 450,
-   "y": 200,
+   "x": 470,
+   "y": 150,
    "width": 140,
    "height": 74,
    "shape": "diamond",
@@ -46,44 +46,55 @@
   },
   {
    "id": "settled",
-   "label": "settled seed",
+   "label": "settled",
    "sublabel": "code \u2192 Jev pick \u2192 code",
-   "x": 650,
-   "y": 100,
-   "width": 180,
-   "height": 58,
+   "x": 690,
+   "y": 60,
+   "width": 190,
+   "height": 54,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6"
   },
   {
    "id": "open",
-   "label": "open-ended seed",
+   "label": "open-ended",
    "sublabel": "code \u2192 LLM draft \u2192 code",
-   "x": 650,
-   "y": 200,
-   "width": 180,
-   "height": 58,
+   "x": 690,
+   "y": 150,
+   "width": 190,
+   "height": 54,
    "fill": "#EDE9FE",
    "stroke": "#8B5CF6"
   },
   {
    "id": "hybrid",
-   "label": "hybrid seed",
+   "label": "hybrid",
    "sublabel": "LLM propose k \u2192 Jev select",
-   "x": 650,
-   "y": 305,
-   "width": 180,
-   "height": 58,
+   "x": 690,
+   "y": 240,
+   "width": 190,
+   "height": 54,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B"
   },
   {
+   "id": "harness",
+   "label": "execution-layer harness",
+   "sublabel": "a graph of python \u00b7 Jev \u00b7 LLM nodes",
+   "x": 980,
+   "y": 150,
+   "width": 240,
+   "height": 66,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  },
+  {
    "id": "gepa",
-   "label": "GEPA evolution",
-   "sublabel": "reflection rewrites the whole graph",
-   "x": 875,
-   "y": 200,
-   "width": 210,
+   "label": "GEPA evolution of the harness",
+   "sublabel": "rewrites the graph from full traces \u00b7 kept if the score rises",
+   "x": 980,
+   "y": 345,
+   "width": 340,
    "height": 66,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
@@ -91,11 +102,11 @@
   {
    "id": "history",
    "label": "run history",
-   "sublabel": "triage route vs final route",
-   "x": 875,
-   "y": 390,
-   "width": 190,
-   "height": 58,
+   "sublabel": "triage route vs what the harness became",
+   "x": 980,
+   "y": 470,
+   "width": 260,
+   "height": 56,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   },
@@ -103,10 +114,10 @@
    "id": "improve",
    "label": "improve the triage questions",
    "sublabel": "replay old vs new \u00b7 accept only if agreement rises",
-   "x": 450,
-   "y": 390,
+   "x": 470,
+   "y": 470,
    "width": 320,
-   "height": 58,
+   "height": 56,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   }
@@ -124,7 +135,7 @@
   {
    "from": "triage",
    "to": "settled",
-   "label": "labels or catalog"
+   "label": "finite choices"
   },
   {
    "from": "triage",
@@ -138,15 +149,15 @@
   },
   {
    "from": "settled",
-   "to": "gepa"
+   "to": "harness"
   },
   {
    "from": "open",
-   "to": "gepa"
+   "to": "harness"
   },
   {
    "from": "hybrid",
-   "to": "gepa"
+   "to": "harness"
   },
   {
    "from": "gepa",
@@ -166,12 +177,24 @@
    "style": "dashed",
    "color": "#6B7280",
    "label": "next task"
+  },
+  {
+   "from": "harness",
+   "to": "gepa",
+   "label": "traces + scores",
+   "color": "#15803D"
+  },
+  {
+   "from": "gepa",
+   "to": "harness",
+   "color": "#15803D",
+   "curve": true
   }
  ],
  "groups": [
   {
    "id": "seeds",
-   "label": "one harness is seeded",
+   "label": "seed template for the route",
    "node_ids": [
     "settled",
     "open",
@@ -179,7 +202,25 @@
    ],
    "fill": "#FAFAFA",
    "stroke": "#E5E7EB",
-   "padding": 26
+   "padding": 24
+  }
+ ],
+ "labels": [
+  {
+   "text": "loop 1: the harness itself improves (rewritten graph goes back)",
+   "x": 980,
+   "y": 400,
+   "font_size": 12,
+   "color": "#15803D",
+   "anchor": "middle"
+  },
+  {
+   "text": "loop 2: the triage improves",
+   "x": 715,
+   "y": 512,
+   "font_size": 12,
+   "color": "#6B7280",
+   "anchor": "middle"
   }
  ]
 }

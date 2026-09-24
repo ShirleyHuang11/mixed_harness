@@ -1,70 +1,92 @@
-# mixed_harness
+# Mixed Harness
 
-**Code computes the facts. A judgment model makes the bounded choices. A language model writes only the
-text that has to be written.** This repository turns a task description into such a harness automatically,
-evolves it with GEPA, and measures what each part costs.
+**Code computes the facts, a judgment model makes the bounded choices, and a language model writes only the
+text that has to be written.** Mixed Harness builds such a decision pipeline from a task description, then
+improves it on two levels: the pipeline itself, through GEPA evolution over its full execution traces, and
+the triage that chose the pipeline's shape, through replay against recorded outcomes.
 
-The code is a fork of [JevHarness](https://github.com/TianyuCodings/JevHarness) (`auto_jev`), which pairs
-TypeSafe's judgment model [Jev](https://docs.typesafe.ai) with an LLM-authored decision pipeline. The fork
-adds three things: a triage step that picks the harness shape, `llm` nodes for generation, and a
-three-arm benchmark test on τ²-bench.
+The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness): a harness is a graph
+of sandboxed Python nodes and calls to [Jev](https://docs.typesafe.ai), TypeSafe's judgment model, which
+answers typed questions with probabilities in a few hundred milliseconds. Mixed Harness adds the routing
+layer, `llm` nodes for generation, and the second improvement loop.
 
-## 1. From task to harness
+## Architecture
 
-![From task to harness](docs/media/fig1_task_to_harness.svg)
+![Mixed Harness architecture](docs/media/fig1_architecture.svg)
 
-A task description (objective, action space, evaluator, a few examples) goes through a free, deterministic
-probe. Jev reads the probe's nine fields and the examples and returns a probability over three routes:
-**settled** (pick from a finite set), **open-ended** (generate free text checked by code), or **hybrid**
-(generate a few candidates, then pick). One harness is seeded from that route's template and GEPA evolves it
-once; the reflection model may rewrite the node graph, node kinds included, so a wrong triage is corrected
-inside the run. After each run the triage questions get one replay-validated improvement: a proposed
-question map is accepted only if it agrees with the recorded outcomes more often than the current one.
+**Triage.** A task description (objective, action space, evaluator, a few examples) goes through a free,
+deterministic probe that computes nine fields: the declared action kind, the label count, whether the
+examples carry a legal-action catalog, whether the evaluator is exact, the shape of the expected output.
+Jev reads those fields and the examples and returns a probability over three routes. Each route has a
+seed template:
 
-## 2. One decision inside a harness
+- **settled**: the decision picks from a finite set. Seed: code → Jev pick → code.
+- **open-ended**: the output is free text that code can check. Seed: code → LLM draft → code.
+- **hybrid**: a few candidates are generated and Jev picks among them. Seed: LLM propose → code criteria → Jev select.
+
+One harness is seeded from the chosen template.
+
+**Loop 1: the harness improves.** The seeded harness runs on training tasks and every run leaves a complete
+trace: node inputs and outputs, Jev questions and answers, LLM prompts, memory, failures, and the score.
+GEPA's reflection model reads those traces and proposes a rewritten graph. The proposal is not limited to
+prompt text: it can add or remove nodes, change a node's kind, insert a generate-then-select structure, or
+move logic from a model call into Python. A proposal is kept only if it beats its parent on the same
+training batch and holds up on validation. Parents are drawn from a Pareto frontier over task instances, so
+the search does not collapse onto one lineage. A wrong triage is corrected here rather than by re-running
+the triage: the summary of every run records both the route the triage chose and the route the selected
+harness turned out to have.
+
+**Loop 2: the triage improves.** That pair, triage route versus final route, is appended to a history after
+every run. The reflection model proposes a new triage question map; the old and the new map are both
+replayed through Jev over the whole history, and the new one is accepted only if it agrees with the recorded
+outcomes strictly more often. Accepted maps are versioned.
+
+## Inside one decision
 
 ![One decision inside a harness](docs/media/fig2_one_decision.svg)
 
-Every harness is a small graph of three node kinds. **python** nodes run sandboxed code: parse the input,
-track what earlier tools returned, build the list of legal actions and every question the turn might need.
-One **jev** node asks all of those questions in a single request and gets back probabilities. A second
-python node turns the answers into a tool call or a template message. An **llm** node exists for the cases
-no template covers; when code decides it is not needed, its prompt is `null` and the runtime skips it. The
-τ²-bench retail seed in `examples/tau2/seeds.py` is exactly this graph.
+The same three node kinds run in every harness. A **python** node parses the input, keeps track of what
+earlier tool calls returned, and builds the list of legal actions together with every question the turn
+might need. One **jev** node asks all of those questions in a single request; adding questions barely
+changes its latency. A second python node turns the answers into a tool call or a template message and
+enforces the rules that code can enforce, such as confirmation before any write. An **llm** node exists for
+the cases no template covers. When code decides the model is not needed, the node's prompt is `null` and
+the runtime skips it: no call, no cost. The retail seed in `examples/tau2/seeds.py` is exactly this graph.
 
-## 3. The τ²-bench test
+## Measuring it
 
 ![The tau2-bench test](docs/media/fig3_three_arms.svg)
 
-Three agents play the same 114 retail tasks against the same simulated user with the same seeds. The
-LLM-only arm is tau2's stock agent. The Jev-only arm has no language model at all. The harness arm is the
-Jev-only graph plus an llm node that fires only when code asks for it. The runner writes one table from the
-artifacts: pass^1, dollars per task, milliseconds per turn, LLM and Jev calls per turn. Predictions, the
-resolution of the test and the decision table are written down before any run in
-`docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`; `docs/tau2.md` explains the setup and how to
-read the table.
+The claim is that a harness reaches the accuracy of the same language model used alone at a fraction of the
+cost and latency per decision. The test runs three agents on τ²-bench retail (114 tasks, 16 tools, reward
+computed from the database state) against the same simulated user with the same seeds: the stock LLM
+agent, a Jev-only harness with no language model at all, and the full harness. One table is generated from
+the artifacts: pass^1, dollars per task, milliseconds per turn, and LLM and Jev calls per turn. The
+predictions and the decision table are written down before any run in
+`docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`; `docs/tau2.md` covers setup and reading.
 
 ## Quick start
 
     uv sync --locked --extra dev
-    uv run pytest                                   # 400+ tests, mock providers, no keys
+    uv run pytest                                   # 400+ tests on mock providers, no keys needed
     uv run auto-jev doctor                          # which credentials are present
 
 Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` for Jev,
-`ANTHROPIC_API_KEY` for llm nodes. Functional Python nodes run under `bwrap` on Linux and `sandbox-exec`
+`ANTHROPIC_API_KEY` for llm nodes. Sandboxed Python nodes run under `bwrap` on Linux and `sandbox-exec`
 on macOS.
 
     uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5
 
-## Where things are
+## Layout
 
 | Path | What it holds |
 |---|---|
 | `auto_jev/` | spec validation, parallel runtime, Jev and LLM transports, triage, routed evolution, freezing |
-| `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end under mock providers |
-| `examples/tau2/` | the tau2-bench adapter, the PipelineAgent wrapper, and the two seed harnesses |
+| `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
+| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, and the two seed harnesses |
 | `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the three-arm test) |
-| `docs/` | design files, `routed-harness.md` (reference), `tau2.md` (benchmark guide), `media/` (figures and their specs) |
+| `docs/` | design files, `routed-harness.md` (reference), `tau2.md` (benchmark guide), `media/` (figures and their JSON specs) |
 
-The figures are generated from the JSON specs in `docs/media/specs/`; edit the spec, not the SVG.
+Figures are rendered from the specs in `docs/media/specs/`; edit the spec, not the SVG. GEPA is the
+optimizer of Agrawal et al., arXiv:2507.19457.
