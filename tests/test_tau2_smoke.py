@@ -1,7 +1,7 @@
 """Plumbing checks for the tau2 three-arm setup. Everything here runs on mock providers.
 
 The tau2-dependent tests skip when tau2-bench is not importable (it lives in its own Python 3.12 venv,
-see docs/tau2.md); the runtime rule they rely on is tested without tau2.
+see docs/guides/tau2.md); the runtime rule they rely on is tested without tau2.
 """
 import pytest
 

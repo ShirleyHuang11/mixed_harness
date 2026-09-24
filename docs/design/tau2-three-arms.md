@@ -61,7 +61,7 @@ Below it the user simulator or environment is broken and nothing else in the bat
 
 ## Runtime change
 
-One shared-harness change, documented in `docs/routed-harness.md`: an `llm` node whose
+One shared-harness change, documented in `docs/guides/routed-harness.md`: an `llm` node whose
 `prompt_expression` evaluates to `null` is skipped and outputs `null`. Code decides whether the
 model is needed. Without this every turn would pay for an LLM call whether or not one was used.
 Smoke: rerun the classify example under mock providers before and after and diff the artifacts.

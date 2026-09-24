@@ -6,14 +6,14 @@ Arms
              templates reply. No LLM anywhere.
   harness    examples.tau2.seeds.harness_seed(): jev_only plus two llm nodes that fire only when code asks.
 
-Decision table (evaluated automatically after the run; see docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md)
+Decision table (evaluated automatically after the run; see docs/design/tau2-three-arms.md)
   llm_only pass^1 < 0.60                                   -> STOP: positive control failed; user sim / env suspect
   jev_only llm_calls > 0 or llm_only jev_calls > 0          -> STOP: instrument broken
   harness within 10 pt of llm_only and >= 3x cheaper       -> NEXT: evolution on train (74), score test (40); 3 trials on base
   harness 10-15 pt below llm_only                          -> NEXT: evolution first, then re-score
   harness > 15 pt below after evolution                    -> KILL on tau2; keep instrument; move to settled line
 
-Run inside the tau2-bench virtualenv with this repo installed into it (docs/tau2.md):
+Run inside the tau2-bench virtualenv with this repo installed into it (docs/guides/tau2.md):
   ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5
   ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_only,harness --mock --num-tasks 2   # plumbing only
 

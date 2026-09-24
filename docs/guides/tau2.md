@@ -1,6 +1,6 @@
 # τ²-bench: three arms, one environment
 
-Design and decision table: `docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`.
+Design and decision table: `docs/design/tau2-three-arms.md`.
 
 ## Setup
 

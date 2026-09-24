@@ -8,7 +8,7 @@ the official user simulator, and the orchestrator; runs the simulation with full
 auto_jev result contract: score (tau2 reward, 0 or 1), output (termination, reward breakdown, tau2 costs) and
 one trace per agent turn. Infrastructure errors propagate as PipelineExecutionError with the partial trace.
 
-tau2-bench must be importable (see docs/tau2.md for the sibling checkout and `TAU2_HOME`).
+tau2-bench must be importable (see docs/guides/tau2.md for the sibling checkout and `TAU2_HOME`).
 """
 import copy
 import json

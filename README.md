@@ -63,7 +63,7 @@ computed from the database state) against the same simulated user with the same 
 agent, a Jev-only harness with no language model at all, and the full harness. One table is generated from
 the artifacts: pass^1, dollars per task, milliseconds per turn, and LLM and Jev calls per turn. The
 predictions and the decision table are written down before any run in
-`docs/superpowers/specs/2026-09-24-tau2-three-arm-design.md`; `docs/tau2.md` covers setup and reading.
+`docs/design/tau2-three-arms.md`; `docs/guides/tau2.md` covers setup and reading.
 
 ## Quick start
 
@@ -86,7 +86,9 @@ on macOS.
 | `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
 | `examples/tau2/` | the τ²-bench adapter, the agent wrapper, and the two seed harnesses |
 | `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the three-arm test) |
-| `docs/` | design files, `routed-harness.md` (reference), `tau2.md` (benchmark guide), `media/` (figures and their JSON specs) |
+| `docs/design/` | `routing.md` (the routed harness), `tau2-three-arms.md` (the benchmark test, with predictions and decision table) |
+| `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
+| `docs/media/` | figures and the JSON specs they are rendered from |
 
 Figures are rendered from the specs in `docs/media/specs/`; edit the spec, not the SVG. GEPA is the
 optimizer of Agrawal et al., arXiv:2507.19457.
