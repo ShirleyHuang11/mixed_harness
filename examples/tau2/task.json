@@ -1,0 +1,20 @@
+{"name": "tau2_retail",
+ "objective": "Act as a retail customer-service agent: authenticate the user, look up orders and products with tools, and cancel, modify, return or exchange orders under the written policy, asking for explicit confirmation before any database write.",
+ "observation_fields": ["turn", "policy", "tools", "conversation", "incoming"],
+ "action_space": {"kind": "catalog", "catalog_field": "legal_actions"},
+ "evaluator": {"kind": "environment"}, "decisions_per_episode": 15, "latency_budget_ms": null,
+ "output_schema": {"type": "object", "required": ["kind"], "properties": {"kind": {"type": "string", "enum": ["tool", "message"]}, "name": {"type": "string"}, "arguments": {"type": "object"}, "text": {"type": "string"}}},
+ "examples": [
+  {"observation": {"turn": 2, "incoming": {"role": "user", "text": "Hi, I'm Yusuf Rossi, zip 19122. I want to exchange the keyboard in order #W2378156."},
+                   "legal_actions": [{"id": "tool:find_user_id_by_name_zip"}, {"id": "reply:ask_identity"}]},
+   "expected": {"kind": "tool", "name": "find_user_id_by_name_zip", "arguments": {"first_name": "Yusuf", "last_name": "Rossi", "zip": "19122"}}},
+  {"observation": {"turn": 6, "incoming": {"role": "tool", "tool": "get_order_details", "result": {"order_id": "#W2378156", "status": "delivered"}},
+                   "legal_actions": [{"id": "tool:get_product_details:1656367028"}, {"id": "reply:report_result"}]},
+   "expected": {"kind": "tool", "name": "get_product_details", "arguments": {"product_id": "1656367028"}}},
+  {"observation": {"turn": 9, "incoming": {"role": "user", "text": "Yes, please go ahead with the exchange."},
+                   "legal_actions": [{"id": "tool:exchange_delivered_order_items"}, {"id": "reply:confirm_action"}]},
+   "expected": {"kind": "tool", "name": "exchange_delivered_order_items", "arguments": {"order_id": "#W2378156", "item_ids": ["1151293680"], "new_item_ids": ["7706410293"], "payment_method_id": "credit_card_9513926"}}},
+  {"observation": {"turn": 3, "incoming": {"role": "user", "text": "Can you explain why my refund goes back to the gift card and not my credit card?"},
+                   "legal_actions": [{"id": "reply:llm"}, {"id": "reply:deny"}]},
+   "expected": {"kind": "message", "text": "Refunds go back to the original payment method used for the order; for this order that was the gift card."}}
+ ]}

@@ -200,13 +200,18 @@ class PipelineRuntime:
                 result = evaluate_python(node['source'], context)
             elif node['kind'] == 'llm':
                 prompt = evaluate_expression(node['prompt_expression'], context)
-                if not isinstance(prompt, str) or not prompt:
-                    raise ValueError('prompt_expression must evaluate to a nonempty string')
-                record['prompt'] = prompt
-                response = copy.deepcopy(self.llm.complete(prompt, output_schema=node.get('output_schema'),
-                                                           model=self.spec.get('llm_model'), max_tokens=node.get('max_tokens')))
-                record['response'] = response
-                result = response['value']
+                if prompt is None:
+                    # Code decided no generation is needed this run: no call, no cost, output null.
+                    record['status'] = 'skipped'
+                    result = None
+                else:
+                    if not isinstance(prompt, str) or not prompt:
+                        raise ValueError('prompt_expression must evaluate to a nonempty string or null')
+                    record['prompt'] = prompt
+                    response = copy.deepcopy(self.llm.complete(prompt, output_schema=node.get('output_schema'),
+                                                               model=self.spec.get('llm_model'), max_tokens=node.get('max_tokens')))
+                    record['response'] = response
+                    result = response['value']
             else:
                 state = evaluate_expression(record['state_expression'], context)
                 record['state'] = copy.deepcopy(state)

@@ -25,6 +25,12 @@ Adds `llm` nodes (`prompt_expression`, optional `output_schema`, optional `max_t
 `llm_model`. Reflection may swap node kinds and insert generate-then-select structures; it may not change
 `jev_model`, `llm_model` or the evaluator.
 
+## LLM nodes that decide not to run
+
+An `llm` node whose `prompt_expression` evaluates to `null` is skipped: no call, no cost, output `null`, trace
+status `skipped`. Code decides whether generation is needed; downstream nodes must treat `nodes['<id>']`
+as possibly `null`. A prompt that evaluates to anything else must be a nonempty string.
+
 ## LLM errors
 
 `LLMProviderError` (missing key, timeout, HTTP failure, cache-only miss, cache corruption) is tagged
