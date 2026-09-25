@@ -153,20 +153,20 @@
   },
   {
    "id": "mixed_llm",
-   "label": "LLM \u00b7 skipped",
-   "x": 803.0,
+   "label": "LLM \u00b7 reply or arguments",
+   "x": 818.0,
    "y": 390,
-   "width": 120,
+   "width": 150,
    "height": 46,
    "fill": "#F5F3FF",
    "stroke": "#8B5CF6",
    "font_size": 12,
-   "sublabel": "prompt = null this turn"
+   "sublabel": "skipped: prompts are null"
   },
   {
    "id": "mixed_act",
    "label": "tool call",
-   "x": 945.0,
+   "x": 1121.0,
    "y": 390,
    "width": 120,
    "height": 46,
@@ -229,6 +229,18 @@
    "shape": "rect",
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
+  },
+  {
+   "id": "mixed_final",
+   "label": "final \u00b7 code",
+   "sublabel": "merges text into the action",
+   "x": 977.0,
+   "y": 390,
+   "width": 124,
+   "height": 46,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
   }
  ],
  "edges": [
@@ -284,6 +296,11 @@
   },
   {
    "from": "mixed_llm",
+   "to": "mixed_final",
+   "thickness": 1
+  },
+  {
+   "from": "mixed_final",
    "to": "mixed_act",
    "thickness": 1
   }
@@ -330,7 +347,7 @@
    "anchor": "start"
   },
   {
-   "text": "1 Jev request \u00b7 LLM only on turns that need writing (\u2248 1 in 3 here) \u00b7 \u2248 0.4 s on this turn \u00b7 can write when it must",
+   "text": "1 Jev request \u00b7 both LLM nodes skipped this turn \u00b7 code still produces the action \u00b7 \u2248 0.4 s \u00b7 the model is called on \u2248 1 turn in 3",
    "x": 150,
    "y": 434,
    "font_size": 11,

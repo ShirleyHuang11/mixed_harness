@@ -87,9 +87,12 @@ On this turn all three arrive at the same tool call, `find_user_id_by_name_zip(Y
 Jev and mixed routes get there through the graph in `examples/tau2/seeds.py`. A **facts** node in code
 finds the name, zip and order id and lists the legal actions. One **judge** request to Jev answers every
 question at once: the action should be the lookup (0.72), and the customer has not confirmed anything yet
-(0.05). A **decision** node in code fills the arguments. The mixed route has one more node, an LLM whose
-prompt the decision node sets to `null` when nothing needs writing, and the runtime skips it. The LLM route
-hands the policy, the tool schemas and the conversation to the model and lets it decide and write.
+(0.05). A **decision** node in code fills the arguments. The mixed route adds two LLM nodes after the
+decision, one for a reply and one for tool arguments, and a **final** code node that merges whatever they
+wrote into the action. When nothing needs writing the decision node sets both prompts to `null`, the
+runtime skips both nodes, and the final node passes the decision through unchanged. Code produces the action
+on every turn; the model only ever contributes text to it. The LLM route hands the policy, the tool schemas
+and the conversation to the model and lets it decide and write.
 
 Three turns later the routes part. The customer asks for the specifications of the replacement items. On
 the Jev route no template answers that, and after three identical replies the call is transferred. On the

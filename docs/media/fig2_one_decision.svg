@@ -45,7 +45,8 @@
   <path d="M 417.0,390.0 L 439.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
   <path d="M 564.0,390.0 L 586.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
   <path d="M 721.0,390.0 L 743.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 863.0,390.0 L 885.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 893.0,390.0 L 915.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 1039.0,390.0 L 1061.0,390.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
   <rect fill="#F3F4F6" height="46.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="120.0" x="150.0" y="107.0"/>
   <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="210.0" y="134.2">observation</text>
   <rect fill="#DBEAFE" height="46.0" rx="8" stroke="#3B82F6" stroke-width="2" width="125.0" x="292.0" y="107.0"/>
@@ -79,12 +80,12 @@
   <rect fill="#DBEAFE" height="46.0" rx="8" stroke="#3B82F6" stroke-width="2" width="135.0" x="586.0" y="367.0"/>
   <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="653.5" y="387.2">decision · code</text>
   <text fill="#888888" font-size="9" text-anchor="middle" x="653.5" y="401.2">arguments, rules</text>
-  <rect fill="#F5F3FF" height="46.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="120.0" x="743.0" y="367.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="803.0" y="387.2">LLM · skipped</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="803.0" y="401.2">prompt = null this turn</text>
-  <rect fill="#DCFCE7" height="46.0" rx="8" stroke="#22C55E" stroke-width="2" width="120.0" x="885.0" y="367.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="945.0" y="387.2">tool call</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="945.0" y="401.2">find_user_id_by_name_zip</text>
+  <rect fill="#F5F3FF" height="46.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="150.0" x="743.0" y="367.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="818.0" y="387.2">LLM · reply or arguments</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="818.0" y="401.2">skipped: prompts are null</text>
+  <rect fill="#DCFCE7" height="46.0" rx="8" stroke="#22C55E" stroke-width="2" width="120.0" x="1061.0" y="367.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="1121.0" y="387.2">tool call</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="1121.0" y="401.2">find_user_id_by_name_zip</text>
   <rect fill="#DBEAFE" height="14.0" rx="0" stroke="#3B82F6" stroke-width="2" width="18.0" x="51.0" y="533.0"/>
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="60.0" y="544.5"> </text>
   <rect fill="#FEF3C7" height="14.0" rx="0" stroke="#F59E0B" stroke-width="2" width="18.0" x="201.0" y="533.0"/>
@@ -95,12 +96,15 @@
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="510.0" y="544.5"> </text>
   <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="651.0" y="533.0"/>
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="660.0" y="544.5"> </text>
+  <rect fill="#DBEAFE" height="46.0" rx="8" stroke="#3B82F6" stroke-width="2" width="124.0" x="915.0" y="367.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="977.0" y="387.2">final · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="977.0" y="401.2">merges text into the action</text>
   <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="134.0">Jev route</text>
   <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="264.0">LLM route</text>
   <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="394.0">mixed route</text>
   <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="174.0">1 Jev request · no LLM · ≈ 0.4 s · cannot write free text: a question no template covers ends in a transfer</text>
   <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="304.0">1 LLM call · ≈ 8,000 input tokens · ≈ 2 s · can write anything · pays the full call on every turn</text>
-  <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="434.0">1 Jev request · LLM only on turns that need writing (≈ 1 in 3 here) · ≈ 0.4 s on this turn · can write when it must</text>
+  <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="434.0">1 Jev request · both LLM nodes skipped this turn · code still produces the action · ≈ 0.4 s · the model is called on ≈ 1 turn in 3</text>
   <text fill="#374151" font-size="14" text-anchor="middle" x="620.0" y="40.0">The same turn on each route. Customer: “I’m Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156.”</text>
   <text fill="#374151" font-size="12" text-anchor="middle" x="620.0" y="480.0">Where they part: three turns later the customer asks for the specifications of the replacement items.</text>
   <text fill="#6B7280" font-size="11" text-anchor="middle" x="620.0" y="500.0">Jev route: no template answers, the call is transferred.   LLM route: the model writes the answer.   Mixed route: Jev picks “reply with the LLM” and the model writes it; every other turn stays on code + Jev.</text>
