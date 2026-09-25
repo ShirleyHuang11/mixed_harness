@@ -7,7 +7,9 @@
     expression: {"id", "kind": "expression", "expression": expr}                    inputs inferred
     jev:        {"id", "kind": "jev", "state": expr, "questions": map | "questions_expression": expr}
                 a questions_expression that evaluates to null skips the node this run
-    llm:        {"id", "kind": "llm", "prompt": expr, "schema": json-schema?, "max_tokens": int?}
+    llm:        {"id", "kind": "llm", "prompt": expr, "schema": json-schema?, "max_tokens": int?, "on_error": "fail"|"null"?}
+    agent:      {"id", "kind": "agent", "instructions": str, "context": expr, "max_tokens": int?, "on_error": "fail"|"null"?}
+                on_error "null": a malformed model reply records the error and outputs null instead of failing the run
 
 Dependencies are inferred from literal `nodes['id']` references in expressions and, for python nodes, taken
 from `inputs`. A python node sees only its declared inputs. The graph must be acyclic. `output` and
@@ -130,9 +132,11 @@ def validate_spec(spec):
                 _expr(node['questions_expression'], node['id'], 'questions_expression', ids)
         elif kind == 'llm':
             has_llm = True
-            if fields - {'id', 'kind', 'prompt', 'schema', 'max_tokens'}:
+            if fields - {'id', 'kind', 'prompt', 'schema', 'max_tokens', 'on_error'}:
                 raise SpecError(f"node {node['id']}: unknown fields")
             _expr(node.get('prompt'), node['id'], 'prompt', ids)
+            if node.get('on_error', 'fail') not in ('fail', 'null'):
+                raise SpecError(f"node {node['id']}: on_error must be fail or null")
             if 'schema' in node:
                 check_schema(node['schema'])
                 validate_json(minimal_instance(node['schema']), node['schema'])
@@ -142,8 +146,10 @@ def validate_spec(spec):
             # agent: one native tool-calling turn. context evaluates to
             # {"policy": str, "tools": [{name, description, parameters}], "conversation": [msg, ...]} or null to skip.
             has_llm = True
-            if fields - {'id', 'kind', 'instructions', 'context', 'max_tokens'}:
+            if fields - {'id', 'kind', 'instructions', 'context', 'max_tokens', 'on_error'}:
                 raise SpecError(f"node {node['id']}: unknown fields")
+            if node.get('on_error', 'fail') not in ('fail', 'null'):
+                raise SpecError(f"node {node['id']}: on_error must be fail or null")
             if not isinstance(node.get('instructions'), str) or not node['instructions'].strip():
                 raise SpecError(f"node {node['id']}: instructions must be a nonempty string")
             _expr(node.get('context'), node['id'], 'context', ids)
@@ -243,12 +249,14 @@ def authoring_schema():
                  'properties': {'id': {'type': 'string'}, 'kind': {'const': 'llm'},
                                 'prompt': dict(expr, description='expression producing the prompt string, or null to skip the node this run (no call, output null)'),
                                 'schema': {'type': 'object', 'description': 'optional JSON Schema subset the reply must satisfy; with it the node output is the parsed JSON, without it the text'},
-                                'max_tokens': {'type': 'integer', 'minimum': 1}}},
+                                'max_tokens': {'type': 'integer', 'minimum': 1},
+                                'on_error': {'type': 'string', 'enum': ['fail', 'null'], 'description': 'null: a malformed reply outputs null (recorded as an error) instead of failing the run'}}},
                 {'type': 'object', 'required': ['id', 'kind', 'instructions', 'context'], 'additionalProperties': False,
                  'properties': {'id': {'type': 'string'}, 'kind': {'const': 'agent'},
                                 'instructions': {'type': 'string', 'description': 'system instructions for the agent turn'},
                                 'context': dict(expr, description="expression producing {'policy': str, 'tools': [{name, description, parameters}], 'conversation': [{role, text|tool, arguments|result}]}, or null to skip the node this run"),
-                                'max_tokens': {'type': 'integer', 'minimum': 1}}}]}},
+                                'max_tokens': {'type': 'integer', 'minimum': 1},
+                                'on_error': {'type': 'string', 'enum': ['fail', 'null']}}}]}},
         },
         'description': ('A harness is a directed acyclic graph. Independent nodes run in parallel. python nodes compute facts and '
                         'decisions; jev nodes ask bounded judgment questions (several per request); llm nodes generate text or '

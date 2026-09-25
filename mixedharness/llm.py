@@ -22,8 +22,8 @@ from .schema import SchemaError, check_schema, minimal_instance, validate as val
 
 KINDS = ('mock', 'anthropic', 'openai')
 DEFAULT_KEY_ENV = {'anthropic': 'ANTHROPIC_API_KEY', 'openai': 'OPENAI_API_KEY'}
-# USD per million tokens (input, output). Only models listed here are priced; others count as unpriced.
-PRICES = {}
+# USD per million tokens (input, output), matched by prefix on the model id the provider echoes. Others count as unpriced.
+PRICES = {'claude-sonnet-5': (2.0, 10.0), 'claude-sonnet-4-5': (3.0, 15.0), 'claude-opus-5': (15.0, 75.0), 'claude-haiku-4-5': (1.0, 5.0)}
 
 
 class LLMError(RuntimeError):
@@ -130,7 +130,10 @@ class LLMClient:
                     self.stats['cost_usd'] += cost
                 self.actual_models.add(str(actual_model))
             self._write_cache(key, {'text': text, 'model': actual_model, 'usage': usage, 'cost_usd': cost})
-        value = self._parse(text, schema)
+        try:
+            value = self._parse(text, schema)
+        except LLMOutputError as exc:
+            raise LLMOutputError(f'{exc}; stop_reason={usage.get("stop_reason")} blocks={usage.get("content_blocks")} output_tokens={usage.get("output_tokens")}') from None
         elapsed = (time.perf_counter() - started) * 1000
         with self._lock:
             self.stats['elapsed_ms'] += elapsed
@@ -255,13 +258,13 @@ class LLMClient:
 
     def _parse(self, text, schema):
         if not isinstance(text, str) or not text.strip():
-            raise LLMOutputError('empty reply')
+            raise LLMOutputError(f'empty reply (type {type(text).__name__}, {len(text or "")} chars)')
         if schema is None:
             return text
         try:
             value = json.loads(extract_json(text))
         except ValueError as exc:
-            raise LLMOutputError(f'reply is not valid JSON: {exc}') from None
+            raise LLMOutputError(f'reply is not valid JSON: {exc}; head={text[:160]!r} tail={text[-80:]!r}') from None
         try:
             validate_json(value, schema)
         except SchemaError as exc:
@@ -288,7 +291,8 @@ class LLMClient:
                     response = client.messages.create(model=model, max_tokens=max_tokens,
                                                       messages=[{'role': 'user', 'content': instruction}])
                 text = ''.join(block.text for block in response.content if getattr(block, 'type', '') == 'text')
-                usage = {'input_tokens': response.usage.input_tokens, 'output_tokens': response.usage.output_tokens}
+                usage = {'input_tokens': response.usage.input_tokens, 'output_tokens': response.usage.output_tokens,
+                         'stop_reason': getattr(response, 'stop_reason', None), 'content_blocks': [getattr(b, 'type', '?') for b in response.content]}
                 return text, response.model, usage
             import openai
             client = openai.OpenAI(api_key=key, base_url=self.base_url, timeout=self.timeout, max_retries=2)
@@ -307,6 +311,11 @@ class LLMClient:
     @staticmethod
     def _price(model, usage):
         prices = PRICES.get(model)
+        if not prices:
+            for prefix, value in sorted(PRICES.items(), key=lambda kv: -len(kv[0])):
+                if str(model).startswith(prefix):
+                    prices = value
+                    break
         if not prices:
             return 0.0 if model == 'mock-llm' else None
         return (usage.get('input_tokens', 0) * prices[0] + usage.get('output_tokens', 0) * prices[1]) / 1_000_000

@@ -203,6 +203,10 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
             elif kind in ('llm', 'agent'):
                 if node.get('status') == 'skipped':
                     llm_skipped += 1
+                elif node.get('soft'):
+                    llm_calls += 1   # the call happened and was paid for; the reply was unusable
+                    c_soft = self.counters
+                    c_soft['llm_soft_errors'] = c_soft.get('llm_soft_errors', 0) + 1
                 elif node.get('response'):
                     llm_calls += 1
                     resp = node['response']

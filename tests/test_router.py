@@ -263,10 +263,21 @@ def test_refusal_clears_the_pending_write_and_cancel_that_is_a_yes():
 
 
 @needs_sandbox
-def test_low_confidence_closed_pick_goes_to_the_narrow_path():
+def test_low_confidence_closed_pick_escalates():
     llm = _llm()
     result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'narrow' and routing['path_source'] == 'low_confidence' and routing['confidence'] == 0.5
+    assert routing['path'] == 'escalate' and routing['path_source'] == 'low_confidence' and routing['confidence'] == 0.5
     lenient = _run(seeds.routed_seed('mock-llm', tau=0.4), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
     assert lenient['nodes']['guard']['routing']['path'] == 'closed'
+
+
+@needs_sandbox
+def test_menu_output_error_is_soft_and_the_guard_falls_back():
+    bad = LLMClient(kind='mock', model='mock-llm', mock_responder=lambda first, second: 'not json at all' if isinstance(first, str) else {'kind': 'message', 'name': None, 'arguments': None, 'text': 'x'})
+    result = _run(seeds.routed_seed('mock-llm'), _jev('narrow'), bad, _obs(HELLO))
+    menu = next(r for r in result['trace'] if r['id'] == 'menu')
+    assert menu['status'] == 'error' and menu.get('soft') is True and result['status'] == 'ok'
+    guard = result['nodes']['guard']
+    assert guard['guard'] == 'menu_invalid' and guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'guard'
+    assert result['output']['kind'] in ('tool', 'message')

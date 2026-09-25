@@ -49,7 +49,7 @@ Python nodes run in a warm worker: one sandboxed interpreter per pool slot, star
   question for the Jev request: `route` (closed / narrow / escalate), `action`, `action_alt` (the same options in
   reverse order, the agreement signal), `fits`, `user_confirms`, and the candidate questions.
 - **route** applies the signals in order of authority: the compiler flag (an open step cannot be closed), Jev's
-  route pick, the confidence threshold τ on the action pick (below it → narrow; 0.9 by default, from stage 0),
+  route pick, the confidence threshold τ on the action pick (below it → escalate; 0.9 by default, from stage 0),
   agreement fall-through (closed with disagreement → narrow), the embedded per-cluster policy and its
   epsilon shadow share, trajectory-level escalation (k closed picks with disagreement in a row, or the same reply
   repeated). Without an LLM every path is forced closed and the pick is still recorded.

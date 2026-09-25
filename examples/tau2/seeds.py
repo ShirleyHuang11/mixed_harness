@@ -8,9 +8,9 @@ Routed graph (one turn), in dependency order:
     judge (jev)        one request: route pick (closed / narrow / escalate), action pick, a reordered paraphrase of
                        the action pick (agreement signal), "does any option fit", "did the user confirm", and the
                        candidate questions (which item, which variant, which payment method, which name)
-    route (python)     the routing layer: compiler flag first, then Jev's pick, then the confidence threshold tau on
-                       the action pick, then agreement fall-through, then the per-cluster policy and its epsilon
-                       shadow share, then trajectory-level escalation
+    route (python)     the routing layer: compiler flag first (open -> narrow), then Jev's pick, then the confidence
+                       threshold tau on the action pick (below it -> escalate), then agreement fall-through (-> narrow),
+                       then the per-cluster policy and its epsilon shadow share, then trajectory-level escalation
     decision (python)  the closed path: Jev's answers -> a tool call with code-filled arguments, or a template reply
     menu (llm)         the narrow path, step 1: the LLM writes 2-4 candidate actions (skipped unless routed narrow)
     menu_q (python)    turns the menu into a choice question (null when there is no menu)
@@ -470,7 +470,7 @@ def run(obs, nodes, memory):
     if not cx["closed"] and path == "closed":
         path, source = "narrow", "code_override"
     if path == "closed" and (confidence is None or confidence < __TAU__):
-        path, source = "narrow", "low_confidence"
+        path, source = "escalate", "low_confidence"
     if path == "closed" and agreement is False:
         path, source = "narrow", "fallthrough"
     prefer = (policy.get("prefer") or {}).get(cx["cluster"])
@@ -841,7 +841,7 @@ def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU):
     """The routed harness: compiler, one Jev request, three paths, guard. `policy` is a fitted loop-B policy or None;
     `tau` the action-confidence threshold below which a closed pick goes to the narrow path."""
     nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau) + [
-        {'id': 'menu', 'kind': 'llm', 'prompt': "nodes['route']['menu_prompt']", 'schema': MENU_SCHEMA, 'max_tokens': 700},
+        {'id': 'menu', 'kind': 'llm', 'prompt': "nodes['route']['menu_prompt']", 'schema': MENU_SCHEMA, 'max_tokens': 2000, 'on_error': 'null'},
         {'id': 'menu_q', 'kind': 'python', 'source': _fill(MENU_Q_SOURCE, allow_llm=True), 'inputs': ['compile', 'menu']},
         {'id': 'menu_pick', 'kind': 'jev', 'state': "nodes['menu_q']['state']", 'questions_expression': "nodes['menu_q']['questions']"},
         {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['route']['agent_context']", 'max_tokens': 1024},

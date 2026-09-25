@@ -8,7 +8,8 @@ A record has `id`, `kind`, `status` (ok / skipped / error / blocked), `inputs`, 
 what the node saw and got back: `source` and `worker_ms` for python, `expression` for expression nodes,
 `state`, `questions` and `response` for jev, `prompt`, `schema` and `response` for llm. A jev node whose
 `questions_expression` evaluates to null, an llm node whose prompt is null and an agent node whose context is
-null are skipped: no call, output null, status `skipped`. Nodes that fail
+null are skipped: no call, output null, status `skipped`. An llm or agent node with `on_error: "null"` whose reply
+is malformed records the error, outputs null and does not block its readers. Nodes that fail
 raise `PipelineError` after the wave finishes, with the partial result attached and `infrastructure=True`
 when any cause was a provider or sandbox outage rather than the candidate's own fault.
 """
@@ -178,9 +179,13 @@ class Runtime:
             record['output'] = copy.deepcopy(value)
         except (NodeError, SourceError, expressions.ExpressionError, LLMOutputError, SchemaError, ValueError,
                 JevError, LLMError, SandboxUnavailable) as exc:
-            error = exc
             record['status'] = 'error'
             record['error'] = f'{type(exc).__name__}: {str(exc)[:500]}'
             record['infrastructure'] = isinstance(exc, INFRASTRUCTURE)
+            if node['kind'] in ('llm', 'agent') and node.get('on_error') == 'null' and isinstance(exc, LLMOutputError):
+                record['soft'] = True   # the model answered badly; the node outputs null and its readers decide
+                value = None
+            else:
+                error = exc
         record['elapsed_ms'] = _ms(start)
         return record, value, error

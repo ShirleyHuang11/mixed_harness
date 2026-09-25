@@ -12,7 +12,7 @@ Three signals feed the decision, in this order of authority:
      be filled from state. When it is false the step cannot be closed, whatever Jev says.
   2. Jev's own route pick, asked in the same request as the action pick; a closed pick is accepted only when the
      action pick's confidence clears tau (0.9 from stage 0, where every pick at or above it agreed with the LLM and
-     6 of 15 below it did), and when a reordered paraphrase of the action question agrees. Otherwise narrow.
+     6 of 15 below it did): below tau the step escalates; a closed pick whose reordered paraphrase disagrees goes narrow.
   3. a per-cluster policy learned from recorded steps (`fit_policy`): the path with the best mean of
      success - lambda * cost in that cluster, with an epsilon share of shadow runs on the other paths.
 
