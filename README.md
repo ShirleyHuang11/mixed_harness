@@ -39,7 +39,8 @@ capped, so the compiler must produce a minimal state slice per question, and sli
 to evolve. Its weights are proprietary, so the questions evolve, not the model. It is weaker on long horizons, so per-step confidence overstates trajectory
 reliability and the router adds trajectory-level escalation.
 
-**Runtime path.** The action-space compiler turns tool schemas and the current state into a typed action
+**Runtime path.** The execution layer is the action-space compiler, the three paths and the guard; the
+routing layer is the Jev router between them. The action-space compiler turns tool schemas and the current state into a typed action
 set A(s), flags it as closed or open, and emits the minimal state slice for each Jev question. The Jev
 router asks one choice question per state, closed, narrow or escalate, at the cost of about one Jev call.
 Each path produces an action. The guard checks it, then it executes and is logged. Trajectory-level escalation
