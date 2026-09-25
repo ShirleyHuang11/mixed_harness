@@ -35,7 +35,7 @@
   {
    "id": "route",
    "label": "route (Jev)",
-   "sublabel": "dispatches to a route",
+   "sublabel": "one arrow per route",
    "x": 505,
    "y": 200,
    "width": 140,
@@ -122,11 +122,11 @@
   },
   {
    "id": "gepa",
-   "label": "GEPA evolution of the route",
-   "sublabel": "rewrites the graph (or the agent instructions) from full traces \u00b7 kept if the score rises",
+   "label": "evolutionary loop over the execution layer",
+   "sublabel": "rewrites a route from its full traces \u00b7 kept only if the score rises",
    "x": 1000,
    "y": 440,
-   "width": 360,
+   "width": 380,
    "height": 62,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
@@ -294,7 +294,15 @@
   },
   {
    "from": "route",
+   "to": "s1"
+  },
+  {
+   "from": "route",
    "to": "o2"
+  },
+  {
+   "from": "route",
+   "to": "h1"
   }
  ],
  "groups": [
@@ -401,7 +409,7 @@
    "anchor": "middle"
   },
   {
-   "text": "loop 1: the route improves (the rewritten graph goes back)",
+   "text": "loop 1: the routes improve",
    "x": 960,
    "y": 490,
    "font_size": 12,
@@ -409,7 +417,7 @@
    "anchor": "middle"
   },
   {
-   "text": "loop 2: the triage harness improves, same rule: propose, replay, keep only if better",
+   "text": "loop 2: the dispatch improves, same rule: propose, replay, keep only if better",
    "x": 730,
    "y": 600,
    "font_size": 12,

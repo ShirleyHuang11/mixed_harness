@@ -48,16 +48,17 @@ asked again on every turn, cheaply: the Jev request that picks the action also d
 needs the language model. Most of the saving comes from that second level, because in a tool-using task
 most turns are lookups and confirmations.
 
-**Loop 1: the route improves.** The seeded route runs on training tasks and every run leaves a complete
+**Loop 1: the routes improve.** The seeded route runs on training tasks and every run leaves a complete
 trace: node inputs and outputs, Jev questions and answers, LLM prompts and tool calls, memory, failures, and
-the score. GEPA's reflection model reads those traces and proposes a rewritten route. For the Jev and mixed
-routes the proposal can add or remove nodes, change a node's kind, insert a generate-then-select structure,
-or move logic from a model call into code. For the LLM route it rewrites the agent's instructions, which is
-what GEPA was built for. A proposal is kept only if it beats its parent on the same training batch and holds
-up on validation. Parents are drawn from a Pareto frontier over task instances, so the search does not
-collapse onto one lineage. A wrong dispatch is corrected here rather than by re-running the triage: the
-summary of every run records both the route the triage chose and the route the evolved graph turned out to
-be.
+the score. An evolutionary loop reads those traces, proposes a rewritten route, and keeps the proposal only
+if it beats its parent on the same training batch and holds up on validation. For the Jev and mixed routes
+a proposal can add or remove nodes, change a node's kind, insert a generate-then-select structure, or move
+logic from a model call into code. For the LLM route it rewrites the agent's instructions. The loop is
+defined by that acceptance rule, not by one optimizer: GEPA is the current implementation (its reflection
+model writes the proposals and its Pareto frontier over task instances picks the parents), and any
+proposer that respects the same rule can replace it. A wrong dispatch is corrected here rather than by
+re-running the triage: the summary of every run records both the route the triage chose and the route the
+evolved graph turned out to be.
 
 **Loop 2: the triage improves.** That pair, route chosen versus what the graph became, is appended to a
 history after every run. The reflection model proposes a new question map for the triage's Jev node; the
