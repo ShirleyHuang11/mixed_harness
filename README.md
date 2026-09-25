@@ -90,8 +90,8 @@ share cannot grow.
 
 **Coupling.** Recalibrate before the bandit moves traffic, and warm-start the bandit after any
 execution-layer change, or the router optimizes against a Jev that no longer exists. Every component is
-version-pinned in the traces. The dashed box is a future weight-level step: distil LLM escalations into an
-open decision model that runs beside Jev. It is not part of the loop today.
+version-pinned in the traces. Distilling LLM escalations into an open decision model would be a third,
+weight-level loop; it is out of scope here.
 
 **Metrics that show the harness is evolving rather than tuning.**
 
