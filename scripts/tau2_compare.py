@@ -65,12 +65,29 @@ def llm_args_for(model):
     return {'temperature': 0.0}
 
 
+class _LenientJson:
+    """tau2's NL-assertion evaluator does `json.loads(reply)` on the judge's raw text. GPT-4.1 returns bare JSON;
+    Claude wraps it in a code fence or a sentence, which made 40 of 114 simulations fail at evaluation time
+    (JSONDecodeError, recorded as an infrastructure error after the conversation had run and been paid for).
+    This shim extracts the first JSON document from the reply before decoding."""
+    dumps = staticmethod(json.dumps)
+
+    @staticmethod
+    def loads(text, *args, **kwargs):
+        from mixedharness.llm import extract_json
+        try:
+            return json.loads(text, *args, **kwargs)
+        except (ValueError, TypeError):
+            return json.loads(extract_json(str(text)))
+
+
 def set_nl_judge(model):
     """tau2 reads the NL-assertion judge from a module constant; override it in place and return what was there."""
     import tau2.evaluator.evaluator_nl_assertions as nl
     previous = (nl.DEFAULT_LLM_NL_ASSERTIONS, dict(nl.DEFAULT_LLM_NL_ASSERTIONS_ARGS))
     nl.DEFAULT_LLM_NL_ASSERTIONS = model
     nl.DEFAULT_LLM_NL_ASSERTIONS_ARGS = llm_args_for(model)
+    nl.json = _LenientJson
     return previous
 
 
