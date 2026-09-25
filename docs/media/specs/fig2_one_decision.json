@@ -1,8 +1,8 @@
 {
- "title": "The same turn on each route",
+ "title": "The same turn three ways",
  "canvas": {
-  "width": 1240,
-  "height": 570
+  "width": 1280,
+  "height": 625
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -13,7 +13,7 @@
   {
    "id": "jev_obs",
    "label": "observation",
-   "x": 210.0,
+   "x": 230.0,
    "y": 130,
    "width": 120,
    "height": 46,
@@ -24,7 +24,7 @@
   {
    "id": "jev_facts",
    "label": "facts \u00b7 code",
-   "x": 354.5,
+   "x": 374.5,
    "y": 130,
    "width": 125,
    "height": 46,
@@ -36,7 +36,7 @@
   {
    "id": "jev_judge",
    "label": "judge \u00b7 Jev",
-   "x": 501.5,
+   "x": 521.5,
    "y": 130,
    "width": 125,
    "height": 46,
@@ -48,7 +48,7 @@
   {
    "id": "jev_decide",
    "label": "decision \u00b7 code",
-   "x": 653.5,
+   "x": 673.5,
    "y": 130,
    "width": 135,
    "height": 46,
@@ -60,7 +60,7 @@
   {
    "id": "jev_act",
    "label": "tool call",
-   "x": 803.0,
+   "x": 823.0,
    "y": 130,
    "width": 120,
    "height": 46,
@@ -72,8 +72,8 @@
   {
    "id": "llm_obs",
    "label": "observation",
-   "x": 210.0,
-   "y": 260,
+   "x": 230.0,
+   "y": 255,
    "width": 120,
    "height": 46,
    "fill": "#F3F4F6",
@@ -82,9 +82,9 @@
   },
   {
    "id": "llm_agent",
-   "label": "LLM agent \u00b7 policy + tools + whole conversation",
-   "x": 552.0,
-   "y": 260,
+   "label": "agent \u00b7 policy + tools + whole conversation",
+   "x": 572.0,
+   "y": 255,
    "width": 520,
    "height": 46,
    "fill": "#EDE9FE",
@@ -95,8 +95,8 @@
   {
    "id": "llm_act",
    "label": "tool call",
-   "x": 894.0,
-   "y": 260,
+   "x": 914.0,
+   "y": 255,
    "width": 120,
    "height": 46,
    "fill": "#DCFCE7",
@@ -105,10 +105,10 @@
    "sublabel": "find_user_id_by_name_zip"
   },
   {
-   "id": "mixed_obs",
+   "id": "disp_obs",
    "label": "observation",
-   "x": 210.0,
-   "y": 390,
+   "x": 230.0,
+   "y": 380,
    "width": 120,
    "height": 46,
    "fill": "#F3F4F6",
@@ -116,10 +116,10 @@
    "font_size": 12
   },
   {
-   "id": "mixed_facts",
+   "id": "disp_facts",
    "label": "facts \u00b7 code",
-   "x": 354.5,
-   "y": 390,
+   "x": 374.5,
+   "y": 380,
    "width": 125,
    "height": 46,
    "fill": "#DBEAFE",
@@ -128,22 +128,22 @@
    "sublabel": "ids, legal actions"
   },
   {
-   "id": "mixed_judge",
-   "label": "judge \u00b7 Jev",
-   "x": 501.5,
-   "y": 390,
-   "width": 125,
+   "id": "disp_judge",
+   "label": "dispatch \u00b7 Jev",
+   "x": 534.0,
+   "y": 380,
+   "width": 150,
    "height": 46,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B",
    "font_size": 12,
-   "sublabel": "all questions, 1 request"
+   "sublabel": "an action, or \u201chand to LLM\u201d"
   },
   {
-   "id": "mixed_decide",
+   "id": "disp_decide",
    "label": "decision \u00b7 code",
-   "x": 653.5,
-   "y": 390,
+   "x": 698.5,
+   "y": 380,
    "width": 135,
    "height": 46,
    "fill": "#DBEAFE",
@@ -152,22 +152,10 @@
    "sublabel": "arguments, rules"
   },
   {
-   "id": "mixed_llm",
-   "label": "LLM \u00b7 reply or arguments",
-   "x": 818.0,
-   "y": 390,
-   "width": 150,
-   "height": 46,
-   "fill": "#F5F3FF",
-   "stroke": "#8B5CF6",
-   "font_size": 12,
-   "sublabel": "skipped: prompts are null"
-  },
-  {
-   "id": "mixed_act",
+   "id": "disp_act",
    "label": "tool call",
-   "x": 1121.0,
-   "y": 390,
+   "x": 848.0,
+   "y": 380,
    "width": 120,
    "height": 46,
    "fill": "#DCFCE7",
@@ -176,10 +164,22 @@
    "sublabel": "find_user_id_by_name_zip"
   },
   {
+   "id": "disp_llm",
+   "label": "agent \u00b7 LLM route",
+   "x": 1090,
+   "y": 500,
+   "width": 220,
+   "height": 44,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 12,
+   "sublabel": "runs only on turns Jev hands over"
+  },
+  {
    "id": "legend0",
    "label": " ",
    "x": 60,
-   "y": 540,
+   "y": 595,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -190,7 +190,7 @@
    "id": "legend1",
    "label": " ",
    "x": 210,
-   "y": 540,
+   "y": 595,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -201,7 +201,7 @@
    "id": "legend2",
    "label": " ",
    "x": 360,
-   "y": 540,
+   "y": 595,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -212,7 +212,7 @@
    "id": "legend3",
    "label": " ",
    "x": 510,
-   "y": 540,
+   "y": 595,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -223,24 +223,12 @@
    "id": "legend4",
    "label": " ",
    "x": 660,
-   "y": 540,
+   "y": 595,
    "width": 18,
    "height": 14,
    "shape": "rect",
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
-  },
-  {
-   "id": "mixed_final",
-   "label": "final \u00b7 code",
-   "sublabel": "merges text into the action",
-   "x": 977.0,
-   "y": 390,
-   "width": 124,
-   "height": 46,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6",
-   "font_size": 12
   }
  ],
  "edges": [
@@ -275,34 +263,31 @@
    "thickness": 1
   },
   {
-   "from": "mixed_obs",
-   "to": "mixed_facts",
+   "from": "disp_obs",
+   "to": "disp_facts",
    "thickness": 1
   },
   {
-   "from": "mixed_facts",
-   "to": "mixed_judge",
+   "from": "disp_facts",
+   "to": "disp_judge",
    "thickness": 1
   },
   {
-   "from": "mixed_judge",
-   "to": "mixed_decide",
+   "from": "disp_judge",
+   "to": "disp_decide",
    "thickness": 1
   },
   {
-   "from": "mixed_decide",
-   "to": "mixed_llm",
+   "from": "disp_decide",
+   "to": "disp_act",
    "thickness": 1
   },
   {
-   "from": "mixed_llm",
-   "to": "mixed_final",
-   "thickness": 1
-  },
-  {
-   "from": "mixed_final",
-   "to": "mixed_act",
-   "thickness": 1
+   "from": "disp_judge",
+   "to": "disp_llm",
+   "style": "dashed",
+   "color": "#8B5CF6",
+   "label": "hand to LLM"
   }
  ],
  "labels": [
@@ -317,46 +302,46 @@
   {
    "text": "LLM route",
    "x": 20,
-   "y": 264,
+   "y": 259,
    "font_size": 13,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "mixed route",
+   "text": "per-turn dispatch",
    "x": 20,
-   "y": 394,
+   "y": 384,
    "font_size": 13,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "1 Jev request \u00b7 no LLM \u00b7 \u2248 0.4 s \u00b7 cannot write free text: a question no template covers ends in a transfer",
-   "x": 150,
+   "text": "1 Jev request \u00b7 no LLM \u00b7 \u2248 0.4 s \u00b7 a question no template covers ends in a transfer",
+   "x": 170,
    "y": 174,
    "font_size": 11,
    "color": "#6B7280",
    "anchor": "start"
   },
   {
-   "text": "1 LLM call \u00b7 \u2248 8,000 input tokens \u00b7 \u2248 2 s \u00b7 can write anything \u00b7 pays the full call on every turn",
-   "x": 150,
-   "y": 304,
+   "text": "1 model call \u00b7 \u2248 8,000 input tokens \u00b7 \u2248 2 s \u00b7 can do anything \u00b7 pays the full call on every turn",
+   "x": 170,
+   "y": 299,
    "font_size": 11,
    "color": "#6B7280",
    "anchor": "start"
   },
   {
-   "text": "1 Jev request \u00b7 both LLM nodes skipped this turn \u00b7 code still produces the action \u00b7 \u2248 0.4 s \u00b7 the model is called on \u2248 1 turn in 3",
-   "x": 150,
-   "y": 434,
+   "text": "1 Jev request \u00b7 \u2248 0.4 s on this turn \u00b7 the LLM route runs only on turns Jev hands over (\u2248 1 in 3 in the smoke run)",
+   "x": 170,
+   "y": 424,
    "font_size": 11,
    "color": "#6B7280",
    "anchor": "start"
   },
   {
-   "text": "The same turn on each route. Customer: \u201cI\u2019m Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156.\u201d",
-   "x": 620,
+   "text": "The same turn three ways. Customer: \u201cI\u2019m Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156.\u201d",
+   "x": 640,
    "y": 40,
    "font_size": 14,
    "color": "#374151",
@@ -364,16 +349,16 @@
   },
   {
    "text": "Where they part: three turns later the customer asks for the specifications of the replacement items.",
-   "x": 620,
-   "y": 480,
+   "x": 640,
+   "y": 535,
    "font_size": 12,
    "color": "#374151",
    "anchor": "middle"
   },
   {
-   "text": "Jev route: no template answers, the call is transferred.   LLM route: the model writes the answer.   Mixed route: Jev picks \u201creply with the LLM\u201d and the model writes it; every other turn stays on code + Jev.",
-   "x": 620,
-   "y": 500,
+   "text": "Jev route: no template answers, the call is transferred.   LLM route: the model answers.   Per-turn dispatch: Jev hands that turn to the LLM route; every other turn stays on code + Jev.",
+   "x": 640,
+   "y": 555,
    "font_size": 11,
    "color": "#6B7280",
    "anchor": "middle"
@@ -381,7 +366,7 @@
   {
    "text": "code (python)",
    "x": 74,
-   "y": 544,
+   "y": 599,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -389,7 +374,7 @@
   {
    "text": "Jev judgment",
    "x": 224,
-   "y": 544,
+   "y": 599,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -397,7 +382,7 @@
   {
    "text": "LLM generation",
    "x": 374,
-   "y": 544,
+   "y": 599,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -405,7 +390,7 @@
   {
    "text": "action",
    "x": 524,
-   "y": 544,
+   "y": 599,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -413,7 +398,7 @@
   {
    "text": "data",
    "x": 674,
-   "y": 544,
+   "y": 599,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
