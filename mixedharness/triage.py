@@ -10,10 +10,13 @@ TaskDescription (JSON):
      "output_schema": {...}?,
      "examples": [{"observation": {...}, "expected": any}, ...]}
 
-`probe(task)` computes nine deterministic fields with no model call. `triage(task, jev)` sends them, the
-objective and up to five clipped examples to Jev with the current triage questions and returns a
-RouteDecision: the argmax route, the full distribution, the evidence and the exact state sent.
-`seed_for_route(route, task)` builds the seed spec for that route.
+The triage is itself a harness, one level up, and runs through the same Runtime as any task harness:
+`triage_spec()` is a spec with a python probe node (nine deterministic fields from the task description), one
+Jev node (the route question plus two auxiliary questions), and a python decision node (the argmax route).
+`triage(task, jev)` runs it and returns a RouteDecision: the route, the full distribution, the evidence, the
+exact Jev state and response, and the hash of the triage spec that produced it. `probe(task)` is the
+in-process reference implementation of the probe node, kept identical for tests. `seed_for_route(route, task)`
+builds the seed spec for that route.
 
 Routes:  settled (pick from a finite set) → code catalog, Jev pick, code decision;
          open_ended (generate text checked by code) → code prompt, LLM draft, code validate;
@@ -24,7 +27,7 @@ import json
 import statistics
 
 from .expressions import check_json
-from .spec import FORMAT, validate_questions, validate_spec
+from .spec import FORMAT, spec_hash, validate_questions, validate_spec
 
 ROUTES = ('settled', 'open_ended', 'hybrid')
 ACTION_KINDS = ('labels', 'catalog', 'open', 'declared_unknown')
@@ -91,7 +94,7 @@ def validate_task(task):
 
 
 def _tokens(value):
-    return len(str(value).split()) if isinstance(value, str) else len(json.dumps(value))
+    return len(str(value).split()) if isinstance(value, str) else len(str(value))
 
 
 def probe(task):
@@ -133,20 +136,103 @@ def validate_triage_questions(questions):
     return questions
 
 
-def triage(task, jev, *, questions=None, jev_model=None):
-    task = validate_task(task)
+# ---------------------------------------------------------------------------------------------------------
+# The triage is itself a harness, one level up: a python probe, one Jev question set, a python decision.
+# It runs through the same Runtime as any task harness, on the task description instead of an observation.
+# ---------------------------------------------------------------------------------------------------------
+PROBE_SOURCE = '''def tokens(value):
+    if isinstance(value, str):
+        return len(value.split())
+    return len(str(value))
+
+
+def median(values):
+    ordered = sorted(values)
+    n = len(ordered)
+    if n == 0:
+        return 0
+    if n % 2:
+        return ordered[n // 2]
+    return (ordered[n // 2 - 1] + ordered[n // 2]) / 2
+
+
+def run(obs, nodes, memory):
+    task = obs["task"]
+    action = task["action_space"]
+    labels = action.get("labels") if action["kind"] == "labels" else None
+    field = action.get("catalog_field")
+    examples = task["examples"]
+    expected = [ex["expected"] for ex in examples]
+    if labels is not None and all(v in labels for v in expected):
+        kind = "label"
+    elif all(isinstance(v, str) for v in expected):
+        kind = "short_text" if median([tokens(v) for v in expected]) <= __SHORT_TEXT_TOKENS__ else "long_text"
+    else:
+        kind = "structured"
+    catalog = bool(field) and all(isinstance(ex["observation"].get(field), list) and len(ex["observation"].get(field)) > 0 for ex in examples)
+    return {"declared_action_kind": action["kind"],
+            "label_count": len(labels) if labels is not None else None,
+            "catalog_present_in_examples": catalog,
+            "exact_validator": task["evaluator"]["kind"] in __EXACT_EVALUATORS__,
+            "expected_kind": kind,
+            "median_expected_tokens": median([tokens(v) for v in expected]),
+            "decisions_per_episode": task["decisions_per_episode"],
+            "latency_budget_ms": task.get("latency_budget_ms"),
+            "example_count": len(examples)}
+'''
+
+DECISION_SOURCE = '''def run(obs, nodes, memory):
+    answer = nodes["route"]["route"]
+    routes = __ROUTES__
+    probabilities = {}
+    for r in routes:
+        probabilities[r] = float((answer.get("probabilities") or {}).get(r, 0.0))
+    route = answer.get("choice")
+    if route not in routes:
+        best = routes[0]
+        for r in routes:
+            if probabilities[r] > probabilities[best]:
+                best = r
+        route = best
+    return {"route": route, "probabilities": probabilities, "confidence": probabilities[route]}
+'''
+
+
+def triage_spec(questions=None, *, jev_model='jev-1.13.0'):
+    """The triage as a spec: probe (python) -> route (Jev) -> decision (python)."""
     questions = validate_triage_questions(questions or DEFAULT_TRIAGE_QUESTIONS)
-    evidence = probe(task)
-    state = {'objective': task['objective'], 'evidence': evidence,
-             'examples': [{'observation': _clip(ex['observation']), 'expected': _clip(ex['expected'])} for ex in task['examples'][:EXAMPLE_LIMIT]]}
-    response = jev.judge(state, copy.deepcopy(questions), model=jev_model) if jev_model else jev.judge(state, copy.deepcopy(questions))
-    answer = response['answers']['route']
-    probabilities = {route: float(answer.get('probabilities', {}).get(route, 0.0)) for route in ROUTES}
-    route = answer.get('choice')
-    if route not in ROUTES:
-        route = max(ROUTES, key=lambda r: probabilities[r])
-    return {'route': route, 'probabilities': probabilities, 'confidence': probabilities[route],
-            'evidence': evidence, 'questions': questions, 'response': copy.deepcopy(response), 'state': state}
+    probe_source = (PROBE_SOURCE.replace('__SHORT_TEXT_TOKENS__', str(SHORT_TEXT_TOKENS))
+                    .replace('__EXACT_EVALUATORS__', json.dumps(list(EXACT_EVALUATORS))))
+    decision_source = DECISION_SOURCE.replace('__ROUTES__', json.dumps(list(ROUTES)))
+    return validate_spec({'format': FORMAT, 'name': 'triage', 'jev_model': jev_model, 'nodes': [
+        {'id': 'probe', 'kind': 'python', 'source': probe_source, 'inputs': []},
+        {'id': 'route', 'kind': 'jev', 'state': "{'objective': obs['task']['objective'], 'evidence': nodes['probe'], 'examples': obs['examples']}",
+         'questions': questions},
+        {'id': 'decision', 'kind': 'python', 'source': decision_source, 'inputs': ['route']}],
+        'output': "nodes['decision']"})
+
+
+def triage_observation(task):
+    task = validate_task(task)
+    return {'task': {k: task[k] for k in ('name', 'objective', 'observation_fields', 'action_space', 'evaluator', 'decisions_per_episode', 'examples')}
+                     | ({'latency_budget_ms': task['latency_budget_ms']} if 'latency_budget_ms' in task else {}),
+            'examples': [{'observation': _clip(ex['observation']), 'expected': _clip(ex['expected'])} for ex in task['examples'][:EXAMPLE_LIMIT]]}
+
+
+def triage(task, jev, *, questions=None, jev_model=None):
+    """Run the triage harness on a task description. Returns the RouteDecision."""
+    from .runtime import Runtime
+    spec = triage_spec(questions, jev_model=jev_model or getattr(jev, 'model', None) or 'jev-1.13.0')
+    runtime = Runtime(spec, jev)
+    try:
+        result = runtime.run(triage_observation(task))
+    finally:
+        runtime.close()
+    records = {r['id']: r for r in result['trace']}
+    decision = result['output']
+    return {'route': decision['route'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'],
+            'evidence': result['nodes']['probe'], 'questions': spec['nodes'][1]['questions'],
+            'response': records['route']['response'], 'state': records['route']['state'], 'spec_hash': spec_hash(spec)}
 
 
 def route_of_spec(spec):

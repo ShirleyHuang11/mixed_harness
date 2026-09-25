@@ -14,7 +14,7 @@ from mixedharness.routed import run_routed
 from mixedharness.runtime import PipelineError, Runtime
 from mixedharness.spec import FORMAT, spec_hash
 from mixedharness.store import RunStore
-from mixedharness.triage import DEFAULT_TRIAGE_QUESTIONS, TaskError, probe, route_of_spec, seed_for_route, triage, validate_task
+from mixedharness.triage import DEFAULT_TRIAGE_QUESTIONS, TaskError, probe, route_of_spec, seed_for_route, triage, triage_spec, validate_task
 from mixedharness import triage_store
 
 pytestmark = pytest.mark.skipif(not sb.sandbox_available(), reason='no native sandbox on this machine')
@@ -146,6 +146,18 @@ def test_triage_returns_distribution_and_state():
     decision = triage(TASK, JevClient(mock=True))
     assert decision['route'] in ('settled', 'open_ended', 'hybrid') and abs(sum(decision['probabilities'].values()) - 1.0) < 1e-6
     assert decision['state']['evidence'] == probe(TASK) and decision['questions'] == DEFAULT_TRIAGE_QUESTIONS
+    assert decision['spec_hash'] == spec_hash(triage_spec())
+
+
+def test_triage_is_a_spec_of_the_same_shape_and_its_probe_matches_the_reference():
+    from examples.classify import adapter as classify
+    from examples.constrained_text import adapter as constrained
+    spec = triage_spec()
+    assert [n['kind'] for n in spec['nodes']] == ['python', 'jev', 'python'] and route_of_spec(spec) == 'jev'
+    for module in (classify, constrained):
+        task, _ = module.load('train')
+        decision = triage(task, JevClient(mock=True))
+        assert decision['evidence'] == probe(task)
 
 
 @pytest.mark.parametrize('route,kinds', [('settled', 'jev'), ('open_ended', 'llm'), ('hybrid', 'hybrid')])

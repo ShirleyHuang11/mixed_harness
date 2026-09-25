@@ -33,11 +33,16 @@ Harness adds the triage, `llm` nodes for generation, and the second improvement 
 
 ![Mixed Harness architecture](docs/media/fig1_architecture.svg)
 
-**Triage.** A task description (objective, action space, evaluator, a few examples) goes through a free,
-deterministic probe that computes nine fields: the declared action kind, the label count, whether the
-examples carry a legal-action catalog, whether the evaluator is exact, the shape of the expected output.
-Jev reads those fields and the examples and returns a probability over three routes. Each route has a
-seed template:
+There is one kind of machine here, used at two levels. A **task harness** decides what to do on every
+turn of a task. A **triage harness** decides which task harness to build, once per task. Both are the same
+three-node shape (code, one Jev request, code), both run through the same runtime, and both improve by the
+same rule: propose a change, replay it, keep it only if the score rises.
+
+**Triage.** The triage harness takes the task description (objective, action space, evaluator, a few
+examples) as its observation. Its python node is a free, deterministic probe that computes nine fields: the
+declared action kind, the label count, whether the examples carry a legal-action catalog, whether the
+evaluator is exact, the shape of the expected output. Its Jev node reads those fields and the examples and
+returns a probability over three routes. Its decision node picks the seed template for the winning route:
 
 - **settled**: the decision picks from a finite set. Seed: code → Jev pick → code.
 - **open-ended**: the output is free text that code can check. Seed: code → LLM draft → code.
@@ -45,20 +50,21 @@ seed template:
 
 One harness is seeded from the chosen template.
 
-**Loop 1: the harness improves.** The seeded harness runs on training tasks and every run leaves a complete
-trace: node inputs and outputs, Jev questions and answers, LLM prompts, memory, failures, and the score.
-GEPA's reflection model reads those traces and proposes a rewritten graph. The proposal is not limited to
-prompt text: it can add or remove nodes, change a node's kind, insert a generate-then-select structure, or
-move logic from a model call into Python. A proposal is kept only if it beats its parent on the same
-training batch and holds up on validation. Parents are drawn from a Pareto frontier over task instances, so
-the search does not collapse onto one lineage. A wrong triage is corrected here rather than by re-running
-the triage: the summary of every run records both the route the triage chose and the route the selected
-harness turned out to have.
+**Loop 1: the task harness improves.** The seeded harness runs on training tasks and every run leaves a
+complete trace: node inputs and outputs, Jev questions and answers, LLM prompts, memory, failures, and the
+score. GEPA's reflection model reads those traces and proposes a rewritten graph. The proposal is not
+limited to prompt text: it can add or remove nodes, change a node's kind, insert a generate-then-select
+structure, or move logic from a model call into Python. A proposal is kept only if it beats its parent on
+the same training batch and holds up on validation. Parents are drawn from a Pareto frontier over task
+instances, so the search does not collapse onto one lineage. A wrong triage is corrected here rather than by
+re-running the triage: the summary of every run records both the route the triage chose and the route the
+selected harness turned out to have.
 
-**Loop 2: the triage improves.** That pair, triage route versus final route, is appended to a history after
-every run. The reflection model proposes a new triage question map; the old and the new map are both
-replayed through Jev over the whole history, and the new one is accepted only if it agrees with the recorded
-outcomes strictly more often. Accepted maps are versioned.
+**Loop 2: the triage harness improves.** That pair, route chosen versus what the harness became, is
+appended to a history after every run. The reflection model proposes a new question map for the triage
+harness's Jev node; the old and the new map are both replayed over the whole history, and the new one is
+kept only if it agrees with the recorded outcomes strictly more often. It is the same rule as loop 1 with a
+different training set: past tasks instead of past turns.
 
 ## The execution layer: what the green box does on one turn
 

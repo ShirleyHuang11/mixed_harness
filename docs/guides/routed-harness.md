@@ -37,10 +37,13 @@ Starting one costs a few hundred milliseconds on a network filesystem; a warm no
 ## Task description and triage
 
 `mixedharness/triage.py` reads a TaskDescription (name, objective, observation fields, action space,
-evaluator kind, decisions per episode, examples). `probe(task)` computes nine deterministic fields;
-`triage(task, jev)` sends them, the objective and up to five clipped examples to Jev with the current
-question map and returns the route (argmax of the `route` choice), the full distribution and the state sent.
-`seed_for_route(route, task)` builds the seed:
+evaluator kind, decisions per episode, examples). The triage is itself a harness of the same shape as any
+task harness and runs through the same `Runtime`: `triage_spec(questions)` is a spec with a python `probe`
+node (nine deterministic fields from the task description), a Jev `route` node (the route question plus two
+auxiliary questions) and a python `decision` node (the argmax route). `triage(task, jev)` runs it on the
+task description as observation and returns the route, the full distribution, the evidence, the exact Jev
+state and response, and the hash of the triage spec. `probe(task)` is the in-process reference for the probe
+node and is tested to agree with it. `seed_for_route(route, task)` builds the seed:
 
 - `settled`: python catalog → jev pick (`questions_expression`) → python decision
 - `open_ended`: python prompt → llm draft (with the task's `output_schema`) → python validate
