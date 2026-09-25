@@ -29,15 +29,14 @@ cost, Jev probabilities and harness version.
 
 ## Architecture
 
-![Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store, evolution loops](docs/media/fig_runtime_path.svg)
+![Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store; the evolution loops feed a new harness version back into the compiler and the router](docs/media/fig_runtime_path.svg)
 
 **Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
 picks, so Jev picks actions and free-text arguments need a small LLM slot filler. It is single-pass,
 non-autoregressive and returns calibrated confidence, so an accept threshold is cheap to set and can be
 recalibrated per domain with conformal prediction. Extraneous context lowers its accuracy and its context is
 capped, so the compiler must produce a minimal state slice per question, and slice selection is something
-to evolve. Its weights are proprietary, so the questions evolve, not the model; an open decision model can
-run as an optional weight arm. It is weaker on long horizons, so per-step confidence overstates trajectory
+to evolve. Its weights are proprietary, so the questions evolve, not the model. It is weaker on long horizons, so per-step confidence overstates trajectory
 reliability and the router adds trajectory-level escalation.
 
 **Runtime path.** The action-space compiler turns tool schemas and the current state into a typed action
@@ -72,26 +71,27 @@ from traces; which turns stop needing the LLM at all is what loop A's macro-acti
 
 ![Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast); both deploy a new harness version](docs/media/fig_evolution_loops.svg)
 
-The box at the bottom right of the runtime figure, opened up. Both loops read the trace store; the slow one
-changes what Jev is asked, the fast one changes when Jev is trusted.
+The box at the bottom right of the runtime figure, opened up. Both loops read the trace store and both
+deploy a new harness version; the slow one changes what Jev is asked, the fast one changes when Jev is
+trusted. Each loop is two steps.
 
 **Loop A, execution layer (slow).** Evolve the questions, not Jev's weights: question templates, option
-sets, rubric definitions and state-slice selection are treated as programs and optimized on traces with
-fitness = outcome reward minus calibration error. Macro-action mining promotes frequent LLM tool-call
-subsequences to new options in Jev's choice set, so open territory becomes closed territory over time: the
-LLM explores, Jev compiles and exploits. An optional weight arm distills LLM escalations into an open
-decision model. On the LLM side, prompts and tool docs evolve on failed traces; weights stay frozen.
+sets and state-slice selection are programs, and GEPA optimizes them on traces with fitness = outcome reward
+minus calibration error. Then mine macro-actions: tool-call subsequences that the LLM path repeats become new
+options in Jev's choice set, so open territory becomes closed territory over time. The LLM explores, Jev
+compiles and exploits. LLM prompts and tool docs evolve on the same traces; weights stay frozen on both sides.
 
-**Loop B, division of labor (fast).** The router is a contextual bandit over the three paths. Its reward is
-success minus λ·latency minus λ·tokens, weighted on multi-step success rather than per-step accuracy, and
-sweeping λ traces the Pareto frontier. Counterfactual shadow runs execute the path not taken with probability ε and use doubly robust
-off-policy estimates, otherwise Jev only sees states the router already trusts it with and its traffic
-share cannot grow. Conformal recalibration sets τ(s) per state cluster so the error rate on accepted Jev
-decisions stays below α, and is redone after every harness version.
+**Loop B, routing layer (fast).** Recalibrate first: split conformal prediction sets τ(s) per state cluster
+so the error rate on accepted Jev decisions stays below α, and is redone after every execution-layer change.
+Then let a contextual bandit over the three paths move traffic, with reward = success minus λ·cost on
+multi-step outcomes; sweeping λ traces the success-versus-cost frontier. With probability ε the bandit also
+runs the path not taken and logs it, otherwise Jev only sees states the router already trusts it with and its
+share cannot grow.
 
-**Coupling.** Routing updates faster than execution updates. After any execution-layer change, recalibrate
-τ(s) and warm-start the bandit before shifting traffic, or the router optimizes against a Jev that no
-longer exists. Every component is version-pinned in the traces.
+**Coupling.** Recalibrate before the bandit moves traffic, and warm-start the bandit after any
+execution-layer change, or the router optimizes against a Jev that no longer exists. Every component is
+version-pinned in the traces. Distilling LLM escalations into an open decision model would be a third,
+weight-level loop; it is out of scope here.
 
 **Metrics that show the harness is evolving rather than tuning.**
 
@@ -134,8 +134,8 @@ counts what it should, and that Jev answers in about 400 ms.
 | Per-step Jev router with closed / narrow / escalate | not yet: today the dispatch is once per task, and the hand-to-LLM option is a catalog entry |
 | Narrow path (LLM menu, Jev picks) | not yet |
 | Trajectory-level escalation | partial: the seed transfers after three identical replies |
-| Loop A, macro-action mining and the weight arm | not yet |
-| Loop B: router bandit, shadow runs, conformal τ(s) | not yet |
+| Loop A, macro-action mining | not yet |
+| Loop B: conformal τ(s), router bandit with ε shadow runs | not yet |
 | Dispatcher row and oracle in the benchmark table | not yet: the runner scores the routes as arms |
 
 ## Quick start
