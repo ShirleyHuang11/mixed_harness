@@ -1,4 +1,4 @@
-"""Budget, evolution loop, triage, routed run, triage improvement, freeze. Mock providers only."""
+"""Budget, evolution loop, generic seeds, freeze. Mock providers only."""
 import json
 
 import pytest
@@ -10,12 +10,10 @@ from mixedharness.freeze import FrozenMismatch, evaluate_frozen, freeze
 from mixedharness.jev import JevClient
 from mixedharness.llm import LLMClient
 from mixedharness.reflect import Proposer, ReflectionError, build_prompt
-from mixedharness.routed import run_routed
 from mixedharness.runtime import PipelineError, Runtime
 from mixedharness.spec import FORMAT, spec_hash
 from mixedharness.store import RunStore
-from mixedharness.triage import DEFAULT_TRIAGE_QUESTIONS, TaskError, probe, route_of_spec, seed_for_route, triage, triage_spec, validate_task
-from mixedharness import triage_store
+from mixedharness.seeds import TaskError, route_of_spec, seed_for_route, validate_task
 
 pytestmark = pytest.mark.skipif(not sb.sandbox_available(), reason='no native sandbox on this machine')
 
@@ -128,36 +126,18 @@ def test_evaluate_spec_and_freeze_roundtrip(tmp_path):
         evaluate_frozen(artifact, VAL, evaluator=lambda *a, **k: None, jev=jev)
 
 
-# -- triage and routing -----------------------------------------------------------------------------------
+# -- generic seeds ----------------------------------------------------------------------------------------
 TASK = {'name': 'sizes', 'objective': 'Say whether a number is big or small.', 'observation_fields': ['x'],
         'action_space': {'kind': 'labels', 'labels': LABELS}, 'evaluator': {'kind': 'exact_match'}, 'decisions_per_episode': 1,
         'latency_budget_ms': 1000, 'examples': [{'observation': {'x': 9}, 'expected': 'big'}, {'observation': {'x': 1}, 'expected': 'small'}]}
 
 
-def test_probe_is_deterministic_evidence():
-    evidence = probe(TASK)
-    assert evidence['declared_action_kind'] == 'labels' and evidence['label_count'] == 2 and evidence['expected_kind'] == 'label'
-    assert evidence['exact_validator'] and evidence['example_count'] == 2
+def test_task_validation():
+    assert validate_task(TASK) == TASK
     with pytest.raises(TaskError):
         validate_task(dict(TASK, action_space={'kind': 'labels'}))
-
-
-def test_triage_returns_distribution_and_state():
-    decision = triage(TASK, JevClient(mock=True))
-    assert decision['route'] in ('jev', 'llm') and abs(sum(decision['probabilities'].values()) - 1.0) < 1e-6
-    assert decision['state']['evidence'] == probe(TASK) and decision['questions'] == DEFAULT_TRIAGE_QUESTIONS
-    assert decision['spec_hash'] == spec_hash(triage_spec())
-
-
-def test_triage_is_a_spec_of_the_same_shape_and_its_probe_matches_the_reference():
-    from examples.classify import adapter as classify
-    from examples.constrained_text import adapter as constrained
-    spec = triage_spec()
-    assert [n['kind'] for n in spec['nodes']] == ['python', 'jev', 'python'] and route_of_spec(spec) == 'jev'
-    for module in (classify, constrained):
-        task, _ = module.load('train')
-        decision = triage(task, JevClient(mock=True))
-        assert decision['evidence'] == probe(task)
+    with pytest.raises(TaskError):
+        seed_for_route('hybrid', TASK)
 
 
 @pytest.mark.parametrize('route,kinds', [('jev', 'jev'), ('llm', 'llm')])
@@ -175,39 +155,7 @@ def test_seed_templates_run_under_mock_providers(route, kinds):
     assert result['status'] == 'ok' and result['output'] is not None
 
 
-def label_evaluator(spec, episode, jev, llm=None, capture_traces=True):
-    rt = Runtime(spec, jev, llm)
-    try:
-        d = rt.run({'x': episode['x'], 'labels': LABELS})
-    finally:
-        rt.close()
-    out = d['output']
-    return {'episode_id': episode['id'], 'score': 1.0 if out == episode['label'] else 0.0, 'traces': [dict(d, observation={'x': episode['x']})]}
-
-
-def test_routed_run_records_routes_and_improves_triage_after_two_runs(tmp_path):
-    better = seed_for_route('jev', TASK, llm_model='mock-llm')
-    better['llm_model'] = 'mock-llm'
-    better['nodes'][0]['source'] = ('def run(obs, nodes, memory):\n    rule = "big" if obs["x"] >= 5 else "small"\n'
-                                    '    return {"options": obs["labels"], "questions": {"action": {"type": "choice", "instructions": "confirm", "criteria": {rule: "the rule"}}}}\n')
-    better['nodes'][2]['source'] = 'def run(obs, nodes, memory):\n    return {"action": nodes["pick"]["action"]["choice"], "handed": False}\n'
-    improved_questions = json.loads(json.dumps(DEFAULT_TRIAGE_QUESTIONS))
-    improved_questions['route']['instructions'] = 'Improved instructions.'
-
-    def responder(prompt):
-        payload = json.loads(prompt)
-        return json.dumps(improved_questions if 'current_questions' in payload else better)
-    store = RunStore(tmp_path / 'runs')
-    proposer = Proposer({'kind': 'mock', 'responder': responder})
-    first = run_routed(TASK, TRAIN, VAL, jev=JevClient(mock=True), llm=LLMClient(kind='mock'), proposer=proposer, store=store,
-                       evaluator=label_evaluator, task_id='sizes', rounds=1, batch_size=4)
-    assert first['route_source'] == 'triage' and first['seed_route'] in ('jev', 'llm') and first['best_score'] == 1.0
-    assert first['final_route'] == 'jev' and first['triage_improvement']['status'] == 'skipped'
-    assert (store.root / 'routed' / first['routed_id'] / 'best_spec.json').is_file()
-    second = run_routed(TASK, TRAIN, VAL, jev=JevClient(mock=True), llm=LLMClient(kind='mock'), proposer=proposer, store=store,
-                        evaluator=label_evaluator, task_id='sizes', route='llm', rounds=1, batch_size=4)
-    assert second['route_source'] == 'override' and second['route'] == 'llm'
-    assert second['triage_improvement']['status'] in ('accepted', 'rejected')
-    history = triage_store.history(store)
-    assert len(history) == 2 and {h['target'] for h in history} <= {'jev', 'llm'}
-    assert len(triage_store.improvements(store)) == 2
+def test_route_of_spec_reads_node_kinds():
+    assert route_of_spec(SEED) == 'jev' and route_of_spec(BETTER) == 'code'
+    mixed = dict(SEED, nodes=SEED['nodes'] + [{'id': 'd', 'kind': 'llm', 'prompt': "'x'"}])
+    assert route_of_spec(mixed) == 'jev+llm'

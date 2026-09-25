@@ -1,4 +1,4 @@
-# Routed harness: reference
+# Mixed Harness: reference
 
 ## The spec
 
@@ -7,19 +7,20 @@ A harness is a JSON graph (`mixedharness/spec.py`):
     {"format": "mixedharness/1", "name": "...", "jev_model": "jev-1.13.0", "llm_model": "claude-sonnet-5",
      "nodes": [...], "output": "<expr>", "memory": "<expr>"}
 
-| Node | Fields | Reads |
-|---|---|---|
-| `python` | `source` (defines `run(obs, nodes, memory)`), `inputs` (node ids) | exactly its `inputs` |
-| `expression` | `expression` | node ids referenced as `nodes['id']` |
-| `jev` | `state` (expr), `questions` (map) or `questions_expression` (expr) | ids referenced in either |
-| `llm` | `prompt` (expr; `null` skips the node), `schema` (JSON Schema subset), `max_tokens` | ids referenced in `prompt` |
-| `agent` | `instructions`, `context` (expr → `{policy, tools, conversation}`; `null` skips the node), `max_tokens` | ids referenced in `context` |
+| Node | Fields | Reads | Skips when |
+|---|---|---|---|
+| `python` | `source` (defines `run(obs, nodes, memory)`), `inputs` (node ids) | exactly its `inputs` | never |
+| `expression` | `expression` | node ids referenced as `nodes['id']` | never |
+| `jev` | `state` (expr), `questions` (map) or `questions_expression` (expr) | ids referenced in either | `questions_expression` is null |
+| `llm` | `prompt` (expr), `schema` (JSON Schema subset), `max_tokens` | ids referenced in `prompt` | `prompt` is null |
+| `agent` | `instructions`, `context` (expr → `{policy, tools, conversation}`), `max_tokens` | ids referenced in `context` | `context` is null |
 
-Expressions are a restricted language over `obs`, `nodes` and `memory`: literals, indexing, arithmetic,
-comparisons, conditionals, and a fixed set of functions (`len min max sum abs round mean median std last get
-clip column text sorted any all`). Python nodes are validated against an allow-list before they run and
-execute in a native sandbox (`bwrap` on Linux, `sandbox-exec` on macOS) with no network, no host environment
-and memory, CPU and wall-time limits. `uv run mixedharness schema` prints the schema given to authoring models.
+A skipped node makes no call and outputs null. Expressions are a restricted language over `obs`, `nodes` and
+`memory`: literals, indexing, arithmetic, comparisons, conditionals, and a fixed set of functions (`len min max sum
+abs round mean median std last get clip column text sorted any all`). Python nodes are validated against an
+allow-list before they run and execute in a native sandbox (`bwrap` on Linux, `sandbox-exec` on macOS) with no
+network, no host environment and memory, CPU and wall-time limits. `uv run mixedharness schema` prints the schema
+given to authoring models.
 
 ## One run
 
@@ -33,23 +34,45 @@ A failing node raises `PipelineError` after the wave with the partial result att
 means a provider or sandbox outage rather than a candidate fault, and evolution treats the two differently.
 
 Python nodes run in a warm worker: one sandboxed interpreter per pool slot, started on first use and reused.
-Starting one costs a few hundred milliseconds on a network filesystem; a warm node costs a few milliseconds.
 
-## Task description and triage
+## The routed harness
 
-`mixedharness/triage.py` reads a TaskDescription (name, objective, observation fields, action space,
-evaluator kind, decisions per episode, examples). The triage is itself a harness of the same shape as any
-task harness and runs through the same `Runtime`: `triage_spec(questions)` is a spec with a python `probe`
-node (nine deterministic fields from the task description), a Jev `route` node (the route question plus two
-auxiliary questions) and a python `decision` node (the argmax route). `triage(task, jev)` runs it on the
-task description as observation and returns the route, the full distribution, the evidence, the exact Jev
-state and response, and the hash of the triage spec. `probe(task)` is the in-process reference for the probe
-node and is tested to agree with it. `seed_for_route(route, task)` builds the seed:
+`examples/tau2/seeds.py` is the worked routed harness for a multi-step tool task. One turn:
 
-- `jev`: python catalog → jev pick (`questions_expression`) → python decision
-- `llm`: python context → agent (one native tool-calling turn) for tool tasks; python prompt → llm draft for single-shot tasks
+    compile (python) → judge (jev) → route (python) → decision (python)
+                                                     ↘ menu (llm) → menu_q (python) → menu_pick (jev) ↘
+                                                     ↘ agent (agent)                                    → guard (python)
 
-Evolution may add a `hand_to_llm` catalog option and an `agent` node to a jev route; `route_of_spec` reports that graph as `jev+llm`.
+- **compile** is the action-space compiler: it parses the conversation, keeps fetched entities in memory, builds
+  the legal-action catalog A(s) from state, fills what code can fill, lists the arguments it cannot fill
+  (`needs`), flags the step `closed` (catalog non-empty and `needs` empty), names its `cluster`, and writes every
+  question for the Jev request: `route` (closed / narrow / escalate), `action`, `action_alt` (the same options in
+  reverse order, the agreement signal), `fits`, `user_confirms`, and the candidate questions.
+- **route** applies the signals in order of authority: the compiler flag (an open step cannot be closed), Jev's
+  route pick, agreement fall-through (closed with disagreement → narrow), the embedded per-cluster policy and its
+  epsilon shadow share, trajectory-level escalation (k closed picks with disagreement in a row, or the same reply
+  repeated). Without an LLM every path is forced closed and the pick is still recorded.
+- **decision** is the closed path; **menu → menu_q → menu_pick** the narrow path (the LLM writes 2 to 4
+  candidates, Jev picks); **agent** the escalate path. Paths not taken are skipped at no cost.
+- **guard** assembles the action of the realised path, checks tool names and required arguments, gates database
+  writes on every path behind an explicit yes to the same details, falls back to the closed decision when a menu
+  or agent output is unusable, updates the trajectory counters, and returns the routing record the step table reads.
+
+`mixedharness/router.py` holds the vocabulary (`PATHS`, `PATH_SOURCES`), the agreement helper, `route_metrics`
+over step rows, and loop B: `fit_policy(steps)` gives each cluster the path with the best mean of
+success − λ·cost once it has enough scored steps, and `policy_source_literal` renders it for embedding in a seed
+(`routed_seed(policy=...)`), so the policy hashes with the harness version.
+
+`mixedharness/trace.py` is the step table: `steps_from_ledger` turns an agent ledger into one row per turn
+(cluster, flag, Jev's pick, realised path and why, agreement, confidence, action, guard, cost, latency, reward).
+`mixedharness/mining.py` is loop A's macro-action miner: tool-call n-grams the LLM paths repeat, with support.
+
+## Generic seeds
+
+`mixedharness/seeds.py` reads a TaskDescription (name, objective, observation fields, action space, evaluator
+kind, decisions per episode, examples) and builds a single-step seed: `seed_for_route('jev', task)` is catalog →
+pick → decision; `seed_for_route('llm', task)` is prompt → draft, or context → agent for tool tasks.
+`route_of_spec` reports what a finished spec is made of: jev, llm, jev+llm or code.
 
 ## Evolution
 
@@ -59,8 +82,8 @@ Evolution may add a `hand_to_llm` catalog option and an `agent` node to a jev ro
 
 The evaluator is task code: `evaluator(spec, episode, jev, llm=None, capture_traces=True)` returning
 `{'episode_id', 'score', 'traces'}` with one trace per decision (the runtime result plus observation and
-action). Each round GEPA selects a parent from the Pareto frontier over training instances, evaluates it on
-a batch, hands the complete trajectories to the proposer (`mixedharness/reflect.py`), evaluates the proposed
+action). Each round GEPA selects a parent from the Pareto frontier over training instances, evaluates it on a
+batch, hands the complete trajectories to the proposer (`mixedharness/reflect.py`), evaluates the proposed
 spec on the same batch and keeps it only on strict improvement, then scores it on the full validation set.
 Proposals that change `format`, `jev_model` or `llm_model`, or fail validation, are rejected and logged.
 `budget={'latency_ms_p95': ..., 'cost_usd_per_episode': ...}` turns an over-budget episode into an invalid
@@ -68,19 +91,6 @@ candidate; usage is read from traces, never estimated.
 
 Everything lands in the store (`mixedharness/store.py`): `run.json`, `events.jsonl`, `candidates/`,
 `evaluations.jsonl`, `traces/`, `reflections/`, and GEPA's own log under `gepa/`.
-
-## The routed run
-
-    from mixedharness.routed import run_routed
-    summary = run_routed(task, train, validation, jev=..., llm=..., proposer=..., store=..., evaluator=...,
-                         task_id='classify', route=None, rounds=3, batch_size=2)
-
-Probe, triage, seed, one evolution, then two records: `summary['route']` (what the triage chose) and
-`summary['final_route']` (what the selected harness is made of). The pair is appended to
-`<store>/triage/history.jsonl`, and `triage_store.improve` asks the proposer for a better question map,
-replays the old and the new map through Jev over the whole history, and accepts the new one only if its
-agreement with the recorded outcomes is strictly higher. Accepted maps are versioned in
-`<store>/triage/questions.json`. Pass `route=` to override the triage; `improve_triage=False` skips loop 2.
 
 ## Freezing
 

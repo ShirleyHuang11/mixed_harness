@@ -6,7 +6,9 @@
 
 A record has `id`, `kind`, `status` (ok / skipped / error / blocked), `inputs`, `elapsed_ms`, `output`, and
 what the node saw and got back: `source` and `worker_ms` for python, `expression` for expression nodes,
-`state`, `questions` and `response` for jev, `prompt`, `schema` and `response` for llm. Nodes that fail
+`state`, `questions` and `response` for jev, `prompt`, `schema` and `response` for llm. A jev node whose
+`questions_expression` evaluates to null, an llm node whose prompt is null and an agent node whose context is
+null are skipped: no call, output null, status `skipped`. Nodes that fail
 raise `PipelineError` after the wave finishes, with the partial result attached and `infrastructure=True`
 when any cause was a provider or sandbox outage rather than the candidate's own fault.
 """
@@ -141,14 +143,17 @@ class Runtime:
             elif kind == 'expression':
                 value = expressions.evaluate(node['expression'], context)
             elif kind == 'jev':
-                state = expressions.evaluate(node['state'], context)
                 questions = node['questions'] if 'questions' in node else expressions.evaluate(node['questions_expression'], context)
-                validate_questions(questions)
-                record['state'] = copy.deepcopy(state)
-                record['questions'] = copy.deepcopy(questions)
-                response = self.jev.judge(state, questions, model=self.spec['jev_model'])
-                record['response'] = copy.deepcopy(response)
-                value = response['answers']
+                if questions is None:
+                    record['status'] = 'skipped'   # a null question map skips the node this run: no call, output null
+                else:
+                    validate_questions(questions)
+                    state = expressions.evaluate(node['state'], context)
+                    record['state'] = copy.deepcopy(state)
+                    record['questions'] = copy.deepcopy(questions)
+                    response = self.jev.judge(state, questions, model=self.spec['jev_model'])
+                    record['response'] = copy.deepcopy(response)
+                    value = response['answers']
             elif kind == 'agent':
                 agent_context = expressions.evaluate(node['context'], context)
                 if agent_context is None:

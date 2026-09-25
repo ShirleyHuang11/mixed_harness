@@ -116,9 +116,10 @@ def mock_answers(questions, state):
 
 class JevClient:
     def __init__(self, api_key=None, model=DEFAULT_MODEL, *, mock=False, cache_dir=None, cache_namespace=None,
-                 cache_only=False, timeout=60.0, endpoint=ENDPOINT):
+                 cache_only=False, timeout=60.0, endpoint=ENDPOINT, mock_responder=None):
         self.model = model
         self.mock = mock
+        self.mock_responder = mock_responder   # mock only: (state, questions) -> partial answers, normalised like a real reply
         self.timeout = timeout
         self.endpoint = endpoint
         self.key = api_key or os.getenv('TYPESAFE_API_KEY')
@@ -153,7 +154,10 @@ class JevClient:
         if self.cache_only:
             raise JevError('cache-only client missed the cache')
         if self.mock:
-            result = {'answers': mock_answers(questions, state), 'model': 'mock', 'usage': {}, 'cost_usd': 0.0}
+            answers = mock_answers(questions, state)
+            if self.mock_responder is not None:
+                answers = normalise_answers(questions, {**answers, **(self.mock_responder(state, questions) or {})})
+            result = {'answers': answers, 'model': 'mock', 'usage': {}, 'cost_usd': 0.0}
         else:
             result = self._call(model, state, questions)
         result.update(cache_hit=False, elapsed_ms=(time.perf_counter() - started) * 1000, request_hash=key)

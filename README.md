@@ -119,8 +119,9 @@ One table is generated from the artifacts: pass^1, dollars per task, millisecond
 calls per turn, and the three evolution metrics above: Jev traffic share, error rate on accepted Jev
 decisions against α, and escalation precision. The best single arm on each task is the per-task oracle.
 The claim holds if the routed arm lands within noise of LLM only on pass^1 at a fraction of its cost; it
-fails if the routed arm trails the best single arm. Predictions and the decision table are written down
-before any run in `docs/design/tau2-three-arms.md`; `docs/guides/tau2.md` covers setup and reading.
+fails if the routed arm trails the best single arm. Before any routed run, stage 0 labels the recorded LLM-only turns closed or open and replays Jev on them, so the
+closed fraction and Jev's agreement with the LLM are measured first. Stages, predictions and the decision table
+are written down in `docs/design/tau2-four-arms.md`; `docs/guides/tau2.md` covers setup and reading.
 
 Measured so far, on 2 retail tasks (the run stopped when the language-model account ran out of credit):
 LLM only passed 2 of 2 at $0.17 per task and 2.1 s per turn; Jev only passed 0 of 2 at $0.004 per task and
@@ -132,18 +133,20 @@ plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks s
 
 | Part | State |
 |---|---|
-| Runtime, sandbox, expression language, spec format | done, tested on mock providers |
-| Closed path: compiler, Jev pick, code decision (the τ²-bench Jev-route seed) | done, run against real Jev |
-| Escalate path: `agent` node, one native tool-calling turn | done |
-| Guard: schema and argument checks, confirm-before-write in code | done in the seed's decision node; irreversible-action escalation not yet |
-| Trace store: trajectories, rewards, route chosen vs realised | done (`mixedharness/store.py`, `triage_store`) |
+| Runtime, sandbox, expression language, spec format; jev, llm and agent nodes skip on a null input | done, tested on mock providers |
+| Action-space compiler for τ²-bench retail: catalog, argument fill, `needs`, closed flag, cluster | done (`examples/tau2/seeds.py`, run against real Jev) |
+| One Jev request per step: route pick, action pick, reordered paraphrase, fits, candidates | done |
+| Router: compiler flag → Jev pick → agreement fall-through → per-cluster policy with ε shadow → trajectory escalation | done, tested path by path on scripted providers |
+| Closed path (Jev decides, code fills, templates reply) | done |
+| Narrow path (LLM writes a menu, Jev picks) | done, not yet run against a real LLM |
+| Escalate path (`agent` node, one native tool-calling turn) | done |
+| Guard: tool and argument checks, write gate on every path, fallback to the closed decision | done |
+| Trace store: step table with routing record and episode reward (`mixedharness/trace.py`) | done |
 | Loop A, question evolution (GEPA over the whole spec) | done, tested with a mock reflection model |
-| Per-step Jev router with closed / narrow / escalate | partial: the hand-to-LLM option is a catalog entry Jev picks per step; a per-task dispatcher picks the seed |
-| Narrow path (LLM menu, Jev picks) | not yet |
-| Trajectory-level escalation | partial: the seed transfers after three identical replies |
-| Loop A, macro-action mining | not yet |
-| Loop B: conformal τ(s), router bandit with ε shadow runs | not yet |
-| Routed arm in the benchmark table | partial: the runner scores LLM only, Jev only and the hand-written routed shape; the evolved arm takes a spec from a run |
+| Loop A, macro-action mining (`mixedharness/mining.py`) | done as a miner; promotion to options is a proposal step |
+| Loop B, per-cluster policy from steps, embedded in the spec (`mixedharness/router.py`) | done; conformal τ(s) dropped pending stage 0 |
+| Stage 0 labels and Jev replay (`scripts/stage0_label_replay.py`) | done; run on 41 turns with mock Jev, real Jev pending |
+| Four-arm benchmark runner with step tables and the stage 2 decision table | done; real runs blocked on LLM credit |
 
 ## Quick start
 
@@ -161,11 +164,11 @@ the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandb
 
 | Path | What it holds |
 |---|---|
-| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, evolution, triage, routing, freeze |
+| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router, trace, mining, seeds, evolution, freeze |
 | `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
-| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, and the route seeds |
-| `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the four-arm benchmark test) |
-| `docs/design/` | `routing.md`, `tau2-three-arms.md` (predictions and decision table), `implementation.md` |
+| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, the routed seed and its two controls, a replay user for offline plumbing |
+| `scripts/` | `stage0_label_replay.py` (labels and Jev replay), `tau2_compare.py` (the four-arm benchmark), `live_run.py` (small real-model evolution) |
+| `docs/design/` | `tau2-four-arms.md` (stages, predictions, decision table), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
 | `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` (hand-drawn SVG) |
 

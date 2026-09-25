@@ -1,13 +1,12 @@
-"""Smallest real-model routed run on a bundled example task.
+"""Smallest real-model evolution run on a bundled example task.
 
 Reads credentials from the environment or a local .env (never committed):
   TYPESAFE_API_KEY     Jev, direct TypeSafe API (https://console.typesafe.ai/keys)
-  ANTHROPIC_API_KEY    llm nodes; only needed for open_ended / hybrid seeds
+  ANTHROPIC_API_KEY    llm and agent nodes; only needed for the llm seed
 Reflection uses the local `claude` CLI (configs/claude_local.json); no key needed.
 
-    uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
-    uv run python scripts/live_run.py --task constrained_text --rounds 1 --train 4 --validation 4
-    uv run python scripts/live_run.py --task constrained_text --route hybrid
+    uv run python scripts/live_run.py --task classify --seed jev --rounds 2 --train 6 --validation 6
+    uv run python scripts/live_run.py --task constrained_text --seed llm --rounds 1 --train 4 --validation 4
 """
 import argparse
 import importlib
@@ -17,10 +16,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from mixedharness.evolve import run_evolution
 from mixedharness.jev import JevClient
 from mixedharness.llm import LLMClient
 from mixedharness.reflect import Proposer
-from mixedharness.routed import run_routed
+from mixedharness.seeds import ROUTES, route_of_spec, seed_for_route
 from mixedharness.store import RunStore
 
 TASKS = {'classify': 'examples.classify.adapter', 'constrained_text': 'examples.constrained_text.adapter'}
@@ -29,7 +29,7 @@ TASKS = {'classify': 'examples.classify.adapter', 'constrained_text': 'examples.
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--task', choices=sorted(TASKS), default='classify')
-    parser.add_argument('--route', choices=['settled', 'open_ended', 'hybrid'], default=None, help='override the triage')
+    parser.add_argument('--seed', choices=list(ROUTES), default=None, help='seed shape; default: jev for a labels/catalog task, llm otherwise')
     parser.add_argument('--rounds', type=int, default=2)
     parser.add_argument('--batch', type=int, default=2, help='training episodes per reflection')
     parser.add_argument('--train', type=int, default=6)
@@ -57,19 +57,21 @@ def main(argv=None):
         jev = JevClient(model=args.jev_model, cache_dir='.cache/jev', cache_namespace=namespace)
         llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir='.cache/llm', cache_namespace=namespace)
         proposer = Proposer(json.loads(Path(args.proposer_config).read_text()))
-
-    summary = run_routed(task, train[:args.train], validation[:args.validation], jev=jev, llm=llm, proposer=proposer,
-                         store=RunStore(args.runs), evaluator=adapter.evaluate_episode, task_id=args.task, route=args.route,
-                         rounds=args.rounds, batch_size=args.batch, budget={'latency_ms_p95': args.latency_ms})
-    report = {key: summary.get(key) for key in ('routed_id', 'run_id', 'route', 'route_source', 'seed_route', 'final_route',
-                                                'seed_score', 'best_score', 'reflections', 'accepted', 'total_metric_calls', 'questions_version')}
-    report['triage_probabilities'] = summary['decision']['probabilities']
-    report['triage_improvement'] = summary['triage_improvement']['status']
+    seed = args.seed or ('jev' if task['action_space']['kind'] in ('labels', 'catalog') else 'llm')
+    spec = seed_for_route(seed, task, jev_model=args.jev_model, llm_model=llm.model)
+    spec['llm_model'] = llm.model   # pinned so a proposal may add llm nodes
+    summary = run_evolution(train[:args.train], validation[:args.validation], jev=jev, llm=llm, proposer=proposer,
+                            store=RunStore(args.runs), evaluator=adapter.evaluate_episode, seed_spec=spec,
+                            task={'id': args.task, 'objective': task['objective'], 'seed': seed}, rounds=args.rounds,
+                            batch_size=args.batch, budget={'latency_ms_p95': args.latency_ms}, run_name=f'{args.task}-{seed}')
+    report = {key: summary.get(key) for key in ('run_id', 'seed_score', 'best_score', 'reflections', 'accepted', 'total_metric_calls')}
+    report['seed'] = seed
+    report['final_shape'] = route_of_spec(summary['best_spec'])
     report['jev'] = {'model': args.jev_model, 'actual_models': jev.metadata['actual_models'], **jev.stats}
     report['llm'] = llm.stats
     report['proposer'] = proposer.stats
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    print(f"\nInspect: {args.runs}/routed/{summary['routed_id']}/  and  {args.runs}/{summary['run_id']}/")
+    print(f"\nInspect: {args.runs}/{summary['run_id']}/")
 
 
 if __name__ == '__main__':

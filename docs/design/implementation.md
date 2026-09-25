@@ -34,9 +34,10 @@ was changed and why, and the order in which the package was built.
    comparisons, conditionals, a fixed set of functions). 2. `spec.py`: validation, hashing, the schema
    handed to the authoring model. 3. `sandbox.py`: source validation and the warm worker. 4. `runtime.py`:
    graph compilation, parallel execution, trace records. 5. `jev.py`, `llm.py`: providers with cache and
-   mock. 6. `store.py`, `reflect.py`, `evolve.py`: the GEPA loop. 7. `triage.py`, `triage_store.py`,
-   `routed.py`: routing (moved from the previous package). 8. `freeze.py`, `cli.py`. 9. Examples and the
-   τ²-bench adapter switched over; the previous package removed.
+   mock. 6. `store.py`, `reflect.py`, `evolve.py`: the GEPA loop. 7. `router.py`, `trace.py`, `mining.py`: the routing
+   layer's learning code, the step table and loop A's miner; `seeds.py`: generic seeds. 8. `freeze.py`, `cli.py`.
+   9. Examples and the τ²-bench adapter switched over; the per-task triage of the first version removed once the
+   per-step router replaced it.
 
 Each step lands with its own tests on mock providers. The τ²-bench plumbing run under mock providers is the
 acceptance test for the whole: same turn sequence as before, fewer milliseconds of sandbox time per turn.

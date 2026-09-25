@@ -6,6 +6,7 @@
     python:     {"id", "kind": "python", "source": str, "inputs": [node ids]}      inputs are explicit
     expression: {"id", "kind": "expression", "expression": expr}                    inputs inferred
     jev:        {"id", "kind": "jev", "state": expr, "questions": map | "questions_expression": expr}
+                a questions_expression that evaluates to null skips the node this run
     llm:        {"id", "kind": "llm", "prompt": expr, "schema": json-schema?, "max_tokens": int?}
 
 Dependencies are inferred from literal `nodes['id']` references in expressions and, for python nodes, taken
@@ -237,7 +238,7 @@ def authoring_schema():
                 {'type': 'object', 'required': ['id', 'kind', 'state'], 'additionalProperties': False,
                  'properties': {'id': {'type': 'string'}, 'kind': {'const': 'jev'}, 'state': dict(expr, description='the JSON state Jev judges'),
                                 'questions': {'type': 'object', 'additionalProperties': question},
-                                'questions_expression': dict(expr, description='expression producing the question map at runtime; exactly one of questions / questions_expression')}},
+                                'questions_expression': dict(expr, description='expression producing the question map at runtime, or null to skip the node this run (no call, output null); exactly one of questions / questions_expression')}},
                 {'type': 'object', 'required': ['id', 'kind', 'prompt'], 'additionalProperties': False,
                  'properties': {'id': {'type': 'string'}, 'kind': {'const': 'llm'},
                                 'prompt': dict(expr, description='expression producing the prompt string, or null to skip the node this run (no call, output null)'),

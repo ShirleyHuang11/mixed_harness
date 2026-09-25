@@ -1,5 +1,9 @@
 """A tau2-bench HalfDuplexAgent that runs one Runtime call per turn.
 
+Each ledger entry also carries the guard node's routing record (cluster, closed flag, Jev's route pick, the
+realised path and why, agreement, confidence) when the spec has one, and `steps()` renders the ledger as
+step-store rows.
+
 The pipeline sees a bounded, parsed view of the conversation plus the tool schemas and policy, and returns
 either a tool call or a message. Memory produced by the pipeline is carried to the next turn. Every turn is
 recorded in a ledger with realised counters: python node runs, Jev calls, LLM calls, tokens, elapsed time,
@@ -220,11 +224,15 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
             c['invalid_actions'] += 1
         if error is not None:
             c['candidate_errors'] += 1
-        chosen = None
+        chosen, routing, guard = None, None, None
         for node in trace or []:
-            if node.get('id') == 'decision' and isinstance(node.get('output'), dict):
-                chosen = node['output'].get('chosen')
+            if node.get('id') in ('decision', 'guard') and isinstance(node.get('output'), dict):
+                chosen = node['output'].get('chosen', chosen)
+            if node.get('id') == 'guard' and isinstance(node.get('output'), dict):
+                routing = node['output'].get('routing')
+                guard = node['output'].get('guard')
         return {'turn': state.turn, 'elapsed_ms': elapsed_ms, 'model_ms': model_ms, 'sandbox_ms': sandbox_ms,
+                'routing': routing, 'guard': guard,
                 'jev_calls': jev_calls, 'llm_calls': llm_calls,
                 'llm_skipped': llm_skipped, 'python_runs': python_runs, 'jev_input_tokens': jev_tokens,
                 'llm_input_tokens': llm_in, 'llm_output_tokens': llm_out, 'cost_usd': cost, 'unpriced_calls': unpriced,
@@ -242,6 +250,13 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
             self.tool_names_by_id[call_id] = (action['name'], dict(action['arguments']))
             return AssistantMessage(content=None, tool_calls=[ToolCall(id=call_id, name=action['name'], arguments=dict(action['arguments']), requestor='assistant')], **common)
         return AssistantMessage(content=action['text'], tool_calls=None, **common)
+
+    def steps(self, *, episode, arm, trial=0, reward=None):
+        """Step-store rows for this agent's ledger (mixedharness.trace)."""
+        from mixedharness.spec import spec_hash
+        from mixedharness.trace import steps_from_ledger
+        return steps_from_ledger(self.ledger, episode=episode, arm=arm, spec_hash=spec_hash(self.spec), trial=trial,
+                                 harness_version=self.spec.get('name'), reward=reward)
 
     def summary(self):
         return {'label': self.label, 'counters': dict(self.counters),
