@@ -1,8 +1,8 @@
 {
- "title": "One decision inside a harness",
+ "title": "The execution layer: one turn",
  "canvas": {
-  "width": 1160,
-  "height": 340
+  "width": 1180,
+  "height": 470
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -13,65 +13,66 @@
   {
    "id": "obs",
    "label": "observation",
-   "sublabel": "policy \u00b7 tools \u00b7 conversation \u00b7 memory",
-   "x": 110,
-   "y": 150,
-   "width": 200,
-   "height": 64,
+   "sublabel": "what the agent can see this turn",
+   "x": 105,
+   "y": 175,
+   "width": 170,
+   "height": 62,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   },
   {
    "id": "facts",
-   "label": "facts \u00b7 python",
-   "sublabel": "parse, track data, build the catalog",
-   "x": 345,
-   "y": 150,
-   "width": 210,
+   "label": "1 \u00b7 facts  (python)",
+   "sublabel": "parse, track data, list legal actions",
+   "x": 340,
+   "y": 175,
+   "width": 215,
    "height": 64,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6"
   },
   {
    "id": "judge",
-   "label": "judge \u00b7 Jev",
-   "sublabel": "one request, every question this turn",
+   "label": "2 \u00b7 judge  (Jev)",
+   "sublabel": "one request, every question at once",
    "x": 590,
-   "y": 150,
-   "width": 230,
+   "y": 175,
+   "width": 215,
    "height": 64,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B"
   },
   {
    "id": "decision",
-   "label": "decision \u00b7 python",
-   "sublabel": "arguments \u00b7 confirm before write \u00b7 template",
-   "x": 845,
-   "y": 150,
-   "width": 250,
+   "label": "3 \u00b7 decision  (python)",
+   "sublabel": "fill arguments, apply the rules",
+   "x": 840,
+   "y": 175,
+   "width": 215,
    "height": 64,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6"
   },
   {
    "id": "llm",
-   "label": "draft \u00b7 LLM",
+   "label": "4 \u00b7 draft  (LLM, optional)",
    "sublabel": "only when no template fits",
-   "x": 845,
-   "y": 275,
-   "width": 210,
+   "x": 840,
+   "y": 300,
+   "width": 215,
    "height": 62,
    "fill": "#EDE9FE",
    "stroke": "#8B5CF6"
   },
   {
    "id": "act",
-   "label": "tool call\nor message",
-   "x": 1070,
-   "y": 150,
+   "label": "action",
+   "sublabel": "tool call or message",
+   "x": 1080,
+   "y": 175,
    "width": 140,
-   "height": 64,
+   "height": 62,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
   }
@@ -98,7 +99,7 @@
    "to": "llm",
    "style": "dashed",
    "color": "#8B5CF6",
-   "label": "prompt, or null \u2192 skipped"
+   "label": "prompt, or null = skip"
   },
   {
    "from": "llm",
@@ -107,20 +108,91 @@
    "color": "#8B5CF6"
   }
  ],
+ "groups": [
+  {
+   "id": "layer",
+   "label": "execution-layer harness \u2014 the green box in the architecture figure, seen from inside one turn",
+   "node_ids": [
+    "facts",
+    "judge",
+    "decision",
+    "llm"
+   ],
+   "fill": "#F0FDF4",
+   "stroke": "#22C55E",
+   "padding": 30
+  }
+ ],
  "labels": [
   {
-   "text": "one turn = 1 python node \u00b7 1 Jev request \u00b7 0 or 1 LLM call",
-   "x": 580,
+   "text": "Example, retail seed. Customer: \u201cI'm Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156.\u201d",
+   "x": 590,
    "y": 40,
-   "font_size": 15,
+   "font_size": 13,
    "color": "#374151",
    "anchor": "middle"
   },
   {
-   "text": "the decision node also returns memory, which becomes part of the next turn's observation",
-   "x": 380,
-   "y": 275,
-   "font_size": 12,
+   "text": "name \u00b7 zip \u00b7 order id found;",
+   "x": 340,
+   "y": 412,
+   "font_size": 11,
+   "color": "#1D4ED8",
+   "anchor": "middle"
+  },
+  {
+   "text": "legal now: look up by name+zip; ask identity",
+   "x": 340,
+   "y": 428,
+   "font_size": 11,
+   "color": "#1D4ED8",
+   "anchor": "middle"
+  },
+  {
+   "text": "action = look up by name+zip (0.72);",
+   "x": 590,
+   "y": 412,
+   "font_size": 11,
+   "color": "#B45309",
+   "anchor": "middle"
+  },
+  {
+   "text": "user confirmed? 0.05",
+   "x": 590,
+   "y": 428,
+   "font_size": 11,
+   "color": "#B45309",
+   "anchor": "middle"
+  },
+  {
+   "text": "find_user_id_by_name_zip(Yusuf, Rossi, 19122);",
+   "x": 840,
+   "y": 412,
+   "font_size": 11,
+   "color": "#1D4ED8",
+   "anchor": "middle"
+  },
+  {
+   "text": "no free text needed \u2192 draft skipped, no LLM cost",
+   "x": 840,
+   "y": 428,
+   "font_size": 11,
+   "color": "#6D28D9",
+   "anchor": "middle"
+  },
+  {
+   "text": "memory carried",
+   "x": 105,
+   "y": 412,
+   "font_size": 11,
+   "color": "#6B7280",
+   "anchor": "middle"
+  },
+  {
+   "text": "to the next turn",
+   "x": 105,
+   "y": 428,
+   "font_size": 11,
    "color": "#6B7280",
    "anchor": "middle"
   }

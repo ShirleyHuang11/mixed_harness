@@ -80,7 +80,7 @@
   {
    "id": "harness",
    "label": "execution-layer harness",
-   "sublabel": "a graph of python \u00b7 Jev \u00b7 LLM nodes",
+   "sublabel": "a graph of python \u00b7 Jev \u00b7 LLM nodes (zoomed in below)",
    "x": 980,
    "y": 150,
    "width": 240,

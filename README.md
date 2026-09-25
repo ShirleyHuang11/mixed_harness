@@ -41,17 +41,33 @@ every run. The reflection model proposes a new triage question map; the old and 
 replayed through Jev over the whole history, and the new one is accepted only if it agrees with the recorded
 outcomes strictly more often. Accepted maps are versioned.
 
-## Inside one decision
+## The execution layer: what the green box does on one turn
 
-![One decision inside a harness](docs/media/fig2_one_decision.svg)
+The architecture figure builds and improves a harness. This figure is the green box from that figure,
+opened up: what the harness does every time it has to act, once per customer message or tool result.
 
-The same three node kinds run in every harness. A **python** node parses the input, keeps track of what
-earlier tool calls returned, and builds the list of legal actions together with every question the turn
-might need. One **jev** node asks all of those questions in a single request; adding questions barely
-changes its latency. A second python node turns the answers into a tool call or a template message and
-enforces the rules that code can enforce, such as confirmation before any write. An **llm** node exists for
-the cases no template covers. When code decides the model is not needed, the node's prompt is `null` and
-the runtime skips it: no call, no cost. The retail seed in `examples/tau2/seeds.py` is exactly this graph.
+![The execution layer: one turn](docs/media/fig2_one_decision.svg)
+
+Walk one turn of the retail seed (`examples/tau2/seeds.py`). The customer writes: "I'm Yusuf Rossi, zip
+19122, I want to exchange the keyboard in order #W2378156."
+
+1. **facts (python).** Code reads the conversation and finds a name, a zip code and an order id. It checks
+   what earlier tool calls already returned (nothing yet) and lists the actions that are legal right now:
+   look the customer up by name and zip, or ask for identification. It also writes down every question the
+   judge might need this turn.
+2. **judge (Jev).** All of those questions go to Jev in one request. Jev answers each with a probability:
+   the action should be the name-and-zip lookup (0.72); the customer has not confirmed anything yet (0.05).
+   More questions in the same request cost almost no extra time.
+3. **decision (python).** Code turns the answers into a concrete action: the tool call
+   `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. Code is also where the rules live that must never be
+   left to a model, such as listing the details and getting a "yes" before any database write.
+4. **draft (LLM), only when needed.** This turn needs no free text, so the decision node sets the draft
+   prompt to `null` and the runtime skips the node: no call, no cost. When a customer asks something no
+   template covers, the prompt is a string and the LLM writes the reply.
+
+The action goes to the environment; what the turn learned (ids seen, records fetched) is carried as memory
+into the next turn's observation. Every harness the system builds is a graph of these same three node
+kinds, and loop 1 in the architecture figure is GEPA rewriting exactly this graph.
 
 ## Measuring it
 
