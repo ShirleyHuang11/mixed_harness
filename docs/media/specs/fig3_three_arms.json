@@ -2,7 +2,7 @@
  "title": "The tau2-bench test",
  "canvas": {
   "width": 1000,
-  "height": 430
+  "height": 470
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -64,6 +64,61 @@
    "height": 62,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
+  },
+  {
+   "id": "legend0",
+   "label": " ",
+   "x": 60,
+   "y": 450,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "legend1",
+   "label": " ",
+   "x": 260,
+   "y": 450,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "legend2",
+   "label": " ",
+   "x": 440,
+   "y": 450,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6"
+  },
+  {
+   "id": "legend3",
+   "label": " ",
+   "x": 620,
+   "y": 450,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "legend4",
+   "label": " ",
+   "x": 800,
+   "y": 450,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
   }
  ],
  "edges": [
@@ -100,6 +155,46 @@
    "font_size": 13,
    "color": "#374151",
    "anchor": "middle"
+  },
+  {
+   "text": "decisions by code + Jev",
+   "x": 74,
+   "y": 454,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "decisions by Jev only",
+   "x": 274,
+   "y": 454,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "decisions by an LLM",
+   "x": 454,
+   "y": 454,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "the measurement",
+   "x": 634,
+   "y": 454,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "shared environment",
+   "x": 814,
+   "y": 454,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
   }
  ]
 }

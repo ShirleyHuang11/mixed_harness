@@ -2,7 +2,7 @@
  "title": "The execution layer: one turn",
  "canvas": {
   "width": 1180,
-  "height": 470
+  "height": 500
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -75,6 +75,61 @@
    "height": 62,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
+  },
+  {
+   "id": "legend0",
+   "label": " ",
+   "x": 60,
+   "y": 478,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6"
+  },
+  {
+   "id": "legend1",
+   "label": " ",
+   "x": 210,
+   "y": 478,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B"
+  },
+  {
+   "id": "legend2",
+   "label": " ",
+   "x": 360,
+   "y": 478,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6"
+  },
+  {
+   "id": "legend3",
+   "label": " ",
+   "x": 510,
+   "y": 478,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "legend4",
+   "label": " ",
+   "x": 700,
+   "y": 478,
+   "width": 18,
+   "height": 14,
+   "shape": "rect",
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF"
   }
  ],
  "edges": [
@@ -195,6 +250,46 @@
    "font_size": 11,
    "color": "#6B7280",
    "anchor": "middle"
+  },
+  {
+   "text": "code (python)",
+   "x": 74,
+   "y": 482,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "Jev judgment",
+   "x": 224,
+   "y": 482,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "LLM generation",
+   "x": 374,
+   "y": 482,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "the harness / its output",
+   "x": 524,
+   "y": 482,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "data: inputs and records",
+   "x": 714,
+   "y": 482,
+   "font_size": 11,
+   "color": "#374151",
+   "anchor": "start"
   }
  ]
 }
