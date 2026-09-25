@@ -66,33 +66,37 @@ old and the new map are both replayed over the whole history, and the new one is
 with the recorded outcomes strictly more often. It is loop 1 with a different training set: past tasks
 instead of past turns.
 
-## What the mixed route does on one turn
+## The same turn on each route
 
-The architecture figure builds and improves a route. This figure is one route opened up: what it does every
-time it has to act, once per customer message or tool result.
+The three routes are three answers to the same question: who decides, and who writes. The figure runs one
+customer turn through each of them. The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange
+the keyboard in order #W2378156."
 
-![One turn of the mixed route](docs/media/fig2_one_decision.svg)
+![The same turn on each route](docs/media/fig2_one_decision.svg)
 
-Walk one turn of the retail seed (`examples/tau2/seeds.py`). The customer writes: "I'm Yusuf Rossi, zip
-19122, I want to exchange the keyboard in order #W2378156."
+| | Jev route | LLM route | mixed route |
+|---|---|---|---|
+| decides the action | Jev, one request with every question the turn might need | the language model, one call | Jev, one request |
+| computes the facts | code: ids in the message, what earlier tools returned, which actions are legal now | the model, from the whole conversation | code |
+| enforces the rules | code: no database write before the customer has seen the details and said "yes" | the policy text in the prompt | code |
+| writes free text | never; templates only | always available | the model, only on turns Jev marks as needing it |
+| cost of this turn | 1 Jev request, about 0.4 s | 1 model call, about 8,000 input tokens, about 2 s | 1 Jev request, about 0.4 s; the LLM node is skipped |
+| where it fails | a question no template covers ends in a transfer | nothing on this turn; it pays the full call on every turn | nothing on this turn |
 
-1. **facts (python).** Code reads the conversation and finds a name, a zip code and an order id. It checks
-   what earlier tool calls already returned (nothing yet) and lists the actions that are legal right now:
-   look the customer up by name and zip, or ask for identification. It also writes down every question the
-   judge might need this turn.
-2. **judge (Jev).** All of those questions go to Jev in one request. Jev answers each with a probability:
-   the action should be the name-and-zip lookup (0.72); the customer has not confirmed anything yet (0.05).
-   More questions in the same request cost almost no extra time.
-3. **decision (python).** Code turns the answers into a concrete action: the tool call
-   `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. Rules that must not depend on a model live here too.
-   One example: no database write happens before the customer has seen the details and said "yes".
-4. **draft (LLM), only when needed.** This turn needs no free text, so the decision node sets the draft
-   prompt to `null` and the runtime skips the node: no call, no cost. When a customer asks something no
-   template covers, the prompt is a string and the LLM writes the reply.
+On this turn all three arrive at the same tool call, `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. The
+Jev and mixed routes get there through the graph in `examples/tau2/seeds.py`. A **facts** node in code
+finds the name, zip and order id and lists the legal actions. One **judge** request to Jev answers every
+question at once: the action should be the lookup (0.72), and the customer has not confirmed anything yet
+(0.05). A **decision** node in code fills the arguments. The mixed route has one more node, an LLM whose
+prompt the decision node sets to `null` when nothing needs writing, and the runtime skips it. The LLM route
+hands the policy, the tool schemas and the conversation to the model and lets it decide and write.
 
-The action goes to the environment; what the turn learned (ids seen, records fetched) is carried as memory
-into the next turn's observation. The Jev route is this graph without step 4. The LLM route is step 4 alone,
-with the tools handed to the model.
+Three turns later the routes part. The customer asks for the specifications of the replacement items. On
+the Jev route no template answers that, and after three identical replies the call is transferred. On the
+LLM route the model writes the answer. On the mixed route Jev picks "reply with the LLM" for that one turn,
+the model writes the answer, and every other turn stays on code and Jev. Measured on the two τ²-bench
+retail tasks the smoke run completed, the mixed route called the model on 1 turn in 3, and the Jev route
+cost $0.0044 per task against $0.17 for the LLM route.
 
 ## Measuring it
 
