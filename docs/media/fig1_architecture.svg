@@ -117,6 +117,5 @@
   <text fill="#374151" font-size="11" text-anchor="start" x="524.0" y="664.0">a harness / its evolution</text>
   <text fill="#374151" font-size="11" text-anchor="start" x="714.0" y="664.0">data: inputs and records</text>
   <text fill="#374151" font-size="14" text-anchor="middle" x="600.0" y="36.0">a probe decides what kind of task this is; the task is dispatched to a route built for that kind</text>
-  <text fill="#15803D" font-size="11" text-anchor="start" x="812.0" y="344.0">the mixed route, zoomed in on the next figure</text>
   <text fill="#15803D" font-size="12" text-anchor="middle" x="690.0" y="640.0">both loops apply one acceptance rule to one history: propose, evaluate on the same trajectories, accept only on improvement</text>
 </svg>

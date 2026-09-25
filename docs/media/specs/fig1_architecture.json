@@ -427,14 +427,6 @@
    "anchor": "middle"
   },
   {
-   "text": "the mixed route, zoomed in on the next figure",
-   "x": 812,
-   "y": 344,
-   "font_size": 11,
-   "color": "#15803D",
-   "anchor": "start"
-  },
-  {
    "text": "both loops apply one acceptance rule to one history: propose, evaluate on the same trajectories, accept only on improvement",
    "x": 690,
    "y": 640,
