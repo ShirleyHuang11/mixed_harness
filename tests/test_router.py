@@ -112,7 +112,7 @@ def _obs(text, conversation=(), incoming=None, turn=1):
             'conversation': list(conversation), 'incoming': incoming or msg}
 
 
-def _jev(route, action=None, alt=None):
+def _jev(route, action=None, alt=None, confidence=0.95):
     """A scripted Jev: fixed route pick; action and paraphrase picks (default: the first option, agreeing)."""
     def responder(state, questions):
         out = {}
@@ -121,7 +121,7 @@ def _jev(route, action=None, alt=None):
         if 'action' in questions:
             options = list(questions['action']['criteria'])
             a = action or options[0]
-            out['action'] = {'choice': a, 'probabilities': {o: (0.95 if o == a else 0.0) for o in options}}
+            out['action'] = {'choice': a, 'probabilities': {o: (confidence if o == a else 0.0) for o in options}}
             b = alt or a
             out['action_alt'] = {'choice': b, 'probabilities': {o: (0.95 if o == b else 0.0) for o in options}}
         if 'pick' in questions:
@@ -260,3 +260,13 @@ def test_refusal_clears_the_pending_write_and_cancel_that_is_a_yes():
     namespace = {}
     exec(COMMON_SOURCE, namespace)   # the helper as the sandbox sees it
     assert namespace['yes_no']('Yes, go ahead and cancel that order') == 'yes' and namespace['yes_no']('No, wait') == 'no'
+
+
+@needs_sandbox
+def test_low_confidence_closed_pick_goes_to_the_narrow_path():
+    llm = _llm()
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
+    routing = result['nodes']['guard']['routing']
+    assert routing['path'] == 'narrow' and routing['path_source'] == 'low_confidence' and routing['confidence'] == 0.5
+    lenient = _run(seeds.routed_seed('mock-llm', tau=0.4), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
+    assert lenient['nodes']['guard']['routing']['path'] == 'closed'

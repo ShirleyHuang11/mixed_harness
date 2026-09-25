@@ -27,6 +27,29 @@ decides whether a confidence threshold has any resolution or agreement is the be
 - Prediction: X = 60 to 70%. Kill: X < 30%, or Jev more than 10 points under the LLM on closed turns.
 - The rule labeller's text labels are written with `needs_review`; the report gives X both ways.
 
+Stage 0 result (2026-09-25, real Jev, `runs/stage0/20260925-172359/report.md`; 41 turns, 2 tasks each run twice):
+
+| quantity | value |
+|---|---|
+| X, closed fraction by rule label | 80% [66%, 90%], n=41; tool turns 17 of 17 |
+| X if every text label were wrong | 41% [28%, 57%] |
+| positive control, identity-lookup turns | 4 of 4 |
+| Jev = LLM on closed turns | 73% [56%, 85%], n=33; 85% counting greeting ≡ ask-identity |
+| Jev = LLM at reported confidence ≥ 0.90 | 18 of 18 |
+| Jev = LLM at reported confidence < 0.90 | 6 of 15 |
+| paraphrase agreement | 32 of 33 agree; no resolution on this sample |
+| Jev's own route pick on closed-label turns | 25 closed, 8 narrow |
+
+The 9 misses are all below 0.55 confidence and none violates policy: 4 are the turn-1 greeting where Jev asks for
+identity instead, 5 are ordering differences (load the profile before the order, or a write pick the guard would
+have turned into a confirmation). The 8 open turns are the LLM composing variant lists with prices after a lookup;
+the compiler calls them closed because a report template is legal, so the compiler over-claims on exactly the turns
+where composition beats a template. Consequence for the router: a confidence threshold on the action pick is the
+abstain signal that has resolution here, paraphrase agreement is not. With τ = 0.9 and Jev's route pick, 19 of 41
+turns are accepted on the closed path, all 16 closed-label ones agree with the LLM, 3 open-label ones are accepted
+(two would reach the guard's write gate). τ = 0.9 is now the seed default; per-cluster τ(s) is loop B's job once
+there are enough steps per cluster.
+
 **Stage 1. Scale the labels. About $30 of LLM credit.**
 LLM-only on all 114 retail tasks (about $0.21 per task for the agent plus $0.03 for the user simulator), relabel,
 X with ±5 points, replay Jev on every closed turn. This number is what the README claim rests on.

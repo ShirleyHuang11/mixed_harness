@@ -55,7 +55,7 @@ exposes the same thing through the evaluator contract for evolution.
   sums the sandboxed-Python node times. Python nodes run in a warm worker, so a turn costs a few
   milliseconds of sandbox time after the first one.
 - The routing table (from `steps.jsonl`): `Jev share` is the fraction of steps whose realised path was closed;
-  `narrow` and `escalate` the rest; `fall-through` the share where Jev picked closed but the paraphrase disagreed;
+  `narrow` and `escalate` the rest; `low conf` the share where Jev picked closed below τ; `fall-through` the share where Jev picked closed but the paraphrase disagreed;
   `code override` the share where the compiler flagged the step open and overrode a closed pick; `guard fallback`
   the share where a menu or agent output was unusable and the guard fell back to the closed decision (the realised
   path is then closed although the LLM was called); `agreement` the paraphrase agreement rate; `guard` the count of guard interventions (write gate, bad arguments, invalid menu or

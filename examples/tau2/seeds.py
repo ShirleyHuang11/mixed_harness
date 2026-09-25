@@ -8,8 +8,9 @@ Routed graph (one turn), in dependency order:
     judge (jev)        one request: route pick (closed / narrow / escalate), action pick, a reordered paraphrase of
                        the action pick (agreement signal), "does any option fit", "did the user confirm", and the
                        candidate questions (which item, which variant, which payment method, which name)
-    route (python)     the routing layer: compiler flag first, then Jev's pick, then agreement fall-through, then the
-                       per-cluster policy and its epsilon shadow share, then trajectory-level escalation
+    route (python)     the routing layer: compiler flag first, then Jev's pick, then the confidence threshold tau on
+                       the action pick, then agreement fall-through, then the per-cluster policy and its epsilon
+                       shadow share, then trajectory-level escalation
     decision (python)  the closed path: Jev's answers -> a tool call with code-filled arguments, or a template reply
     menu (llm)         the narrow path, step 1: the LLM writes 2-4 candidate actions (skipped unless routed narrow)
     menu_q (python)    turns the menu into a choice question (null when there is no menu)
@@ -48,6 +49,8 @@ WRITE_TOOLS = ('cancel_pending_order', 'exchange_delivered_order_items', 'modify
                'return_delivered_order_items')
 
 TRANSFER_TEXT = 'YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.'
+TAU = 0.9                     # accept a closed pick only at this action confidence or above; set from stage 0 (2026-09-25):
+                              # on 41 recorded turns every pick at >= 0.9 agreed with the LLM, 6 of 15 below it did
 LOW_AGREEMENT_STREAK = 3      # consecutive closed picks with disagreement before trajectory-level escalation
 STUCK_REPLIES = 3             # identical template replies in a row before trajectory-level escalation
 
@@ -466,6 +469,8 @@ def run(obs, nodes, memory):
     source = "jev"
     if not cx["closed"] and path == "closed":
         path, source = "narrow", "code_override"
+    if path == "closed" and (confidence is None or confidence < __TAU__):
+        path, source = "narrow", "low_confidence"
     if path == "closed" and agreement is False:
         path, source = "narrow", "fallthrough"
     prefer = (policy.get("prefer") or {}).get(cx["cluster"])
@@ -804,8 +809,9 @@ MENU_SCHEMA = {'type': 'object', 'required': ['options'], 'additionalProperties'
                                   'when': {'type': 'string'}}}}}}
 
 
-def _fill(source, *, allow_llm, policy=None):
+def _fill(source, *, allow_llm, policy=None, tau=TAU):
     return (COMMON_SOURCE + source).replace('__ALLOW_LLM__', 'True' if allow_llm else 'False') \
+        .replace('__TAU__', repr(float(tau))) \
         .replace('__WRITE_TOOLS__', json.dumps(list(WRITE_TOOLS))) \
         .replace('__TRANSFER_TEXT__', json.dumps(TRANSFER_TEXT)) \
         .replace('__POLICY__', policy_source_literal(policy)) \
@@ -813,11 +819,11 @@ def _fill(source, *, allow_llm, policy=None):
         .replace('__STUCK_REPLIES__', str(STUCK_REPLIES))
 
 
-def _core_nodes(*, allow_llm, policy=None):
+def _core_nodes(*, allow_llm, policy=None, tau=TAU):
     return [
         {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['compile']['state']", 'questions_expression': "nodes['compile']['questions']"},
-        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy), 'inputs': ['compile', 'judge']},
+        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau), 'inputs': ['compile', 'judge']},
         {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm=allow_llm), 'inputs': ['compile', 'judge']},
     ]
 
@@ -831,9 +837,10 @@ def jev_only_seed():
     return validate_spec(spec)
 
 
-def routed_seed(llm_model='claude-sonnet-5', *, policy=None):
-    """The routed harness: compiler, one Jev request, three paths, guard. `policy` is a fitted loop-B policy or None."""
-    nodes = _core_nodes(allow_llm=True, policy=policy) + [
+def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU):
+    """The routed harness: compiler, one Jev request, three paths, guard. `policy` is a fitted loop-B policy or None;
+    `tau` the action-confidence threshold below which a closed pick goes to the narrow path."""
+    nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau) + [
         {'id': 'menu', 'kind': 'llm', 'prompt': "nodes['route']['menu_prompt']", 'schema': MENU_SCHEMA, 'max_tokens': 700},
         {'id': 'menu_q', 'kind': 'python', 'source': _fill(MENU_Q_SOURCE, allow_llm=True), 'inputs': ['compile', 'menu']},
         {'id': 'menu_pick', 'kind': 'jev', 'state': "nodes['menu_q']['state']", 'questions_expression': "nodes['menu_q']['questions']"},

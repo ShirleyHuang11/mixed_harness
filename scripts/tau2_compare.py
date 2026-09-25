@@ -296,7 +296,7 @@ def write_table(summaries, path, resolution_note):
             ('LLM calls/turn', 'llm_calls_per_turn', '{:.2f}'), ('Jev calls/turn', 'jev_calls_per_turn', '{:.2f}'),
             ('LLM in tok/turn', 'llm_input_tokens_per_turn', '{:.0f}'), ('turns/task', 'turns_per_task', '{:.1f}')]
     route_cols = [('Jev share', 'jev_traffic_share', '{:.2f}'), ('narrow', ('path_mix', 'narrow'), '{:.2f}'), ('escalate', ('path_mix', 'escalate'), '{:.2f}'),
-                  ('fall-through', ('path_sources', 'fallthrough'), '{:.2f}'), ('code override', ('path_sources', 'code_override'), '{:.2f}'),
+                  ('low conf', ('path_sources', 'low_confidence'), '{:.2f}'), ('fall-through', ('path_sources', 'fallthrough'), '{:.2f}'), ('code override', ('path_sources', 'code_override'), '{:.2f}'),
                   ('guard fallback', ('path_sources', 'guard'), '{:.2f}'), ('agreement', 'agreement_rate', '{:.2f}'), ('guard', 'guard_interventions', '{}')]
     lines = ['| arm | ' + ' | '.join(c[0] for c in cols) + ' |', '|---|' + '---|' * len(cols)]
     for s in summaries:

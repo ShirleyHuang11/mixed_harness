@@ -123,11 +123,14 @@ fails if the routed arm trails the best single arm. Before any routed run, stage
 closed fraction and Jev's agreement with the LLM are measured first. Stages, predictions and the decision table
 are written down in `docs/design/tau2-four-arms.md`; `docs/guides/tau2.md` covers setup and reading.
 
-Measured so far, on 2 retail tasks (the run stopped when the language-model account ran out of credit):
-LLM only passed 2 of 2 at $0.17 per task and 2.1 s per turn; Jev only passed 0 of 2 at $0.004 per task and
-0.47 s per turn, with one Jev request per turn and no LLM calls; the hand-written routed shape (closed path
-plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks say nothing about accuracy
-(±35 points); they do say the instrument counts what it should, and that Jev answers in about 400 ms.
+Measured so far. Stage 0 ran on the 41 recorded LLM-only turns (2 retail tasks, each run twice) with real Jev:
+80% of turns are closed by the rule label (interval 66% to 90%; 41% if every text label were wrong), Jev agreed with
+the LLM on 4 of 4 identity-lookup turns and on 73% of closed turns overall, and on 18 of 18 picks whose reported
+confidence was 0.90 or higher against 6 of 15 below it. The misses are the turn-1 greeting, where Jev asks for
+identity instead, and step-order differences the guard absorbs. The threshold 0.9 is now the seed default. The
+earlier two-task run gave the cost picture: LLM only at $0.17 per task and 2.1 s per turn, Jev only at $0.004 per
+task and 0.47 s per turn with one Jev request per turn. Two tasks say nothing about accuracy; the four-arm run
+does, and it waits on LLM credit.
 
 ## Status
 
@@ -136,7 +139,7 @@ plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks s
 | Runtime, sandbox, expression language, spec format; jev, llm and agent nodes skip on a null input | done, tested on mock providers |
 | Action-space compiler for τ²-bench retail: catalog, argument fill, `needs`, closed flag, cluster | done (`examples/tau2/seeds.py`, run against real Jev) |
 | One Jev request per step: route pick, action pick, reordered paraphrase, fits, candidates | done |
-| Router: compiler flag → Jev pick → agreement fall-through → per-cluster policy with ε shadow → trajectory escalation | done, tested path by path on scripted providers |
+| Router: compiler flag → Jev pick → confidence threshold τ → agreement fall-through → per-cluster policy with ε shadow → trajectory escalation | done, tested path by path on scripted providers; τ = 0.9 from stage 0 |
 | Closed path (Jev decides, code fills, templates reply) | done |
 | Narrow path (LLM writes a menu, Jev picks) | done, not yet run against a real LLM |
 | Escalate path (`agent` node, one native tool-calling turn) | done |
@@ -144,8 +147,8 @@ plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks s
 | Trace store: step table with routing record and episode reward (`mixedharness/trace.py`) | done |
 | Loop A, question evolution (GEPA over the whole spec) | done, tested with a mock reflection model |
 | Loop A, macro-action mining (`mixedharness/mining.py`) | done as a miner; promotion to options is a proposal step |
-| Loop B, per-cluster policy from steps, embedded in the spec (`mixedharness/router.py`) | done; conformal τ(s) dropped pending stage 0 |
-| Stage 0 labels and Jev replay (`scripts/stage0_label_replay.py`) | done; run on 41 turns with mock Jev, real Jev pending |
+| Loop B, per-cluster policy from steps, embedded in the spec (`mixedharness/router.py`) | done; per-cluster τ(s) once clusters have enough steps |
+| Stage 0 labels and Jev replay (`scripts/stage0_label_replay.py`) | done; run on 41 turns with real Jev |
 | Four-arm benchmark runner with step tables and the stage 2 decision table | done; real runs blocked on LLM credit |
 
 ## Quick start

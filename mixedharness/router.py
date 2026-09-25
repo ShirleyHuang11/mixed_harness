@@ -10,8 +10,9 @@ Three signals feed the decision, in this order of authority:
 
   1. the compiler's `closed` flag (code): the legal action set is non-empty and every argument of every option can
      be filled from state. When it is false the step cannot be closed, whatever Jev says.
-  2. Jev's own route pick, asked in the same request as the action pick, plus an agreement check between the
-     action question and a reordered paraphrase of it. A closed pick with disagreement falls through to narrow.
+  2. Jev's own route pick, asked in the same request as the action pick; a closed pick is accepted only when the
+     action pick's confidence clears tau (0.9 from stage 0, where every pick at or above it agreed with the LLM and
+     6 of 15 below it did), and when a reordered paraphrase of the action question agrees. Otherwise narrow.
   3. a per-cluster policy learned from recorded steps (`fit_policy`): the path with the best mean of
      success - lambda * cost in that cluster, with an epsilon share of shadow runs on the other paths.
 
@@ -24,7 +25,7 @@ import json
 import statistics
 
 PATHS = ('closed', 'narrow', 'escalate')
-PATH_SOURCES = ('jev', 'code_override', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
+PATH_SOURCES = ('jev', 'code_override', 'low_confidence', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
 DEFAULT_LAMBDA = 0.5          # success units per dollar of agent cost per step, scaled by COST_SCALE
 COST_SCALE = 100.0            # reward = success - lambda * cost_usd * COST_SCALE  (one cent of LLM cost = 0.005 success)
 MIN_SAMPLES = 8               # a path needs this many scored steps in a cluster before the policy will prefer it
