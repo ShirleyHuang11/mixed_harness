@@ -17,7 +17,7 @@ Credentials, read from `mixed_harness/.env`:
 
 | Variable | Used by |
 |---|---|
-| `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` | Jev, for the `jev_only` and `harness` arms |
+| `TYPESAFE_API_KEY` | Jev, for the `jev_only` and `harness` arms |
 | `ANTHROPIC_API_KEY` | the `llm_only` arm, the harness llm nodes, and (by default) the user simulator and the NL-assertion judge |
 | `OPENAI_API_KEY` | only if you pass `--user-llm gpt-4.1-2025-04-14`, tau2's official default |
 

@@ -130,7 +130,7 @@ def test_spec_validates_and_infers_dependencies():
 
 
 @pytest.mark.parametrize('mutate', [
-    lambda s: s.update(format='auto_jev/4'),
+    lambda s: s.update(format='other/1'),
     lambda s: s.pop('llm_model'),
     lambda s: s['nodes'].append({'id': 'a', 'kind': 'expression', 'expression': '1'}),
     lambda s: s['nodes'].append({'id': 'x', 'kind': 'expression', 'expression': "nodes['y']"}) or s['nodes'].append({'id': 'y', 'kind': 'expression', 'expression': "nodes['x']"}),
