@@ -1,8 +1,8 @@
 {
  "title": "Mixed Harness architecture",
  "canvas": {
-  "width": 1180,
-  "height": 640
+  "width": 1260,
+  "height": 660
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -14,8 +14,8 @@
    "id": "task",
    "label": "Task description",
    "sublabel": "objective \u00b7 actions \u00b7 evaluator \u00b7 examples",
-   "x": 110,
-   "y": 165,
+   "x": 115,
+   "y": 200,
    "width": 215,
    "height": 66,
    "fill": "#F3F4F6",
@@ -25,9 +25,9 @@
    "id": "probe",
    "label": "probe (python)",
    "sublabel": "9 fields, free",
-   "x": 330,
-   "y": 165,
-   "width": 150,
+   "x": 335,
+   "y": 200,
+   "width": 140,
    "height": 60,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6"
@@ -35,44 +35,132 @@
   {
    "id": "route",
    "label": "route (Jev)",
-   "sublabel": "settled \u00b7 open-ended \u00b7 hybrid",
-   "x": 500,
-   "y": 165,
-   "width": 130,
+   "sublabel": "picks one of three shapes",
+   "x": 505,
+   "y": 200,
+   "width": 140,
    "height": 60,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B"
   },
   {
-   "id": "seed",
-   "label": "seed (python)",
-   "sublabel": "template for that route",
-   "x": 665,
-   "y": 165,
-   "width": 150,
-   "height": 60,
+   "id": "s1",
+   "label": "code",
+   "x": 830,
+   "y": 110,
+   "width": 108,
+   "height": 40,
    "fill": "#DBEAFE",
-   "stroke": "#3B82F6"
+   "stroke": "#3B82F6",
+   "font_size": 12
   },
   {
-   "id": "harness",
-   "label": "task harness",
-   "sublabel": "runs once per decision \u00b7 zoomed in below",
-   "x": 980,
-   "y": 165,
-   "width": 250,
-   "height": 66,
-   "fill": "#DCFCE7",
-   "stroke": "#22C55E"
+   "id": "s2",
+   "label": "Jev pick",
+   "x": 952,
+   "y": 110,
+   "width": 108,
+   "height": 40,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B",
+   "font_size": 12
+  },
+  {
+   "id": "s3",
+   "label": "code",
+   "x": 1074,
+   "y": 110,
+   "width": 108,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "o1",
+   "label": "code",
+   "x": 830,
+   "y": 200,
+   "width": 108,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "o2",
+   "label": "LLM draft",
+   "x": 952,
+   "y": 200,
+   "width": 108,
+   "height": 40,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 12
+  },
+  {
+   "id": "o3",
+   "label": "code",
+   "x": 1074,
+   "y": 200,
+   "width": 108,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "h1",
+   "label": "LLM propose",
+   "x": 830,
+   "y": 290,
+   "width": 98,
+   "height": 40,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 12
+  },
+  {
+   "id": "h2",
+   "label": "code",
+   "x": 940,
+   "y": 290,
+   "width": 98,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "h3",
+   "label": "Jev select",
+   "x": 1050,
+   "y": 290,
+   "width": 98,
+   "height": 40,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B",
+   "font_size": 12
+  },
+  {
+   "id": "h4",
+   "label": "code",
+   "x": 1160,
+   "y": 290,
+   "width": 98,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
   },
   {
    "id": "gepa",
    "label": "GEPA evolution of the task harness",
-   "sublabel": "rewrites the graph from full traces \u00b7 kept if the score rises",
-   "x": 980,
-   "y": 345,
-   "width": 340,
-   "height": 66,
+   "sublabel": "rewrites the chosen graph from full traces \u00b7 kept if the score rises",
+   "x": 1000,
+   "y": 440,
+   "width": 360,
+   "height": 62,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
   },
@@ -80,10 +168,10 @@
    "id": "history",
    "label": "run history",
    "sublabel": "route chosen vs what the harness became",
-   "x": 980,
-   "y": 490,
+   "x": 1000,
+   "y": 555,
    "width": 270,
-   "height": 56,
+   "height": 54,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   },
@@ -91,10 +179,10 @@
    "id": "improve",
    "label": "improve the triage harness",
    "sublabel": "reflection model proposes new questions \u00b7 Jev replay keeps them only if agreement rises",
-   "x": 500,
-   "y": 490,
-   "width": 520,
-   "height": 56,
+   "x": 505,
+   "y": 555,
+   "width": 500,
+   "height": 54,
    "fill": "#EDE9FE",
    "stroke": "#8B5CF6"
   },
@@ -102,7 +190,7 @@
    "id": "legend0",
    "label": " ",
    "x": 60,
-   "y": 615,
+   "y": 630,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -113,7 +201,7 @@
    "id": "legend1",
    "label": " ",
    "x": 210,
-   "y": 615,
+   "y": 630,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -124,7 +212,7 @@
    "id": "legend2",
    "label": " ",
    "x": 360,
-   "y": 615,
+   "y": 630,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -135,7 +223,7 @@
    "id": "legend3",
    "label": " ",
    "x": 510,
-   "y": 615,
+   "y": 630,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -146,7 +234,7 @@
    "id": "legend4",
    "label": " ",
    "x": 700,
-   "y": 615,
+   "y": 630,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -164,24 +252,62 @@
    "to": "route"
   },
   {
+   "from": "s1",
+   "to": "s2",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "s2",
+   "to": "s3",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "o1",
+   "to": "o2",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "o2",
+   "to": "o3",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "h1",
+   "to": "h2",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "h2",
+   "to": "h3",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
+   "from": "h3",
+   "to": "h4",
+   "thickness": 1,
+   "color": "#9CA3AF"
+  },
+  {
    "from": "route",
-   "to": "seed"
+   "to": "o1"
   },
   {
-   "from": "seed",
-   "to": "harness",
-   "label": "seed graph"
-  },
-  {
-   "from": "harness",
+   "from": "h4",
    "to": "gepa",
    "label": "traces + scores",
    "color": "#15803D"
   },
   {
    "from": "gepa",
-   "to": "harness",
+   "to": "h2",
    "color": "#15803D",
+   "style": "solid",
    "curve": true
   },
   {
@@ -207,46 +333,64 @@
  "groups": [
   {
    "id": "triage",
-   "label": "triage harness \u00b7 the same three-node shape, run once per task on the task description",
+   "label": "triage harness \u00b7 runs once per task",
    "node_ids": [
     "probe",
-    "route",
-    "seed"
+    "route"
    ],
    "fill": "#F0FDF4",
    "stroke": "#22C55E",
    "padding": 26
+  },
+  {
+   "id": "harness",
+   "label": "task harness \u00b7 one of three shapes, chosen by the triage \u00b7 runs once per decision",
+   "node_ids": [
+    "s1",
+    "s2",
+    "s3",
+    "o1",
+    "o2",
+    "o3",
+    "h1",
+    "h2",
+    "h3",
+    "h4"
+   ],
+   "fill": "#F0FDF4",
+   "stroke": "#22C55E",
+   "padding": 34
   }
  ],
  "labels": [
   {
-   "text": "loop 1: the task harness improves (the rewritten graph goes back)",
-   "x": 980,
-   "y": 400,
-   "font_size": 12,
+   "text": "settled",
+   "x": 812,
+   "y": 86,
+   "font_size": 11,
    "color": "#15803D",
-   "anchor": "middle"
+   "anchor": "start"
   },
   {
-   "text": "loop 2: the triage harness improves, same rule: propose, replay, keep only if better",
-   "x": 740,
-   "y": 540,
-   "font_size": 12,
-   "color": "#6B7280",
-   "anchor": "middle"
+   "text": "open-ended",
+   "x": 812,
+   "y": 176,
+   "font_size": 11,
+   "color": "#15803D",
+   "anchor": "start"
   },
   {
-   "text": "one kind of machine at two levels: a harness that decides what to do, and a harness that decides which harness to build",
-   "x": 590,
-   "y": 40,
-   "font_size": 14,
-   "color": "#374151",
-   "anchor": "middle"
+   "text": "hybrid",
+   "x": 812,
+   "y": 266,
+   "font_size": 11,
+   "color": "#15803D",
+   "anchor": "start"
   },
   {
    "text": "code (python)",
    "x": 74,
-   "y": 619,
+   "y": 634,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -254,7 +398,7 @@
   {
    "text": "Jev judgment",
    "x": 224,
-   "y": 619,
+   "y": 634,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -262,7 +406,7 @@
   {
    "text": "LLM generation",
    "x": 374,
-   "y": 619,
+   "y": 634,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -270,7 +414,7 @@
   {
    "text": "a harness / its output",
    "x": 524,
-   "y": 619,
+   "y": 634,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -278,9 +422,41 @@
   {
    "text": "data: inputs and records",
    "x": 714,
-   "y": 619,
+   "y": 634,
    "font_size": 11,
    "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "one kind of machine at two levels: a harness that decides what to do, and a harness that decides which harness to build",
+   "x": 600,
+   "y": 36,
+   "font_size": 14,
+   "color": "#374151",
+   "anchor": "middle"
+  },
+  {
+   "text": "loop 1: the task harness improves (the rewritten graph goes back)",
+   "x": 960,
+   "y": 490,
+   "font_size": 12,
+   "color": "#15803D",
+   "anchor": "middle"
+  },
+  {
+   "text": "loop 2: the triage harness improves, same rule: propose, replay, keep only if better",
+   "x": 730,
+   "y": 600,
+   "font_size": 12,
+   "color": "#6B7280",
+   "anchor": "middle"
+  },
+  {
+   "text": "the chosen shape, zoomed in on the next figure",
+   "x": 812,
+   "y": 344,
+   "font_size": 11,
+   "color": "#15803D",
    "anchor": "start"
   }
  ]

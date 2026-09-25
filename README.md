@@ -42,7 +42,8 @@ same rule: propose a change, replay it, keep it only if the score rises.
 examples) as its observation. Its python node is a free, deterministic probe that computes nine fields: the
 declared action kind, the label count, whether the examples carry a legal-action catalog, whether the
 evaluator is exact, the shape of the expected output. Its Jev node reads those fields and the examples and
-returns a probability over three routes. Its decision node picks the seed template for the winning route:
+returns a probability over three shapes the task harness can take. Code then fills the winning shape's
+template from the task description; that filled template is the seed the task harness starts from:
 
 - **settled**: the decision picks from a finite set. Seed: code → Jev pick → code.
 - **open-ended**: the output is free text that code can check. Seed: code → LLM draft → code.

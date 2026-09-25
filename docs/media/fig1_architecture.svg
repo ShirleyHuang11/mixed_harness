@@ -1,5 +1,5 @@
-<svg font-family="Inter, Helvetica, Arial, sans-serif" height="640" viewBox="0 0 1180 640" width="1180" xmlns="http://www.w3.org/2000/svg">
-  <rect fill="#FFFFFF" height="640" width="1180"/>
+<svg font-family="Inter, Helvetica, Arial, sans-serif" height="660" viewBox="0 0 1260 660" width="1260" xmlns="http://www.w3.org/2000/svg">
+  <rect fill="#FFFFFF" height="660" width="1260"/>
   <defs>
     <marker id="arrow-default" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
       <polygon fill="#555555" points="0 0, 8 4, 0 8"/>
@@ -35,63 +35,87 @@
       <polygon fill="#37474F" points="0 0, 8 4, 0 8"/>
     </marker>
   </defs>
-  <rect fill="#F0FDF4" height="112.0" rx="8" stroke="#22C55E" stroke-width="1" width="537.0" x="229.0" y="109.0"/>
-  <text fill="#999999" font-size="11" font-weight="bold" x="237.0" y="125.0">triage harness · the same three-node shape, run once per task on the task description</text>
-  <path d="M 217.5,165.0 L 255.0,165.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
-  <path d="M 405.0,165.0 L 435.0,165.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
-  <path d="M 565.0,165.0 L 590.0,165.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
-  <path d="M 740.0,165.0 L 855.0,165.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
-  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="68.0" x="763.5" y="147.0"/>
-  <text fill="#777777" font-size="10" text-anchor="middle" x="797.5" y="159.0">seed graph</text>
-  <path d="M 980.0,198.0 L 980.0,312.0" fill="none" marker-end="url(#arrow-default)" stroke="#15803D" stroke-width="2"/>
-  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="98.0" x="931.0" y="237.0"/>
-  <text fill="#777777" font-size="10" text-anchor="middle" x="980.0" y="249.0">traces + scores</text>
-  <path d="M 980.0,312.0 Q 1010.0,255.0 980.0,198.0" fill="none" marker-end="url(#arrow-default)" stroke="#15803D" stroke-width="2"/>
-  <path d="M 980.0,378.0 L 980.0,462.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
-  <path d="M 845.0,490.0 L 760.0,490.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
-  <path d="M 500.0,462.0 L 500.0,195.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
-  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="170.0" x="415.0" y="310.5"/>
-  <text fill="#777777" font-size="10" text-anchor="middle" x="500.0" y="322.5">new question map, next task</text>
-  <rect fill="#F3F4F6" height="66.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="215.0" x="2.5" y="132.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="110.0" y="162.1">Task description</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="110.0" y="177.1">objective · actions · evaluator · examples</text>
-  <rect fill="#DBEAFE" height="60.0" rx="8" stroke="#3B82F6" stroke-width="2" width="150.0" x="255.0" y="135.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="330.0" y="162.1">probe (python)</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="330.0" y="177.1">9 fields, free</text>
-  <rect fill="#FEF3C7" height="60.0" rx="8" stroke="#F59E0B" stroke-width="2" width="130.0" x="435.0" y="135.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="500.0" y="162.1">route (Jev)</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="500.0" y="177.1">settled · open-ended · hybrid</text>
-  <rect fill="#DBEAFE" height="60.0" rx="8" stroke="#3B82F6" stroke-width="2" width="150.0" x="590.0" y="135.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="665.0" y="162.1">seed (python)</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="665.0" y="177.1">template for that route</text>
-  <rect fill="#DCFCE7" height="66.0" rx="8" stroke="#22C55E" stroke-width="2" width="250.0" x="855.0" y="132.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="980.0" y="162.1">task harness</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="980.0" y="177.1">runs once per decision · zoomed in below</text>
-  <rect fill="#DCFCE7" height="66.0" rx="8" stroke="#22C55E" stroke-width="2" width="340.0" x="810.0" y="312.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="980.0" y="342.1">GEPA evolution of the task harness</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="980.0" y="357.1">rewrites the graph from full traces · kept if the score rises</text>
-  <rect fill="#F3F4F6" height="56.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="270.0" x="845.0" y="462.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="980.0" y="487.1">run history</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="980.0" y="502.1">route chosen vs what the harness became</text>
-  <rect fill="#EDE9FE" height="56.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="520.0" x="240.0" y="462.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="500.0" y="487.1">improve the triage harness</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="500.0" y="502.1">reflection model proposes new questions · Jev replay keeps them only if agreement rises</text>
-  <rect fill="#DBEAFE" height="14.0" rx="0" stroke="#3B82F6" stroke-width="2" width="18.0" x="51.0" y="608.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="60.0" y="619.5"> </text>
-  <rect fill="#FEF3C7" height="14.0" rx="0" stroke="#F59E0B" stroke-width="2" width="18.0" x="201.0" y="608.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="210.0" y="619.5"> </text>
-  <rect fill="#EDE9FE" height="14.0" rx="0" stroke="#8B5CF6" stroke-width="2" width="18.0" x="351.0" y="608.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="360.0" y="619.5"> </text>
-  <rect fill="#DCFCE7" height="14.0" rx="0" stroke="#22C55E" stroke-width="2" width="18.0" x="501.0" y="608.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="510.0" y="619.5"> </text>
-  <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="691.0" y="608.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="700.0" y="619.5"> </text>
-  <text fill="#15803D" font-size="12" text-anchor="middle" x="980.0" y="400.0">loop 1: the task harness improves (the rewritten graph goes back)</text>
-  <text fill="#6B7280" font-size="12" text-anchor="middle" x="740.0" y="540.0">loop 2: the triage harness improves, same rule: propose, replay, keep only if better</text>
-  <text fill="#374151" font-size="14" text-anchor="middle" x="590.0" y="40.0">one kind of machine at two levels: a harness that decides what to do, and a harness that decides which harness to build</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="619.0">code (python)</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="224.0" y="619.0">Jev judgment</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="374.0" y="619.0">LLM generation</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="524.0" y="619.0">a harness / its output</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="714.0" y="619.0">data: inputs and records</text>
+  <rect fill="#F0FDF4" height="112.0" rx="8" stroke="#22C55E" stroke-width="1" width="362.0" x="239.0" y="144.0"/>
+  <text fill="#999999" font-size="11" font-weight="bold" x="247.0" y="160.0">triage harness · runs once per task</text>
+  <rect fill="#F0FDF4" height="288.0" rx="8" stroke="#22C55E" stroke-width="1" width="501.0" x="742.0" y="56.0"/>
+  <text fill="#999999" font-size="11" font-weight="bold" x="750.0" y="72.0">task harness · one of three shapes, chosen by the triage · runs once per decision</text>
+  <path d="M 222.5,200.0 L 265.0,200.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 405.0,200.0 L 435.0,200.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 884.0,110.0 L 898.0,110.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 1006.0,110.0 L 1020.0,110.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 884.0,200.0 L 898.0,200.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 1006.0,200.0 L 1020.0,200.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 879.0,290.0 L 891.0,290.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 989.0,290.0 L 1001.0,290.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 1099.0,290.0 L 1111.0,290.0" fill="none" marker-end="url(#arrow-default)" stroke="#9CA3AF" stroke-width="1"/>
+  <path d="M 575.0,200.0 L 776.0,200.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
+  <path d="M 1138.7,310.0 L 1033.1,409.0" fill="none" marker-end="url(#arrow-default)" stroke="#15803D" stroke-width="2"/>
+  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="98.0" x="1036.9" y="341.5"/>
+  <text fill="#777777" font-size="10" text-anchor="middle" x="1085.9" y="353.5">traces + scores</text>
+  <path d="M 987.6,409.0 Q 995.7,348.4 948.0,310.0" fill="none" marker-end="url(#arrow-default)" stroke="#15803D" stroke-width="2"/>
+  <path d="M 1000.0,471.0 L 1000.0,528.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
+  <path d="M 865.0,555.0 L 755.0,555.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
+  <path d="M 505.0,528.0 L 505.0,230.0" fill="none" marker-end="url(#arrow-default)" stroke="#6B7280" stroke-dasharray="8,4" stroke-width="2"/>
+  <rect fill="#FFFFFF" height="16" opacity="0.85" rx="3" width="170.0" x="420.0" y="361.0"/>
+  <text fill="#777777" font-size="10" text-anchor="middle" x="505.0" y="373.0">new question map, next task</text>
+  <rect fill="#F3F4F6" height="66.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="215.0" x="7.5" y="167.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="115.0" y="197.1">Task description</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="115.0" y="212.1">objective · actions · evaluator · examples</text>
+  <rect fill="#DBEAFE" height="60.0" rx="8" stroke="#3B82F6" stroke-width="2" width="140.0" x="265.0" y="170.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="335.0" y="197.1">probe (python)</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="335.0" y="212.1">9 fields, free</text>
+  <rect fill="#FEF3C7" height="60.0" rx="8" stroke="#F59E0B" stroke-width="2" width="140.0" x="435.0" y="170.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="505.0" y="197.1">route (Jev)</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="505.0" y="212.1">picks one of three shapes</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="108.0" x="776.0" y="90.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="830.0" y="114.2">code</text>
+  <rect fill="#FEF3C7" height="40.0" rx="8" stroke="#F59E0B" stroke-width="2" width="108.0" x="898.0" y="90.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="952.0" y="114.2">Jev pick</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="108.0" x="1020.0" y="90.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="1074.0" y="114.2">code</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="108.0" x="776.0" y="180.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="830.0" y="204.2">code</text>
+  <rect fill="#EDE9FE" height="40.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="108.0" x="898.0" y="180.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="952.0" y="204.2">LLM draft</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="108.0" x="1020.0" y="180.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="1074.0" y="204.2">code</text>
+  <rect fill="#EDE9FE" height="40.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="98.0" x="781.0" y="270.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="830.0" y="294.2">LLM propose</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="98.0" x="891.0" y="270.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="940.0" y="294.2">code</text>
+  <rect fill="#FEF3C7" height="40.0" rx="8" stroke="#F59E0B" stroke-width="2" width="98.0" x="1001.0" y="270.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="1050.0" y="294.2">Jev select</text>
+  <rect fill="#DBEAFE" height="40.0" rx="8" stroke="#3B82F6" stroke-width="2" width="98.0" x="1111.0" y="270.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="1160.0" y="294.2">code</text>
+  <rect fill="#DCFCE7" height="62.0" rx="8" stroke="#22C55E" stroke-width="2" width="360.0" x="820.0" y="409.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="1000.0" y="437.1">GEPA evolution of the task harness</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="1000.0" y="452.1">rewrites the chosen graph from full traces · kept if the score rises</text>
+  <rect fill="#F3F4F6" height="54.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="270.0" x="865.0" y="528.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="1000.0" y="552.0">run history</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="1000.0" y="567.0">route chosen vs what the harness became</text>
+  <rect fill="#EDE9FE" height="54.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="500.0" x="255.0" y="528.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="505.0" y="552.0">improve the triage harness</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="505.0" y="567.0">reflection model proposes new questions · Jev replay keeps them only if agreement rises</text>
+  <rect fill="#DBEAFE" height="14.0" rx="0" stroke="#3B82F6" stroke-width="2" width="18.0" x="51.0" y="623.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="60.0" y="634.5"> </text>
+  <rect fill="#FEF3C7" height="14.0" rx="0" stroke="#F59E0B" stroke-width="2" width="18.0" x="201.0" y="623.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="210.0" y="634.5"> </text>
+  <rect fill="#EDE9FE" height="14.0" rx="0" stroke="#8B5CF6" stroke-width="2" width="18.0" x="351.0" y="623.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="360.0" y="634.5"> </text>
+  <rect fill="#DCFCE7" height="14.0" rx="0" stroke="#22C55E" stroke-width="2" width="18.0" x="501.0" y="623.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="510.0" y="634.5"> </text>
+  <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="691.0" y="623.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="700.0" y="634.5"> </text>
+  <text fill="#15803D" font-size="11" text-anchor="start" x="812.0" y="86.0">settled</text>
+  <text fill="#15803D" font-size="11" text-anchor="start" x="812.0" y="176.0">open-ended</text>
+  <text fill="#15803D" font-size="11" text-anchor="start" x="812.0" y="266.0">hybrid</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="634.0">code (python)</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="224.0" y="634.0">Jev judgment</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="374.0" y="634.0">LLM generation</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="524.0" y="634.0">a harness / its output</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="714.0" y="634.0">data: inputs and records</text>
+  <text fill="#374151" font-size="14" text-anchor="middle" x="600.0" y="36.0">one kind of machine at two levels: a harness that decides what to do, and a harness that decides which harness to build</text>
+  <text fill="#15803D" font-size="12" text-anchor="middle" x="960.0" y="490.0">loop 1: the task harness improves (the rewritten graph goes back)</text>
+  <text fill="#6B7280" font-size="12" text-anchor="middle" x="730.0" y="600.0">loop 2: the triage harness improves, same rule: propose, replay, keep only if better</text>
+  <text fill="#15803D" font-size="11" text-anchor="start" x="812.0" y="344.0">the chosen shape, zoomed in on the next figure</text>
 </svg>
