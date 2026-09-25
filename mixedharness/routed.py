@@ -17,7 +17,7 @@ from .spec import spec_hash, validate_spec
 from .store import RunStore, atomic_write_json, now_iso
 from .triage import ROUTES, TaskError, route_of_spec, seed_for_route, triage, validate_task
 
-SEED_ROUTE_OF = {'settled': 'jev', 'open_ended': 'llm', 'hybrid': 'hybrid'}
+SEED_ROUTE_OF = {'jev': 'jev', 'llm': 'llm'}
 
 
 def _routed_dir(store, task_id):

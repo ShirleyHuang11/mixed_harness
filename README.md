@@ -9,8 +9,8 @@ does not script, a plan across several tool calls, a reply that has to be compos
 model call is the right tool.
 
 Mixed Harness starts from that difference. **A probe decides what kind of task this is, and the task is
-dispatched to a route of execution built for that kind.** One route is driven by a judgment model, one by
-a language model, one by both. Which route runs is a decision the system makes, records, and learns from.
+dispatched to a route of execution built for that kind.** One route is driven by a judgment model, the other
+by a language model. Which route runs is a decision the system makes, records, and learns from.
 
 - **The Jev route.** Code computes the facts (ids in the message, what earlier tool calls returned, which
   actions are legal right now, the rules that must never depend on a model). [Jev](https://docs.typesafe.ai),
@@ -20,9 +20,6 @@ a language model, one by both. Which route runs is a decision the system makes, 
 - **The LLM route.** A complete language-model agent: the policy, the tool schemas and the conversation go to
   the model with native tool calling, and the model decides and writes. Tasks that need generation or
   multi-step reasoning go here. The route is the same thing a standard agent framework runs.
-- **The mixed route.** The Jev route's code and judgment, plus a language model that is called only on the
-  turns where something has to be written or extracted that code cannot. On every other turn the model is
-  skipped: no call, no cost.
 
 A task that needs no model at all (sort these words, count these objects) goes to a fourth, code-only route.
 
@@ -43,15 +40,16 @@ probability over the routes. Code then fills the winning route's template from t
 filled template is the seed the route starts from. The decision is recorded with its full distribution, so
 a low-confidence dispatch is visible and can be overridden.
 
-**Two levels of routing.** The triage routes once per task. Inside the mixed route, the same question is
-asked again on every turn, cheaply: the Jev request that picks the action also decides whether this turn
-needs the language model. Most of the saving comes from that second level, because in a tool-using task
-most turns are lookups and confirmations.
+**Where the language model enters the Jev route.** Evolution can add one step to a Jev route: a `hand_to_llm`
+option in the catalog and an `agent` node that runs a full model turn only when Jev picks that option. The
+route stays the Jev route: on the turns that need writing it pays one model call, on every other turn one
+Jev request. That per-turn choice is learned, not designed in. The benchmark's third arm is a route with
+that step already added by hand, which measures the target of evolution before evolution reaches it.
 
 **Loop 1: the routes improve.** The seeded route runs on training tasks and every run leaves a complete
 trace: node inputs and outputs, Jev questions and answers, LLM prompts and tool calls, memory, failures, and
 the score. An evolutionary loop reads those traces, proposes a rewritten route, and keeps the proposal only
-if it beats its parent on the same training batch and holds up on validation. For the Jev and mixed routes
+if it beats its parent on the same training batch and holds up on validation. For the Jev route
 a proposal can add or remove nodes, change a node's kind, insert a generate-then-select structure, or move
 logic from a model call into code. For the LLM route it rewrites the agent's instructions. The loop is
 defined by that acceptance rule, not by one optimizer: GEPA is the current implementation (its reflection
@@ -68,38 +66,35 @@ instead of past turns.
 
 ## The same turn on each route
 
-The three routes are three answers to the same question: who decides, and who writes. The figure runs one
+The two routes are two answers to the same question: who decides, and who writes. The figure runs one
 customer turn through each of them. The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange
 the keyboard in order #W2378156."
 
 ![The same turn on each route](docs/media/fig2_one_decision.svg)
 
-| | Jev route | LLM route | mixed route |
-|---|---|---|---|
-| decides the action | Jev, one request with every question the turn might need | the language model, one call | Jev, one request |
-| computes the facts | code: ids in the message, what earlier tools returned, which actions are legal now | the model, from the whole conversation | code |
-| enforces the rules | code: no database write before the customer has seen the details and said "yes" | the policy text in the prompt | code |
-| writes free text | never; templates only | always available | the model, only on turns Jev marks as needing it |
-| cost of this turn | 1 Jev request, about 0.4 s | 1 model call, about 8,000 input tokens, about 2 s | 1 Jev request, about 0.4 s; the LLM node is skipped |
-| where it fails | a question no template covers ends in a transfer | nothing on this turn; it pays the full call on every turn | nothing on this turn |
+| | Jev route | LLM route |
+|---|---|---|
+| decides the action | Jev, one request with every question the turn might need | the language model, one call |
+| computes the facts | code: ids in the message, what earlier tools returned, which actions are legal now | the model, from the whole conversation |
+| enforces the rules | code: no database write before the customer has seen the details and said "yes" | the policy text in the prompt |
+| writes free text | never; templates only | always available |
+| cost of this turn | 1 Jev request, about 0.4 s | 1 model call, about 8,000 input tokens, about 2 s |
+| where it fails | a question no template covers ends in a transfer | nothing on this turn; it pays the full call on every turn |
 
-On this turn all three arrive at the same tool call, `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. The
-Jev and mixed routes get there through the graph in `examples/tau2/seeds.py`. A **facts** node in code
-finds the name, zip and order id and lists the legal actions. One **judge** request to Jev answers every
-question at once: the action should be the lookup (0.72), and the customer has not confirmed anything yet
-(0.05). A **decision** node in code fills the arguments. The mixed route adds two LLM nodes after the
-decision, one for a reply and one for tool arguments, and a **final** code node that merges whatever they
-wrote into the action. When nothing needs writing the decision node sets both prompts to `null`, the
-runtime skips both nodes, and the final node passes the decision through unchanged. Code produces the action
-on every turn; the model only ever contributes text to it. The LLM route hands the policy, the tool schemas
-and the conversation to the model and lets it decide and write.
+On this turn both routes arrive at the same tool call, `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. The
+Jev route gets there through the graph in `examples/tau2/seeds.py`. A **facts** node in code finds the
+name, zip and order id and lists the legal actions. One **judge** request to Jev answers every question at
+once: the action should be the lookup (0.72), and the customer has not confirmed anything yet (0.05). A
+**decision** node in code fills the arguments. The LLM route hands the policy, the tool schemas and the
+conversation to the model in one native tool-calling turn and lets it decide and write.
 
 Three turns later the routes part. The customer asks for the specifications of the replacement items. On
 the Jev route no template answers that, and after three identical replies the call is transferred. On the
-LLM route the model writes the answer. On the mixed route Jev picks "reply with the LLM" for that one turn,
-the model writes the answer, and every other turn stays on code and Jev. Measured on the two τ²-bench
-retail tasks the smoke run completed, the mixed route called the model on 1 turn in 3, and the Jev route
-cost $0.0044 per task against $0.17 for the LLM route.
+LLM route the model writes the answer. That turn is what evolution is for. The shape it is expected to
+reach from the Jev route adds a `hand_to_llm` option and an `agent` node: that one turn costs a model call,
+every other turn stays on code and Jev. Measured on the two τ²-bench retail tasks the smoke run completed,
+that shape called the model on 1 turn in 3, and the Jev route cost $0.0044 per task against $0.17 for the
+LLM route.
 
 ## Measuring it
 
@@ -107,8 +102,8 @@ cost $0.0044 per task against $0.17 for the LLM route.
 
 The claim is about the dispatch, so the test scores the routes and the dispatcher on the same terms. On
 τ²-bench retail (114 tasks, 16 tools, reward computed from the database state), every route runs every task
-against the same simulated user with the same seeds: the Jev route, the LLM route, the mixed route. The
-best of the three on each task is the oracle. The fourth row is the triage's own pick. One table is
+against the same simulated user with the same seeds: the Jev route, the LLM route, and the evolved Jev route.
+The best of the three on each task is the oracle. The fourth row is the triage's own pick. One table is
 generated from the artifacts: pass^1, dollars per task, milliseconds per turn, and LLM and Jev calls per
 turn, for each route, for the oracle, and for the dispatcher. The claim holds if the dispatcher lands within
 noise of the oracle's accuracy at a fraction of the LLM route's cost; it fails if the dispatcher trails the
@@ -117,8 +112,8 @@ best single route. Predictions and the decision table are written down before an
 
 Measured so far, on 2 retail tasks (the run stopped when the language-model account ran out of credit):
 the LLM route passed 2 of 2 at $0.17 per task and 2.1 s per turn; the Jev route passed 0 of 2 at $0.004 per
-task and 0.47 s per turn, with one Jev request per turn and no LLM calls; the mixed route passed 1 of 2
-with 0.33 LLM calls per turn. Two tasks say nothing about accuracy (±35 points); they do say the instrument
+task and 0.47 s per turn, with one Jev request per turn and no LLM calls; the hand-written evolved shape
+(the Jev route plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks say nothing about accuracy (±35 points); they do say the instrument
 counts what it should, and that Jev answers in about 400 ms.
 
 ## Status
@@ -126,10 +121,10 @@ counts what it should, and that Jev answers in about 400 ms.
 | Part | State |
 |---|---|
 | Runtime, sandbox, expression language, spec format | done, tested on mock providers |
-| Jev route and mixed route seeds for τ²-bench retail | done, run against real Jev |
+| Jev route and LLM route seeds for τ²-bench retail, and the hand-written evolved shape | done, run against real Jev |
 | Triage as a spec through the same runtime, loop 2 | done |
 | GEPA evolution of a route (loop 1) | done, tested with a mock reflection model |
-| LLM route with native tool calling | not yet: today's `llm` node returns schema-checked JSON only |
+| LLM route with native tool calling | done: the `agent` node runs one native tool-calling turn |
 | Code-only route | not yet |
 | Dispatcher row and oracle in the benchmark table | not yet: the runner scores the three routes as arms |
 

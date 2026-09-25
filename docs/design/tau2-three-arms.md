@@ -1,4 +1,4 @@
-# τ²-bench three-arm test: routed harness vs Jev-only vs LLM-only
+# τ²-bench three-arm test: routed evolved vs Jev-route vs LLM-only
 
 Date: 2026-09-24. Status: design, implementation in `examples/tau2/`, runner in `scripts/tau2_compare.py`.
 
@@ -50,10 +50,10 @@ assertions are judged by the same model. Both run on the OpenAI key already in `
 |---|---|---|---|---|---|
 | LLM-only | tau2 stock `llm_agent`, `claude-sonnet-5` | same LLM | same LLM | 1 | 0 |
 | Jev-only | Jev choice over the legal-action catalog | code, from token parsing and Jev choices over values fetched by earlier tools | fixed templates filled by code | 0 | 1–2 |
-| Harness | Jev choice over the same catalog | code as above; an llm node only when code cannot fill a field | templates when one applies; llm node when Jev picks `llm_reply` | ≤ 0.3 expected | 1–2 |
+| Evolved | Jev choice over the same catalog | code as above; an llm node only when code cannot fill a field | templates when one applies; llm node when Jev picks `llm_reply` | ≤ 0.3 expected | 1–2 |
 
 All three see the same policy text and the same tool schemas. The Jev-only arm exists to show
-where generation is genuinely needed; it is expected to lose. The harness arm is the seed
+where generation is genuinely needed; it is expected to lose. The evolved arm is the seed
 harness first, then the same seed after GEPA evolution on the train split.
 
 Positive control: the LLM-only arm must reproduce a Claude-class retail pass^1. Threshold 0.60.
@@ -71,7 +71,7 @@ Smoke: rerun the classify example under mock providers before and after and diff
 - **Sandboxed Python costs 0.5 s per node on this cluster**, independent of the node's work (trivial node
   640 ms median; `python -I -S` alone 16 ms). With four python nodes a turn spent 2.7 s in process spawn.
   Two changes: the graph now asks every question in one Jev request (speculative fan-out: action choice plus
-  the selections the action might need), which cut the graph to two python nodes for jev_only and three for
+  the selections the action might need), which cut the graph to two python nodes for jev_route and three for
   harness; and the ledger reports model-only latency and sandbox time separately. The latency prediction in
   the table below is on the model-only number. The rewrite of the execution layer (`docs/design/implementation.md`)
   then added a warm sandbox worker: the same mock plumbing run went from 1.3 s to 21 ms median per turn.
@@ -103,12 +103,12 @@ the expected gap is 5× or more, so effect / noise ≥ 3 holds there.
 |---|---|
 | LLM-only pass^1, retail base | 0.75 ± 0.08 (positive control ≥ 0.60) |
 | Jev-only pass^1 | 0.25–0.45 |
-| Harness seed pass^1 | ≥ 0.60 and within 10 points of LLM-only |
-| Harness seed LLM calls per turn | ≤ 0.3 |
-| Harness per-turn median latency vs LLM-only | ≤ 1/5 |
-| Harness agent cost per task vs LLM-only | ≤ 1/10 |
-| Harness after 5 GEPA rounds on train, scored on test | +5 to +10 points over the seed |
-| Null-model collapse: harness vs Jev-only pass^1 | ≥ 1.5× |
+| Evolved shape pass^1 | ≥ 0.60 and within 10 points of LLM-only |
+| Evolved shape LLM calls per turn | ≤ 0.3 |
+| Evolved per-turn median latency vs LLM-only | ≤ 1/5 |
+| Evolved agent cost per task vs LLM-only | ≤ 1/10 |
+| Evolved after 5 GEPA rounds on train, scored on test | +5 to +10 points over the seed |
+| Null-model collapse: evolved vs Jev-route pass^1 | ≥ 1.5× |
 
 If the harness scores within noise of Jev-only, the llm node is not firing; check the counters
 before interpreting anything.
@@ -126,9 +126,9 @@ line (ALFWorld / BALROG) where no generation is needed.
 |---|---|
 | LLM-only < 0.60 | stop; inspect user simulator and environment |
 | Jev-only reports llm_calls > 0, or LLM-only reports jev_calls > 0 | stop; instrument broken |
-| Harness within 10 points of LLM-only and ≥ 3× cheaper | run 5 GEPA rounds on train (74), score test (40); then 3 trials on base for pass^k |
-| Harness 10–15 points below LLM-only | evolution first (it is the designed corrective), then re-score |
-| Harness > 15 points below after evolution | kill; keep instrument; move to settled line |
+| Evolved within 10 points of LLM-only and ≥ 3× cheaper | run 5 GEPA rounds on train (74), score test (40); then 3 trials on base for pass^k |
+| Evolved 10–15 points below LLM-only | evolution first (it is the designed corrective), then re-score |
+| Evolved > 15 points below after evolution | kill; keep instrument; move to settled line |
 
 ## Budget
 

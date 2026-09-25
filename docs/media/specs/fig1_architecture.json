@@ -12,19 +12,19 @@
  "nodes": [
   {
    "id": "task",
-   "label": "Task",
-   "sublabel": "a description once, then one observation per turn",
-   "x": 130,
+   "label": "Task description",
+   "sublabel": "objective \u00b7 actions \u00b7 evaluator \u00b7 examples",
+   "x": 115,
    "y": 190,
-   "width": 240,
+   "width": 215,
    "height": 66,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   },
   {
    "id": "facts",
-   "label": "facts (code)",
-   "sublabel": "probe the task, or parse the turn",
+   "label": "probe (python)",
+   "sublabel": "9 fields, free",
    "x": 345,
    "y": 190,
    "width": 175,
@@ -262,7 +262,7 @@
  "groups": [
   {
    "id": "disp",
-   "label": "dispatcher \u00b7 per task, or per turn",
+   "label": "dispatcher \u00b7 runs once per task",
    "node_ids": [
     "facts",
     "dispatch"
@@ -287,7 +287,7 @@
  ],
  "labels": [
   {
-   "text": "two routes and one dispatcher: the dispatcher picks a route once per task, or once per turn",
+   "text": "two routes and one dispatcher: the dispatcher picks a route once per task; evolution then rewrites the route",
    "x": 640,
    "y": 36,
    "font_size": 14,
@@ -306,14 +306,6 @@
    "text": "LLM route \u00b7 one full model call per turn, the standard agent",
    "x": 812,
    "y": 216,
-   "font_size": 11,
-   "color": "#15803D",
-   "anchor": "start"
-  },
-  {
-   "text": "per-turn dispatch is the Jev route with one extra option, \u201chand this turn to the LLM route\u201d",
-   "x": 812,
-   "y": 296,
    "font_size": 11,
    "color": "#15803D",
    "anchor": "start"
@@ -364,6 +356,14 @@
    "y": 644,
    "font_size": 11,
    "color": "#374151",
+   "anchor": "start"
+  },
+  {
+   "text": "evolution may add a hand-to-LLM step to the Jev route for the turns that need writing",
+   "x": 812,
+   "y": 296,
+   "font_size": 11,
+   "color": "#15803D",
    "anchor": "start"
   }
  ]

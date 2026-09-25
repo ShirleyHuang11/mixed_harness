@@ -17,13 +17,13 @@ Credentials, read from `mixed_harness/.env`:
 
 | Variable | Used by |
 |---|---|
-| `TYPESAFE_API_KEY` | Jev, for the `jev_only` and `harness` arms |
-| `ANTHROPIC_API_KEY` | the `llm_only` arm, the harness llm nodes, and (by default) the user simulator and the NL-assertion judge |
+| `TYPESAFE_API_KEY` | Jev, for the `jev_route` and `evolved` arms |
+| `ANTHROPIC_API_KEY` | the `llm_route` arm, the harness llm nodes, and (by default) the user simulator and the NL-assertion judge |
 | `OPENAI_API_KEY` | only if you pass `--user-llm gpt-4.1-2025-04-14`, tau2's official default |
 
 ## Run
 
-    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_only,harness --mock --num-tasks 1   # plumbing
+    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_route,evolved --mock --num-tasks 1   # plumbing
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5        # smoke
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --trials 3           # full
 
@@ -36,9 +36,9 @@ the complete runtime result), `summary.json` and `table.md` (generated from the 
 
 | Arm | Agent | Per turn |
 |---|---|---|
-| `llm_only` | tau2's stock `llm_agent` on `--agent-llm` (default `anthropic/claude-sonnet-5`) | 1 LLM call with policy, tools and full history |
-| `jev_only` | `examples.tau2.seeds.jev_only_seed()` | 1 python node (facts + catalog + questions), 1 Jev request, 1 python node (decision) |
-| `harness` | `examples.tau2.seeds.harness_seed()` | the same, plus two llm nodes that run only when the decision asks, and a merge node |
+| `llm_route` | tau2's stock `llm_agent` on `--agent-llm` (default `anthropic/claude-sonnet-5`) | 1 LLM call with policy, tools and full history |
+| `jev_route` | `examples.tau2.seeds.jev_route_seed()` | 1 python node (facts + catalog + questions), 1 Jev request, 1 python node (decision) |
+| `evolved` | a spec from evolution of the jev route (`--evolved-spec`), by default the hand-written `EVOLVED_EXAMPLE`: the jev route plus a hand-to-LLM option and an `agent` node | the same, plus one native tool-calling turn on the turns Jev hands over |
 
 `examples/tau2/agent.py` wraps a `Runtime` as a tau2 `HalfDuplexAgent`; `examples/tau2/adapter.py`
 exposes the same thing through the evaluator contract for evolution.

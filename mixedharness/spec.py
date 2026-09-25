@@ -24,7 +24,7 @@ from . import expressions
 from .schema import check_schema, minimal_instance, validate as validate_json
 
 FORMAT = 'mixedharness/1'
-KINDS = ('python', 'expression', 'jev', 'llm')
+KINDS = ('python', 'expression', 'jev', 'llm', 'agent')
 QUESTION_TYPES = ('choice', 'score', 'noul')
 MAX_NODES = 64
 MAX_QUESTIONS = 64
@@ -127,7 +127,7 @@ def validate_spec(spec):
                 validate_questions(node['questions'])
             else:
                 _expr(node['questions_expression'], node['id'], 'questions_expression', ids)
-        else:
+        elif kind == 'llm':
             has_llm = True
             if fields - {'id', 'kind', 'prompt', 'schema', 'max_tokens'}:
                 raise SpecError(f"node {node['id']}: unknown fields")
@@ -135,6 +135,17 @@ def validate_spec(spec):
             if 'schema' in node:
                 check_schema(node['schema'])
                 validate_json(minimal_instance(node['schema']), node['schema'])
+            if 'max_tokens' in node and (isinstance(node['max_tokens'], bool) or not isinstance(node['max_tokens'], int) or node['max_tokens'] < 1):
+                raise SpecError(f"node {node['id']}: max_tokens must be a positive integer")
+        else:
+            # agent: one native tool-calling turn. context evaluates to
+            # {"policy": str, "tools": [{name, description, parameters}], "conversation": [msg, ...]} or null to skip.
+            has_llm = True
+            if fields - {'id', 'kind', 'instructions', 'context', 'max_tokens'}:
+                raise SpecError(f"node {node['id']}: unknown fields")
+            if not isinstance(node.get('instructions'), str) or not node['instructions'].strip():
+                raise SpecError(f"node {node['id']}: instructions must be a nonempty string")
+            _expr(node.get('context'), node['id'], 'context', ids)
             if 'max_tokens' in node and (isinstance(node['max_tokens'], bool) or not isinstance(node['max_tokens'], int) or node['max_tokens'] < 1):
                 raise SpecError(f"node {node['id']}: max_tokens must be a positive integer")
     if has_llm and 'llm_model' not in spec:
@@ -171,6 +182,8 @@ def node_inputs(node):
         if 'questions_expression' in node:
             refs += [r for r in expressions.references(node['questions_expression']) if r not in refs]
         return refs
+    if kind == 'agent':
+        return expressions.references(node['context'])
     return expressions.references(node['prompt'])
 
 
@@ -229,9 +242,17 @@ def authoring_schema():
                  'properties': {'id': {'type': 'string'}, 'kind': {'const': 'llm'},
                                 'prompt': dict(expr, description='expression producing the prompt string, or null to skip the node this run (no call, output null)'),
                                 'schema': {'type': 'object', 'description': 'optional JSON Schema subset the reply must satisfy; with it the node output is the parsed JSON, without it the text'},
+                                'max_tokens': {'type': 'integer', 'minimum': 1}}},
+                {'type': 'object', 'required': ['id', 'kind', 'instructions', 'context'], 'additionalProperties': False,
+                 'properties': {'id': {'type': 'string'}, 'kind': {'const': 'agent'},
+                                'instructions': {'type': 'string', 'description': 'system instructions for the agent turn'},
+                                'context': dict(expr, description="expression producing {'policy': str, 'tools': [{name, description, parameters}], 'conversation': [{role, text|tool, arguments|result}]}, or null to skip the node this run"),
                                 'max_tokens': {'type': 'integer', 'minimum': 1}}}]}},
         },
         'description': ('A harness is a directed acyclic graph. Independent nodes run in parallel. python nodes compute facts and '
                         'decisions; jev nodes ask bounded judgment questions (several per request); llm nodes generate text or '
-                        'structured JSON and may be skipped by returning a null prompt. Node outputs are read as nodes[id].'),
+                        'structured JSON and may be skipped by returning a null prompt; an agent node runs one native tool-calling '
+                        'turn of a language model over a policy, tools and a conversation and outputs an action '
+                        '{"kind": "tool"|"message", "name", "arguments", "text"}, and may be skipped by returning a null context. '
+                        'Node outputs are read as nodes[id].'),
     }

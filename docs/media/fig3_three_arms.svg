@@ -45,14 +45,14 @@
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="495.0" y="67.0">τ²-bench retail, shared by all three arms</text>
   <text fill="#888888" font-size="10" text-anchor="middle" x="495.0" y="82.0">114 tasks · 16 tools · reward = database state · same user simulator, tasks and seeds</text>
   <rect fill="#EDE9FE" height="72.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="250.0" x="65.0" y="179.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="190.0" y="212.1">LLM-only</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="190.0" y="227.1">stock tau2 agent · 1 LLM call per turn</text>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="190.0" y="212.1">LLM route</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="190.0" y="227.1">stock tau2 agent · 1 model call per turn</text>
   <rect fill="#FEF3C7" height="72.0" rx="8" stroke="#F59E0B" stroke-width="2" width="250.0" x="370.0" y="179.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="495.0" y="212.1">Jev-only</text>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="495.0" y="212.1">Jev route</text>
   <text fill="#888888" font-size="10" text-anchor="middle" x="495.0" y="227.1">code + Jev + templates · 0 LLM calls</text>
   <rect fill="#DBEAFE" height="72.0" rx="8" stroke="#3B82F6" stroke-width="2" width="250.0" x="675.0" y="179.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="800.0" y="212.1">Harness</text>
-  <text fill="#888888" font-size="10" text-anchor="middle" x="800.0" y="227.1">code + Jev · LLM only when code asks</text>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="800.0" y="212.1">evolved Jev route</text>
+  <text fill="#888888" font-size="10" text-anchor="middle" x="800.0" y="227.1">Jev route + a hand-to-LLM step · LLM only when Jev hands over</text>
   <rect fill="#DCFCE7" height="62.0" rx="8" stroke="#22C55E" stroke-width="2" width="560.0" x="215.0" y="314.0"/>
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="495.0" y="342.1">one table, generated from the artifacts</text>
   <text fill="#888888" font-size="10" text-anchor="middle" x="495.0" y="357.1">pass^1 · $ per task · ms per turn · LLM calls per turn · Jev calls per turn</text>
@@ -66,10 +66,10 @@
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="620.0" y="454.6"> </text>
   <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="791.0" y="443.0"/>
   <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="800.0" y="454.6"> </text>
-  <text fill="#374151" font-size="13" text-anchor="middle" x="500.0" y="410.0">claim under test: the same pass^1 as the LLM alone, at a fraction of the cost and latency per turn</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="454.0">decisions by code + Jev</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="274.0" y="454.0">decisions by Jev only</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="454.0" y="454.0">decisions by an LLM</text>
+  <text fill="#374151" font-size="13" text-anchor="middle" x="500.0" y="410.0">claim under test: the evolved Jev route matches the LLM route’s pass^1 at a fraction of the cost and latency per turn</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="454.0">the evolved Jev route</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="274.0" y="454.0">the Jev route</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="454.0" y="454.0">the LLM route</text>
   <text fill="#374151" font-size="11" text-anchor="start" x="634.0" y="454.0">the measurement</text>
   <text fill="#374151" font-size="11" text-anchor="start" x="814.0" y="454.0">shared environment</text>
 </svg>

@@ -47,6 +47,8 @@ class Runtime:
         self.order = [node['id'] for node in self.spec['nodes']]
         if any(node['kind'] == 'llm' for node in self.spec['nodes']) and llm is None:
             raise ValueError('the spec has llm nodes; pass an LLM client')
+        if any(node['kind'] == 'agent' for node in self.spec['nodes']) and llm is None:
+            raise ValueError('the spec has agent nodes; pass an LLM client')
         self.max_workers = max(1, int(max_workers))
         self.pool = pool or (WorkerPool(size=self.max_workers) if any(n['kind'] == 'python' for n in self.spec['nodes']) else None)
 
@@ -116,6 +118,8 @@ class Runtime:
             record['expression'] = node['expression']
         elif node['kind'] == 'jev':
             record.update(state=None, questions=copy.deepcopy(node.get('questions')), response=None)
+        elif node['kind'] == 'agent':
+            record.update(instructions=node['instructions'], context=None, response=None)
         else:
             record.update(prompt=None, schema=copy.deepcopy(node.get('schema')), response=None)
         record.update(fields)
@@ -145,6 +149,15 @@ class Runtime:
                 response = self.jev.judge(state, questions, model=self.spec['jev_model'])
                 record['response'] = copy.deepcopy(response)
                 value = response['answers']
+            elif kind == 'agent':
+                agent_context = expressions.evaluate(node['context'], context)
+                if agent_context is None:
+                    record['status'] = 'skipped'
+                else:
+                    record['context'] = copy.deepcopy(agent_context)
+                    response = self.llm.turn(node['instructions'], agent_context, model=self.spec['llm_model'], max_tokens=node.get('max_tokens'))
+                    record['response'] = copy.deepcopy(response)
+                    value = {k: response.get(k) for k in ('kind', 'name', 'arguments', 'text')}
             else:
                 prompt = expressions.evaluate(node['prompt'], context)
                 if prompt is None:

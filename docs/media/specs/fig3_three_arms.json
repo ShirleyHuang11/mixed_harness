@@ -23,8 +23,8 @@
   },
   {
    "id": "llm_only",
-   "label": "LLM-only",
-   "sublabel": "stock tau2 agent \u00b7 1 LLM call per turn",
+   "label": "LLM route",
+   "sublabel": "stock tau2 agent \u00b7 1 model call per turn",
    "x": 190,
    "y": 215,
    "width": 250,
@@ -34,7 +34,7 @@
   },
   {
    "id": "jev_only",
-   "label": "Jev-only",
+   "label": "Jev route",
    "sublabel": "code + Jev + templates \u00b7 0 LLM calls",
    "x": 495,
    "y": 215,
@@ -45,8 +45,8 @@
   },
   {
    "id": "harness",
-   "label": "Harness",
-   "sublabel": "code + Jev \u00b7 LLM only when code asks",
+   "label": "evolved Jev route",
+   "sublabel": "Jev route + a hand-to-LLM step \u00b7 LLM only when Jev hands over",
    "x": 800,
    "y": 215,
    "width": 250,
@@ -149,7 +149,7 @@
  ],
  "labels": [
   {
-   "text": "claim under test: the same pass^1 as the LLM alone, at a fraction of the cost and latency per turn",
+   "text": "claim under test: the evolved Jev route matches the LLM route\u2019s pass^1 at a fraction of the cost and latency per turn",
    "x": 500,
    "y": 410,
    "font_size": 13,
@@ -157,7 +157,7 @@
    "anchor": "middle"
   },
   {
-   "text": "decisions by code + Jev",
+   "text": "the evolved Jev route",
    "x": 74,
    "y": 454,
    "font_size": 11,
@@ -165,7 +165,7 @@
    "anchor": "start"
   },
   {
-   "text": "decisions by Jev only",
+   "text": "the Jev route",
    "x": 274,
    "y": 454,
    "font_size": 11,
@@ -173,7 +173,7 @@
    "anchor": "start"
   },
   {
-   "text": "decisions by an LLM",
+   "text": "the LLM route",
    "x": 454,
    "y": 454,
    "font_size": 11,

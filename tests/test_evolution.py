@@ -144,7 +144,7 @@ def test_probe_is_deterministic_evidence():
 
 def test_triage_returns_distribution_and_state():
     decision = triage(TASK, JevClient(mock=True))
-    assert decision['route'] in ('settled', 'open_ended', 'hybrid') and abs(sum(decision['probabilities'].values()) - 1.0) < 1e-6
+    assert decision['route'] in ('jev', 'llm') and abs(sum(decision['probabilities'].values()) - 1.0) < 1e-6
     assert decision['state']['evidence'] == probe(TASK) and decision['questions'] == DEFAULT_TRIAGE_QUESTIONS
     assert decision['spec_hash'] == spec_hash(triage_spec())
 
@@ -160,10 +160,10 @@ def test_triage_is_a_spec_of_the_same_shape_and_its_probe_matches_the_reference(
         assert decision['evidence'] == probe(task)
 
 
-@pytest.mark.parametrize('route,kinds', [('settled', 'jev'), ('open_ended', 'llm'), ('hybrid', 'hybrid')])
+@pytest.mark.parametrize('route,kinds', [('jev', 'jev'), ('llm', 'llm')])
 def test_seed_templates_run_under_mock_providers(route, kinds):
     task = dict(TASK)
-    if route != 'settled':
+    if route == 'llm':
         task = dict(task, action_space={'kind': 'open'}, output_schema={'type': 'object', 'required': ['text'], 'properties': {'text': {'type': 'string'}}})
     spec = seed_for_route(route, task)
     assert route_of_spec(spec) == kinds
@@ -186,11 +186,11 @@ def label_evaluator(spec, episode, jev, llm=None, capture_traces=True):
 
 
 def test_routed_run_records_routes_and_improves_triage_after_two_runs(tmp_path):
-    better = seed_for_route('settled', TASK, llm_model='mock-llm')
+    better = seed_for_route('jev', TASK, llm_model='mock-llm')
     better['llm_model'] = 'mock-llm'
     better['nodes'][0]['source'] = ('def run(obs, nodes, memory):\n    rule = "big" if obs["x"] >= 5 else "small"\n'
                                     '    return {"options": obs["labels"], "questions": {"action": {"type": "choice", "instructions": "confirm", "criteria": {rule: "the rule"}}}}\n')
-    better['nodes'][2]['source'] = 'def run(obs, nodes, memory):\n    return nodes["pick"]["action"]["choice"]\n'
+    better['nodes'][2]['source'] = 'def run(obs, nodes, memory):\n    return {"action": nodes["pick"]["action"]["choice"], "handed": False}\n'
     improved_questions = json.loads(json.dumps(DEFAULT_TRIAGE_QUESTIONS))
     improved_questions['route']['instructions'] = 'Improved instructions.'
 
@@ -201,13 +201,13 @@ def test_routed_run_records_routes_and_improves_triage_after_two_runs(tmp_path):
     proposer = Proposer({'kind': 'mock', 'responder': responder})
     first = run_routed(TASK, TRAIN, VAL, jev=JevClient(mock=True), llm=LLMClient(kind='mock'), proposer=proposer, store=store,
                        evaluator=label_evaluator, task_id='sizes', rounds=1, batch_size=4)
-    assert first['route_source'] == 'triage' and first['seed_route'] in ('jev', 'llm', 'hybrid') and first['best_score'] == 1.0
+    assert first['route_source'] == 'triage' and first['seed_route'] in ('jev', 'llm') and first['best_score'] == 1.0
     assert first['final_route'] == 'jev' and first['triage_improvement']['status'] == 'skipped'
     assert (store.root / 'routed' / first['routed_id'] / 'best_spec.json').is_file()
     second = run_routed(TASK, TRAIN, VAL, jev=JevClient(mock=True), llm=LLMClient(kind='mock'), proposer=proposer, store=store,
-                        evaluator=label_evaluator, task_id='sizes', route='hybrid', rounds=1, batch_size=4)
-    assert second['route_source'] == 'override' and second['route'] == 'hybrid'
+                        evaluator=label_evaluator, task_id='sizes', route='llm', rounds=1, batch_size=4)
+    assert second['route_source'] == 'override' and second['route'] == 'llm'
     assert second['triage_improvement']['status'] in ('accepted', 'rejected')
     history = triage_store.history(store)
-    assert len(history) == 2 and {h['target'] for h in history} <= {'settled', 'open_ended', 'hybrid'}
+    assert len(history) == 2 and {h['target'] for h in history} <= {'jev', 'llm'}
     assert len(triage_store.improvements(store)) == 2

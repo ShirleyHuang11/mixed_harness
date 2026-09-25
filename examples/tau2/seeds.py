@@ -1,17 +1,15 @@
-"""Seed harnesses for the tau2-bench retail domain.
+"""Seed harnesses for the tau2-bench retail domain: the Jev route and the LLM route.
 
-Two seeds share every node except the ``llm`` nodes:
+* ``jev_route_seed()``  – code builds the legal-action catalog and every candidate question, Jev answers them all in
+  one request (speculative fan-out), code turns the answers into a tool call or a template message. No language model.
+* ``llm_route_seed()``  – the agent node alone: policy, tools and conversation go to the model every turn.
+* ``per_turn_seed()``   – not a route: the jev route plus one catalog option, ``hand_to_llm``, and an ``agent`` node
+  that runs only on turns Jev hands over. It is the shape evolution is expected to reach from the jev route, kept as
+  an example and as a test fixture.
 
-* ``jev_only_seed()`` – code builds the legal-action catalog and every candidate question, Jev answers them
-  all in one request (speculative fan-out: the action choice plus the selections the action might need),
-  code turns the answers into a tool call or a template message. No language model anywhere.
-* ``harness_seed()``  – the same graph plus ``draft_reply`` and ``draft_args`` llm nodes. Their prompts are
-  ``null`` unless the decision node asks for generation, and a null prompt skips the node (runtime rule).
+Graph (one turn):  facts (python) -> judge (jev) -> decision (python) [-> agent, only in the evolved shape]
 
-Graph (one turn):  facts (python) -> judge (jev) -> decision (python) [-> draft_reply / draft_args (llm) -> final (python)]
-
-Sandboxed Python nodes cost a fixed process spawn each (~0.5 s on this cluster, measured), so the graph is kept
-to two python nodes for jev_only and three for harness; the ledger reports model-only latency separately.
+Sandboxed Python nodes cost a warm-worker round trip each (milliseconds); the ledger reports model-only latency separately.
 
 Observation contract (built by ``examples.tau2.agent.PipelineAgent``):
 
@@ -255,15 +253,13 @@ def run(obs, nodes, memory):
                 options["tool:modify_pending_order_payment"] = "Change the payment method of pending order " + focus + " to one of the user's saved methods."
             if intents["modify_items"] and "modify_pending_order_items" in tools and mem["products"]:
                 options["tool:modify_pending_order_items"] = "Modify items of pending order " + focus + " to other variants of the same products (variants loaded)."
-            if intents["modify_address"] and "modify_pending_order_address" in tools and allow_llm:
-                options["tool:modify_pending_order_address"] = "Change the shipping address of pending order " + focus + " to the address the user wrote."
+
         if order and order.get("status") == "delivered":
             if intents["return"] and "return_delivered_order_items" in tools and facts["profile_loaded"]:
                 options["tool:return_delivered_order_items"] = "Return items of delivered order " + focus + " to one of the user's payment methods."
             if intents["exchange"] and "exchange_delivered_order_items" in tools and mem["products"]:
                 options["tool:exchange_delivered_order_items"] = "Exchange items of delivered order " + focus + " for other variants of the same products (variants loaded)."
-        if intents["modify_address"] and not order and "modify_user_address" in tools and allow_llm and facts["profile_loaded"]:
-            options["tool:modify_user_address"] = "Change the user's default address to the address they wrote."
+
         if pending:
             options["reply:confirm_action"] = "Ask the user to confirm the pending " + str(pending.get("tool")) + " action by listing its details; required before any database write."
         if incoming.get("role") == "tool" and not incoming.get("error"):
@@ -277,7 +273,7 @@ def run(obs, nodes, memory):
         if intents["goodbye"] or mem["completed"]:
             options["reply:closing"] = "Close politely; the user's requests have been handled or they said goodbye."
         if allow_llm:
-            options["reply:llm"] = "Write a free-form reply (explanations, multi-part answers, clarifying questions no template covers). Costs a language-model call; use only when no template above fits."
+            options["hand_to_llm"] = "Hand this turn to the language-model agent: the customer asked something no template covers, a free-form explanation or a value only free text can supply is needed. Costs a full model call; use only when no option above fits."
     if not options:
         options["reply:ask_identity"] = "Ask the user for their email, or full name plus zip code."
     # --- every question Jev might need this turn, asked in one request -------------------------------
@@ -348,12 +344,23 @@ def run(obs, nodes, memory):
     chosen = (sel.get("action") or {}).get("choice")
     confidence = ((sel.get("action") or {}).get("probabilities") or {}).get(chosen)
     confirms = float((sel.get("user_confirms") or {}).get("noul") or 0.0)
-    llm_prompt = None
-    llm_args_prompt = None
     action = None
     reply = None
     tool = None
     args = {}
+    if chosen == "hand_to_llm" and allow_llm:
+        tools_list = []
+        for name, spec in tools.items():
+            properties = {}
+            for pname, p in (spec.get("params") or {}).items():
+                properties[pname] = {"type": p.get("type", "string"), "description": p.get("description", "")}
+            tools_list.append({"name": name, "description": spec.get("description", ""),
+                               "parameters": {"type": "object", "properties": properties, "required": list(spec.get("required") or [])}})
+        conversation = list(obs.get("conversation") or [])
+        if obs.get("incoming"):
+            conversation.append(obs["incoming"])
+        agent_context = {"policy": obs.get("policy"), "tools": tools_list, "conversation": conversation}
+        return {"action": None, "memory": mem, "agent_context": agent_context, "chosen": chosen, "confidence": confidence, "confirms": confirms}
     if chosen is None or chosen not in fx["options"]:
         reply = "ask_identity" if not f["authenticated"] else "ask_order"
     else:
@@ -404,19 +411,9 @@ def run(obs, nodes, memory):
                 args["payment_method_id"] = sel["payment_method"].get("choice")
             elif len(pm) == 1:
                 args["payment_method_id"] = list(pm.keys())[0]
-        elif tool in ("modify_pending_order_address", "modify_user_address"):
-            if tool == "modify_pending_order_address":
-                args["order_id"] = focus
-            else:
-                args["user_id"] = f["user_id"]
-            if allow_llm:
-                spec = tools.get(tool) or {}
-                llm_args_prompt = ("Extract the tool arguments from the conversation. Tool: " + tool + ". Parameters: " + str(spec.get("params")) +
-                                   ". Already known: " + str(args) + ". Conversation (latest last): " + str((obs.get("conversation") or [])[-8:]) +
-                                   ". Return every required parameter; do not invent values the user did not state.")
         required = (tools.get(tool) or {}).get("required") or []
         missing = [r for r in required if r not in args or args.get(r) in (None, "", [])]
-        if missing and llm_args_prompt is None:
+        if missing:
             mem["last_error"] = {"tool": tool, "message": "missing arguments " + ", ".join(missing)}
             if "item_ids" in missing or "new_item_ids" in missing:
                 reply = "ask_items"
@@ -479,43 +476,29 @@ def run(obs, nodes, memory):
             text = "I'm sorry, but I cannot help with that request under our policy. Is there something else I can do for you?"
         elif reply == "closing":
             text = "You're welcome. Your request has been taken care of. Have a great day!"
-        elif reply == "llm" and allow_llm:
-            llm_prompt = ("You are a retail customer-service agent. Follow this policy strictly: " + str(obs.get("policy"))[:6000] +
-                          ". Known facts: " + str(f) + ". Conversation (latest last): " + str((obs.get("conversation") or [])[-10:]) +
-                          ". Write the next message to the user only (no tool calls). Do not invent order details; ask for what you need.")
         else:
             text = "Could you tell me a bit more about what you would like to do with your order?"
         action = {"kind": "message", "text": text}
-    return {"action": action, "memory": mem, "llm_prompt": llm_prompt, "llm_args_prompt": llm_args_prompt,
-            "chosen": chosen, "confidence": confidence, "confirms": confirms}
+    return {"action": action, "memory": mem, "agent_context": None, "chosen": chosen, "confidence": confidence, "confirms": confirms}
 '''
 
-# ---------------------------------------------------------------------------------------------------------
-# Node 3 (harness only): final. Merge generated text or arguments into the action.
-# ---------------------------------------------------------------------------------------------------------
-FINAL_SOURCE = '''
-def run(obs, nodes, memory):
-    d = nodes["decision"]
-    action = dict(d["action"])
-    mem = dict(d["memory"])
-    draft = nodes.get("draft_reply")
-    drafted_args = nodes.get("draft_args")
-    if action.get("kind") == "message" and action.get("text") is None:
-        text = draft.get("text") if isinstance(draft, dict) else None
-        action["text"] = text or "Could you tell me a bit more about what you would like to do?"
-    if action.get("kind") == "tool" and isinstance(drafted_args, dict):
-        merged = dict(action.get("arguments") or {})
-        for k, v in (drafted_args.get("arguments") or {}).items():
-            if k not in merged or merged.get(k) in (None, ""):
-                merged[k] = v
-        action["arguments"] = merged
-    return {"action": action, "memory": mem}
-'''
+AGENT_INSTRUCTIONS = ('You are a retail customer-service agent. Follow the policy exactly. In each turn either call exactly one '
+                      'tool or send one message to the customer, never both. Before any database write, list the details and get '
+                      'an explicit yes. Never invent order or product details; look them up.')
 
-REPLY_SCHEMA = {'type': 'object', 'required': ['text'], 'additionalProperties': False,
-                'properties': {'text': {'type': 'string', 'minLength': 1, 'maxLength': 1500}}}
-ARGS_SCHEMA = {'type': 'object', 'required': ['arguments'], 'additionalProperties': False,
-               'properties': {'arguments': {'type': 'object'}}}
+CONTEXT_SOURCE = '''def run(obs, nodes, memory):
+    tools_list = []
+    for name, spec in (obs.get("tools") or {}).items():
+        properties = {}
+        for pname, p in (spec.get("params") or {}).items():
+            properties[pname] = {"type": p.get("type", "string"), "description": p.get("description", "")}
+        tools_list.append({"name": name, "description": spec.get("description", ""),
+                           "parameters": {"type": "object", "properties": properties, "required": list(spec.get("required") or [])}})
+    conversation = list(obs.get("conversation") or [])
+    if obs.get("incoming"):
+        conversation.append(obs["incoming"])
+    return {"policy": obs.get("policy"), "tools": tools_list, "conversation": conversation}
+'''
 
 
 def _fill(source, allow_llm):
@@ -524,7 +507,7 @@ def _fill(source, allow_llm):
                   .replace('__TRANSFER_TEXT__', json.dumps(TRANSFER_TEXT)))
 
 
-def _base_nodes(allow_llm):
+def _jev_nodes(allow_llm):
     return [
         {'id': 'facts', 'kind': 'python', 'source': _fill(FACTS_SOURCE, allow_llm), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['facts']['state']", 'questions_expression': "nodes['facts']['questions']"},
@@ -532,28 +515,29 @@ def _base_nodes(allow_llm):
     ]
 
 
-def jev_only_seed():
-    spec = {'format': FORMAT, 'name': 'tau2 retail · Jev-only seed', 'jev_model': JEV_MODEL,
-            'nodes': _base_nodes(False),
-            'output': "nodes['decision']['action']",
+def jev_route_seed():
+    spec = {'format': FORMAT, 'name': 'tau2 retail · jev route', 'jev_model': JEV_MODEL,
+            'nodes': _jev_nodes(False), 'output': "nodes['decision']['action']", 'memory': "nodes['decision']['memory']"}
+    return validate_spec(spec)
+
+
+def per_turn_seed(llm_model='claude-sonnet-5'):
+    nodes = _jev_nodes(True) + [
+        {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['decision']['agent_context']", 'max_tokens': 1024}]
+    spec = {'format': FORMAT, 'name': 'tau2 retail · per-turn dispatch', 'jev_model': JEV_MODEL, 'llm_model': llm_model,
+            'nodes': nodes,
+            'output': "nodes['agent'] if nodes['decision']['agent_context'] else nodes['decision']['action']",
             'memory': "nodes['decision']['memory']"}
     return validate_spec(spec)
 
 
-def harness_seed(llm_model='claude-sonnet-5'):
-    nodes = _base_nodes(True) + [
-        {'id': 'draft_reply', 'kind': 'llm', 'prompt': "nodes['decision']['llm_prompt']",
-         'schema': copy.deepcopy(REPLY_SCHEMA), 'max_tokens': 600},
-        {'id': 'draft_args', 'kind': 'llm', 'prompt': "nodes['decision']['llm_args_prompt']",
-         'schema': copy.deepcopy(ARGS_SCHEMA), 'max_tokens': 400},
-        {'id': 'final', 'kind': 'python', 'source': _fill(FINAL_SOURCE, True),
-         'inputs': ['decision', 'draft_reply', 'draft_args']},
-    ]
-    spec = {'format': FORMAT, 'name': 'tau2 retail · harness seed', 'jev_model': JEV_MODEL, 'llm_model': llm_model,
-            'nodes': nodes,
-            'output': "nodes['final']['action']",
-            'memory': "nodes['final']['memory']"}
+def llm_route_seed(llm_model='claude-sonnet-5'):
+    nodes = [{'id': 'context', 'kind': 'python', 'source': CONTEXT_SOURCE, 'inputs': []},
+             {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['context']", 'max_tokens': 1024}]
+    spec = {'format': FORMAT, 'name': 'tau2 retail · llm route', 'jev_model': JEV_MODEL, 'llm_model': llm_model,
+            'nodes': nodes, 'output': "nodes['agent']"}
     return validate_spec(spec)
 
 
-SEEDS = {'jev_only': jev_only_seed, 'harness': harness_seed}
+SEEDS = {'jev_route': jev_route_seed, 'llm_route': llm_route_seed}
+EVOLVED_EXAMPLE = per_turn_seed   # what evolution is expected to find: the jev route plus a hand_to_llm option and an agent node

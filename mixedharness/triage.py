@@ -18,9 +18,9 @@ exact Jev state and response, and the hash of the triage spec that produced it. 
 in-process reference implementation of the probe node, kept identical for tests. `seed_for_route(route, task)`
 builds the seed spec for that route.
 
-Routes:  settled (pick from a finite set) → code catalog, Jev pick, code decision;
-         open_ended (generate text checked by code) → code prompt, LLM draft, code validate;
-         hybrid (generate candidates, compare) → LLM propose k, code criteria, Jev select, code decision.
+Routes:  jev (code computes the facts, Jev makes the bounded choices, code acts);
+         llm (one language-model call per decision: an agent turn with tools, or a draft for single-shot tasks).
+Evolution may add a hand_to_llm option and an agent node to a jev route; `route_of_spec` reports that as 'jev+llm'.
 """
 import copy
 import json
@@ -29,7 +29,7 @@ import statistics
 from .expressions import check_json
 from .spec import FORMAT, spec_hash, validate_questions, validate_spec
 
-ROUTES = ('settled', 'open_ended', 'hybrid')
+ROUTES = ('jev', 'llm')
 ACTION_KINDS = ('labels', 'catalog', 'open', 'declared_unknown')
 EVALUATOR_KINDS = ('exact_match', 'environment', 'code_check', 'reward_model', 'judge')
 EXACT_EVALUATORS = ('exact_match', 'environment', 'code_check')
@@ -37,20 +37,18 @@ SHORT_TEXT_TOKENS = 12
 EXAMPLE_LIMIT = 5
 EXAMPLE_CHARS = 300
 # What a finished harness looks like, by node kinds present → the triage vocabulary it corresponds to.
-TARGET_OF = {'jev': 'settled', 'llm': 'open_ended', 'hybrid': 'hybrid', 'code': 'settled'}
+TARGET_OF = {'jev': 'jev', 'llm': 'llm', 'jev+llm': 'jev', 'code': 'jev'}
 
 DEFAULT_TRIAGE_QUESTIONS = {
     'route': {
         'type': 'choice',
-        'instructions': ('Using the probe evidence and examples, judge which decision form fits this task. '
+        'instructions': ('Using the probe evidence and examples, judge which route fits this task. '
                          'Evidence fields are computed by code from the task description; examples are representative.'),
         'criteria': {
-            'settled': 'Every decision picks from a finite, enumerable set (labels or a per-step legal action list); '
-                       'the output can be checked exactly by code; the judgment is choose, score or yes/no.',
-            'open_ended': 'The output is free text, code or an unbounded structure that must be generated, '
-                          'not selected; no small candidate set exists before the model writes it.',
-            'hybrid': 'The output is open, but a few candidates can be generated first and then the best one '
-                      'selected by comparison; quality is judged by comparing options.',
+            'jev': 'Most decisions pick from a finite, enumerable set (labels or a per-step legal action list) and code can '
+                   'compute the facts. Code plus a judgment model; a language model at most on rare decisions.',
+            'llm': 'Most decisions need free text, multi-step reasoning or composition that only a language model can produce; '
+                   'a full model call per decision is the right tool.',
         },
     },
     'code_computes_facts': {'type': 'noul', 'instructions': 'Can deterministic code compute most facts needed for each decision, leaving only a bounded judgment to a model?'},
@@ -132,7 +130,7 @@ def _clip(value):
 def validate_triage_questions(questions):
     questions = validate_questions(copy.deepcopy(questions))
     if 'route' not in questions or questions['route']['type'] != 'choice' or set(questions['route']['criteria']) != set(ROUTES):
-        raise TaskError('triage questions need a route choice whose criteria are exactly settled, open_ended, hybrid')
+        raise TaskError('triage questions need a route choice whose criteria are exactly jev, llm')
     return questions
 
 
@@ -236,21 +234,25 @@ def triage(task, jev, *, questions=None, jev_model=None):
 
 
 def route_of_spec(spec):
-    """What a spec is made of: jev / llm / hybrid / code."""
+    """What a spec is made of: jev / llm / jev+llm / code. An agent or llm node is a language-model call."""
     kinds = {node.get('kind') for node in spec.get('nodes', [])}
-    if 'jev' in kinds and 'llm' in kinds:
-        return 'hybrid'
+    model = bool(kinds & {'llm', 'agent'})
+    if 'jev' in kinds and model:
+        return 'jev+llm'
     if 'jev' in kinds:
         return 'jev'
-    if 'llm' in kinds:
+    if model:
         return 'llm'
     return 'code'
 
 
 # ---------------------------------------------------------------------------------------------------------
 # Seed templates. Placeholders are replaced with JSON literals from the task description.
+#   jev route:  catalog (python) -> pick (Jev) -> decision (python)
+#   llm route:  prompt (python) -> draft (llm) for single-shot tasks; context (python) -> agent for tool tasks
+#   Evolution may later add a hand_to_llm catalog option and an agent node to a jev route; that is not a third route.
 # ---------------------------------------------------------------------------------------------------------
-_SETTLED_CATALOG = '''def run(obs, nodes, memory):
+_CATALOG = '''def run(obs, nodes, memory):
     options = {}
     labels = obs.get("labels") if isinstance(obs.get("labels"), list) and obs.get("labels") else __LABELS__
     if labels:
@@ -264,21 +266,25 @@ _SETTLED_CATALOG = '''def run(obs, nodes, memory):
                 options[item] = item
     if not options:
         options["none"] = "No option was available."
+    if __HAND_TO_LLM__:
+        options["hand_to_llm"] = "None of the options above is right, or the answer has to be written rather than selected; hand this decision to the language model."
     return {"options": list(options), "questions": {"action": {
         "type": "choice",
         "instructions": __OBJECTIVE__ + " Choose exactly one option id for the observation.",
         "criteria": options}}}
 '''
 
-_SETTLED_DECISION = '''def run(obs, nodes, memory):
+_DECISION = '''def run(obs, nodes, memory):
     options = nodes["catalog"]["options"]
     chosen = nodes["pick"]["action"].get("choice")
+    if chosen == "hand_to_llm":
+        return {"action": None, "handed": True}
     if chosen in options:
-        return chosen
-    return options[0]
+        return {"action": chosen, "handed": False}
+    return {"action": options[0], "handed": False}
 '''
 
-_OPEN_PROMPT = '''def run(obs, nodes, memory):
+_PROMPT = '''def run(obs, nodes, memory):
     lines = [__OBJECTIVE__, ""]
     for field in __FIELDS__:
         lines.append(field + ": " + str(obs.get(field)))
@@ -287,75 +293,61 @@ _OPEN_PROMPT = '''def run(obs, nodes, memory):
     return {"prompt": "\\n".join(lines)}
 '''
 
-_OPEN_VALIDATE = '''def run(obs, nodes, memory):
-    return nodes["draft"]
-'''
-
-_HYBRID_PROMPT = '''def run(obs, nodes, memory):
-    lines = [__OBJECTIVE__, ""]
-    for field in __FIELDS__:
-        lines.append(field + ": " + str(obs.get(field)))
-    lines.append("")
-    lines.append("Write 3 different candidate outputs for this input.")
-    return {"prompt": "\\n".join(lines)}
-'''
-
-_HYBRID_CRITERIA = '''def run(obs, nodes, memory):
-    candidates = nodes["propose"]["candidates"]
-    criteria = {}
-    for index, candidate in enumerate(candidates):
-        text = str(candidate).strip()
-        criteria["c" + str(index)] = text if text else "(empty candidate)"
-    return {"candidates": candidates, "questions": {"best": {
-        "type": "choice",
-        "instructions": __OBJECTIVE__ + " Choose the candidate that best serves this input.",
-        "criteria": criteria}}}
-'''
-
-_HYBRID_DECISION = '''def run(obs, nodes, memory):
-    candidates = nodes["criteria"]["candidates"]
-    chosen = nodes["select"]["best"].get("choice") or "c0"
-    index = int(chosen[1:]) if chosen[1:].isdigit() and int(chosen[1:]) < len(candidates) else 0
-    return {"text": str(candidates[index])}
+_CONTEXT = '''def run(obs, nodes, memory):
+    tools = []
+    for name, spec in (obs.get("tools") or {}).items():
+        properties = {}
+        for pname, p in (spec.get("params") or {}).items():
+            properties[pname] = {"type": p.get("type", "string"), "description": p.get("description", "")}
+        tools.append({"name": name, "description": spec.get("description", ""),
+                      "parameters": {"type": "object", "properties": properties, "required": list(spec.get("required") or [])}})
+    conversation = list(obs.get("conversation") or [])
+    if obs.get("incoming"):
+        conversation.append(obs["incoming"])
+    return {"policy": obs.get("policy") or __OBJECTIVE__, "tools": tools, "conversation": conversation}
 '''
 
 
-def _fill(source, task):
+def _fill(source, task, *, hand_to_llm=False):
     labels = task['action_space'].get('labels') if task['action_space']['kind'] == 'labels' else []
     return (source.replace('__OBJECTIVE__', json.dumps(task['objective']))
                   .replace('__FIELDS__', json.dumps(task['observation_fields']))
                   .replace('__LABELS__', json.dumps(list(labels or [])))
-                  .replace('__CATALOG_FIELD__', json.dumps(task['action_space'].get('catalog_field') or 'legal_actions')))
+                  .replace('__CATALOG_FIELD__', json.dumps(task['action_space'].get('catalog_field') or 'legal_actions'))
+                  .replace('__HAND_TO_LLM__', 'True' if hand_to_llm else 'False'))
+
+
+AGENT_INSTRUCTIONS = ('You are the agent for this task. Follow the policy. In each turn either call exactly one tool or send one '
+                      'message; never invent facts the tools did not return.')
+
+
+def _jev_nodes(task, fields_expr, *, hand_to_llm):
+    return [
+        {'id': 'catalog', 'kind': 'python', 'source': _fill(_CATALOG, task, hand_to_llm=hand_to_llm), 'inputs': []},
+        {'id': 'pick', 'kind': 'jev', 'state': fields_expr, 'questions_expression': "nodes['catalog']['questions']"},
+        {'id': 'decision', 'kind': 'python', 'source': _DECISION, 'inputs': ['catalog', 'pick']}]
 
 
 def seed_for_route(route, task, *, jev_model='jev-1.13.0', llm_model='mock-llm'):
     task = validate_task(task)
     fields_expr = '{' + ', '.join(f"{json.dumps(f)}: get(obs, {json.dumps(f)})" for f in task['observation_fields']) + '}'
-    if route == 'settled':
-        spec = {'format': FORMAT, 'name': f"{task['name']} · settled seed", 'jev_model': jev_model, 'nodes': [
-            {'id': 'catalog', 'kind': 'python', 'source': _fill(_SETTLED_CATALOG, task), 'inputs': []},
-            {'id': 'pick', 'kind': 'jev', 'state': fields_expr, 'questions_expression': "nodes['catalog']['questions']"},
-            {'id': 'decision', 'kind': 'python', 'source': _SETTLED_DECISION, 'inputs': ['catalog', 'pick']}],
-            'output': "nodes['decision']"}
-    elif route == 'open_ended':
-        draft = {'id': 'draft', 'kind': 'llm', 'prompt': "nodes['prompt']['prompt']"}
-        if 'output_schema' in task:
-            draft['schema'] = task['output_schema']
-        spec = {'format': FORMAT, 'name': f"{task['name']} · open-ended seed", 'jev_model': jev_model, 'llm_model': llm_model, 'nodes': [
-            {'id': 'prompt', 'kind': 'python', 'source': _fill(_OPEN_PROMPT, task), 'inputs': []},
-            draft,
-            {'id': 'validate', 'kind': 'python', 'source': _OPEN_VALIDATE, 'inputs': ['draft']}],
-            'output': "nodes['validate']"}
-    elif route == 'hybrid':
-        spec = {'format': FORMAT, 'name': f"{task['name']} · hybrid seed", 'jev_model': jev_model, 'llm_model': llm_model, 'nodes': [
-            {'id': 'prompt', 'kind': 'python', 'source': _fill(_HYBRID_PROMPT, task), 'inputs': []},
-            {'id': 'propose', 'kind': 'llm', 'prompt': "nodes['prompt']['prompt']",
-             'schema': {'type': 'object', 'required': ['candidates'], 'properties': {
-                 'candidates': {'type': 'array', 'items': {'type': 'string', 'minLength': 1}, 'minItems': 2, 'maxItems': 5}}}},
-            {'id': 'criteria', 'kind': 'python', 'source': _fill(_HYBRID_CRITERIA, task), 'inputs': ['propose']},
-            {'id': 'select', 'kind': 'jev', 'state': fields_expr, 'questions_expression': "nodes['criteria']['questions']"},
-            {'id': 'decision', 'kind': 'python', 'source': _HYBRID_DECISION, 'inputs': ['criteria', 'select']}],
-            'output': "nodes['decision']"}
+    tool_task = task['action_space']['kind'] == 'catalog'
+    if route == 'jev':
+        spec = {'format': FORMAT, 'name': f"{task['name']} · jev route", 'jev_model': jev_model,
+                'nodes': _jev_nodes(task, fields_expr, hand_to_llm=False), 'output': "nodes['decision']['action']"}
+    elif route == 'llm':
+        if tool_task:
+            nodes = [{'id': 'context', 'kind': 'python', 'source': _fill(_CONTEXT, task), 'inputs': []},
+                     {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['context']"}]
+            output = "nodes['agent']"
+        else:
+            draft = {'id': 'draft', 'kind': 'llm', 'prompt': "nodes['prompt']['prompt']"}
+            if 'output_schema' in task:
+                draft['schema'] = task['output_schema']
+            nodes = [{'id': 'prompt', 'kind': 'python', 'source': _fill(_PROMPT, task), 'inputs': []}, draft]
+            output = "nodes['draft']"
+        spec = {'format': FORMAT, 'name': f"{task['name']} · llm route", 'jev_model': jev_model, 'llm_model': llm_model,
+                'nodes': nodes, 'output': output}
     else:
         raise TaskError('route must be one of ' + ', '.join(ROUTES))
     return validate_spec(spec)

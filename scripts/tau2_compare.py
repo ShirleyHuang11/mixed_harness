@@ -1,21 +1,24 @@
 """Three arms on tau2-bench, same environment, same user simulator, same tasks and seeds.
 
 Arms
-  llm_only   tau2's stock `llm_agent` on --agent-llm (litellm name). One LLM call per turn, no Jev.
-  jev_only   examples.tau2.seeds.jev_only_seed(): Jev picks from a code-built catalog, code fills arguments,
-             templates reply. No LLM anywhere.
-  harness    examples.tau2.seeds.harness_seed(): jev_only plus two llm nodes that fire only when code asks.
+  llm_route  tau2's stock `llm_agent` on --agent-llm (litellm name): one full model call per turn, no Jev. This is
+             the LLM route as the benchmark's own reference implementation runs it.
+  jev_route  examples.tau2.seeds.jev_route_seed(): Jev picks from a code-built catalog, code fills arguments,
+             templates reply. No language model anywhere.
+  evolved    a spec produced by evolution of the jev route (--evolved-spec <path>), typically the jev route plus a
+             hand_to_llm option and an agent node that runs only on the turns Jev hands over. Without --evolved-spec
+             the arm runs examples.tau2.seeds.EVOLVED_EXAMPLE, the hand-written version of that shape.
 
 Decision table (evaluated automatically after the run; see docs/design/tau2-three-arms.md)
-  llm_only pass^1 < 0.60                                   -> STOP: positive control failed; user sim / env suspect
-  jev_only llm_calls > 0 or llm_only jev_calls > 0          -> STOP: instrument broken
-  harness within 10 pt of llm_only and >= 3x cheaper       -> NEXT: evolution on train (74), score test (40); 3 trials on base
-  harness 10-15 pt below llm_only                          -> NEXT: evolution first, then re-score
-  harness > 15 pt below after evolution                    -> KILL on tau2; keep instrument; move to settled line
+  llm_route pass^1 < 0.60                                  -> STOP: positive control failed; user sim / env suspect
+  jev_route llm_calls > 0 or llm_route jev_calls > 0        -> STOP: instrument broken
+  evolved within 10 pt of llm_route and >= 3x cheaper      -> NEXT: more evolution rounds on train (74), score test (40); 3 trials on base
+  evolved 10-15 pt below llm_route                         -> NEXT: more evolution, then re-score
+  evolved > 15 pt below after evolution                    -> KILL on tau2; keep instrument
 
 Run inside the tau2-bench virtualenv with this repo installed into it (docs/guides/tau2.md):
   ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5
-  ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_only,harness --mock --num-tasks 2   # plumbing only
+  ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_route,evolved --mock --num-tasks 2   # plumbing only
 
 Outputs runs/tau2/<stamp>/{manifest.json, summary.json, table.md, <arm>/results.json}. table.md is generated
 from the artifacts, never typed. Realised counters come from the agents' ledgers and tau2's message ledger.
@@ -36,11 +39,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from examples.tau2 import adapter  # noqa: E402
-from examples.tau2.seeds import SEEDS  # noqa: E402
+from examples.tau2.seeds import EVOLVED_EXAMPLE, SEEDS  # noqa: E402
 from mixedharness.jev import JevClient  # noqa: E402
 from mixedharness.llm import LLMClient  # noqa: E402
 
-ARMS = ('llm_only', 'jev_only', 'harness')
+ARMS = ('llm_route', 'jev_route', 'evolved')
 
 
 NO_TEMPERATURE_MODELS = ('claude-sonnet-5', 'claude-opus-5', 'claude-fable')
@@ -150,16 +153,19 @@ def run_arm(arm, args, tasks, out_dir, jev, llm):
     arm_dir = out_dir / arm
     arm_dir.mkdir(parents=True, exist_ok=True)
     agents = {}
-    if arm == 'llm_only':
+    if arm == 'llm_route':
         agent_name, agent_llm = 'llm_agent', args.agent_llm
     else:
-        spec = SEEDS[arm](args.llm_model) if arm == 'harness' else SEEDS[arm]()
+        if arm == 'evolved':
+            spec = json.loads(Path(args.evolved_spec).read_text()) if args.evolved_spec else EVOLVED_EXAMPLE(args.llm_model)
+        else:
+            spec = SEEDS[arm]()
         (arm_dir / 'seed_spec.json').write_text(json.dumps(spec, indent=1))
         name = f'mixedharness_{arm}'
 
         def factory(tools, domain_policy, **kwargs):
             task = kwargs.get('task')
-            agent = PipelineAgent(tools, domain_policy, spec, jev, llm if arm == 'harness' else None, label=arm)
+            agent = PipelineAgent(tools, domain_policy, spec, jev, llm if arm == 'evolved' else None, label=arm)
             agents[(str(task.id) if task is not None else 'unknown', len(agents))] = agent
             return agent
         registry.register_agent_factory(factory, name)
@@ -184,26 +190,26 @@ def run_arm(arm, args, tasks, out_dir, jev, llm):
 def decide(summaries):
     s = {x['arm']: x for x in summaries}
     lines = []
-    if 'llm_only' in s and s['llm_only']['pass1'] is not None and s['llm_only']['pass1'] < 0.60:
-        lines.append('STOP: positive control (llm_only) below 0.60; inspect user simulator and environment before reading anything else.')
-    if 'jev_only' in s and s['jev_only'].get('llm_calls_per_turn', 0) > 0:
-        lines.append('STOP: instrument broken; jev_only made LLM calls.')
-    if 'llm_only' in s and s['llm_only'].get('jev_calls_per_turn', 0) > 0:
-        lines.append('STOP: instrument broken; llm_only made Jev calls.')
-    if 'harness' in s and 'llm_only' in s and s['harness']['pass1'] is not None and s['llm_only']['pass1'] is not None:
-        gap = (s['llm_only']['pass1'] - s['harness']['pass1']) * 100
-        c_h, c_l = s['harness'].get('agent_cost_per_task_usd'), s['llm_only'].get('agent_cost_per_task_usd')
+    if 'llm_route' in s and s['llm_route']['pass1'] is not None and s['llm_route']['pass1'] < 0.60:
+        lines.append('STOP: positive control (llm_route) below 0.60; inspect user simulator and environment before reading anything else.')
+    if 'jev_route' in s and s['jev_route'].get('llm_calls_per_turn', 0) > 0:
+        lines.append('STOP: instrument broken; jev_route made LLM calls.')
+    if 'llm_route' in s and s['llm_route'].get('jev_calls_per_turn', 0) > 0:
+        lines.append('STOP: instrument broken; llm_route made Jev calls.')
+    if 'evolved' in s and 'llm_route' in s and s['evolved']['pass1'] is not None and s['llm_route']['pass1'] is not None:
+        gap = (s['llm_route']['pass1'] - s['evolved']['pass1']) * 100
+        c_h, c_l = s['evolved'].get('agent_cost_per_task_usd'), s['llm_route'].get('agent_cost_per_task_usd')
         cheaper = (c_l / c_h) if (c_h and c_l) else None
         if gap <= 10 and (cheaper is None or cheaper >= 3):
-            lines.append(f'NEXT: harness within {gap:.1f} pt of llm_only' + (f' and {cheaper:.1f}x cheaper' if cheaper else ' (cost unpriced)') + '; run evolution on train, score test, then 3 trials on base.')
+            lines.append(f'NEXT: evolved within {gap:.1f} pt of llm_route' + (f' and {cheaper:.1f}x cheaper' if cheaper else ' (cost unpriced)') + '; run evolution on train, score test, then 3 trials on base.')
         elif gap <= 15:
-            lines.append(f'NEXT: harness {gap:.1f} pt below llm_only; run evolution first, then re-score.')
+            lines.append(f'NEXT: evolved {gap:.1f} pt below llm_route; run evolution first, then re-score.')
         else:
-            lines.append(f'KILL-CANDIDATE: harness {gap:.1f} pt below llm_only; confirm after evolution, then move the instrument to the settled line.')
-    if 'harness' in s and 'jev_only' in s and s['jev_only']['pass1'] and s['harness']['pass1'] is not None:
-        ratio = s['harness']['pass1'] / s['jev_only']['pass1'] if s['jev_only']['pass1'] else None
+            lines.append(f'KILL-CANDIDATE: evolved {gap:.1f} pt below llm_route; confirm after evolution, then move the instrument to the jev-route line.')
+    if 'evolved' in s and 'jev_route' in s and s['jev_route']['pass1'] and s['evolved']['pass1'] is not None:
+        ratio = s['evolved']['pass1'] / s['jev_route']['pass1'] if s['jev_route']['pass1'] else None
         if ratio is not None and ratio < 1.5:
-            lines.append(f'WARN: harness/jev_only pass^1 ratio {ratio:.2f} < 1.5; check llm_calls_per_turn before interpreting.')
+            lines.append(f'WARN: evolved/jev_route pass^1 ratio {ratio:.2f} < 1.5; check llm_calls_per_turn before interpreting.')
     return lines or ['no decision row fired']
 
 
@@ -243,6 +249,7 @@ def main(argv=None):
     p.add_argument('--max-steps', type=int, default=adapter.DEFAULT_MAX_STEPS)
     p.add_argument('--seed', type=int, default=300)
     p.add_argument('--namespace', default=None, help='response cache namespace for Jev/LLM clients')
+    p.add_argument('--evolved-spec', default=None, help='spec JSON for the evolved arm (e.g. runs/<run>/candidates/<hash>.json spec); default: the hand-written example')
     p.add_argument('--mock', action='store_true', help='mock Jev and LLM for the pipeline arms (plumbing only; scores are meaningless)')
     p.add_argument('--out', default='runs/tau2')
     args = p.parse_args(argv)
@@ -266,9 +273,9 @@ def main(argv=None):
     if args.mock:
         jev, llm = JevClient(mock=True), LLMClient(kind='mock', model='mock-llm')
     else:
-        needs_jev = any(a in ('jev_only', 'harness') for a in arms)
+        needs_jev = any(a in ('jev_route', 'evolved') for a in arms)
         if needs_jev and not os.getenv('TYPESAFE_API_KEY'):
-            p.error('TYPESAFE_API_KEY is not set; the jev_only and harness arms need it')
+            p.error('TYPESAFE_API_KEY is not set; the jev_route and evolved arms need it')
         jev = JevClient(model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace)
         llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir=str(ROOT / '.cache/llm'), cache_namespace=namespace, max_tokens=800)
     manifest = {'stamp': stamp, 'domain': args.domain, 'split': args.split, 'task_ids': [str(t.id) for t in tasks], 'trials': args.trials,

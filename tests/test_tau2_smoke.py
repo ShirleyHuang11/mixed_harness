@@ -27,12 +27,13 @@ def test_llm_node_with_null_prompt_is_skipped_without_a_call():
     assert llm.stats['calls'] == 1
 
 
-def test_seeds_validate_and_differ_only_in_llm_nodes():
+def test_seeds_validate_and_differ_only_in_the_agent_node():
     from examples.tau2 import seeds
-    jev_only, harness = seeds.jev_only_seed(), seeds.harness_seed()
-    assert [n['kind'] for n in jev_only['nodes']] == ['python', 'jev', 'python']
-    assert [n['kind'] for n in harness['nodes']] == ['python', 'jev', 'python', 'llm', 'llm', 'python']
-    assert 'llm_model' not in jev_only and harness['llm_model'] == 'claude-sonnet-5'
+    jev_route, evolved, llm_route = seeds.jev_route_seed(), seeds.EVOLVED_EXAMPLE(), seeds.llm_route_seed()
+    assert [n['kind'] for n in jev_route['nodes']] == ['python', 'jev', 'python']
+    assert [n['kind'] for n in evolved['nodes']] == ['python', 'jev', 'python', 'agent']
+    assert [n['kind'] for n in llm_route['nodes']] == ['python', 'agent']
+    assert 'llm_model' not in jev_route and evolved['llm_model'] == 'claude-sonnet-5'
 
 
 def _tau2():
@@ -52,8 +53,8 @@ def test_pipeline_agent_turns_are_valid_tau2_messages_and_counted():
     from examples.tau2 import seeds
     from examples.tau2.agent import PipelineAgent
     env = build_environment('retail')
-    for name, llm in (('jev_only', None), ('harness', LLMClient(kind='mock', model='mock-llm'))):
-        spec = seeds.SEEDS[name]()
+    for name, llm in (('jev_route', None), ('evolved', LLMClient(kind='mock', model='mock-llm'))):
+        spec = seeds.jev_route_seed() if name == 'jev_route' else seeds.EVOLVED_EXAMPLE('mock-llm')
         agent = PipelineAgent(env.get_tools(), env.get_policy(), spec, JevClient(mock=True), llm, label=name)
         state = agent.get_init_state([])
         reply, state = agent.generate_next_message(UserMessage(role='user', content='Hi, I am Yusuf Rossi, zip 19122, I want to exchange an item in #W2378156.'), state)
@@ -70,8 +71,8 @@ def test_pipeline_agent_turns_are_valid_tau2_messages_and_counted():
             assert state.memory.get('user_id') == 'yusuf_rossi_9620'
         counters = agent.counters
         assert counters['turns'] >= 1 and counters['jev_calls'] == counters['turns']
-        if name == 'jev_only':
+        if name == 'jev_route':
             assert counters['llm_calls'] == 0 and counters['llm_skipped'] == 0
         else:
-            assert counters['llm_calls'] + counters['llm_skipped'] == 2 * counters['turns']
+            assert counters['llm_calls'] + counters['llm_skipped'] == counters['turns']
         assert counters['invalid_actions'] == 0 and counters['candidate_errors'] == 0

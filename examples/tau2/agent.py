@@ -174,7 +174,7 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
             elapsed = float(node.get('elapsed_ms') or 0.0)
             if kind == 'python':
                 sandbox_ms += elapsed
-            elif kind in ('jev', 'llm'):
+            elif kind in ('jev', 'llm', 'agent'):
                 model_ms += elapsed
             if kind == 'python' and node.get('status') == 'ok':
                 python_runs += 1
@@ -196,7 +196,7 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
                     cost += tokens * JEV_LIST_PRICE_PER_INPUT_TOKEN
                 else:
                     unpriced += 1
-            elif kind == 'llm':
+            elif kind in ('llm', 'agent'):
                 if node.get('status') == 'skipped':
                     llm_skipped += 1
                 elif node.get('response'):

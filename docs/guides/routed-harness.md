@@ -13,6 +13,7 @@ A harness is a JSON graph (`mixedharness/spec.py`):
 | `expression` | `expression` | node ids referenced as `nodes['id']` |
 | `jev` | `state` (expr), `questions` (map) or `questions_expression` (expr) | ids referenced in either |
 | `llm` | `prompt` (expr; `null` skips the node), `schema` (JSON Schema subset), `max_tokens` | ids referenced in `prompt` |
+| `agent` | `instructions`, `context` (expr → `{policy, tools, conversation}`; `null` skips the node), `max_tokens` | ids referenced in `context` |
 
 Expressions are a restricted language over `obs`, `nodes` and `memory`: literals, indexing, arithmetic,
 comparisons, conditionals, and a fixed set of functions (`len min max sum abs round mean median std last get
@@ -45,9 +46,10 @@ task description as observation and returns the route, the full distribution, th
 state and response, and the hash of the triage spec. `probe(task)` is the in-process reference for the probe
 node and is tested to agree with it. `seed_for_route(route, task)` builds the seed:
 
-- `settled`: python catalog → jev pick (`questions_expression`) → python decision
-- `open_ended`: python prompt → llm draft (with the task's `output_schema`) → python validate
-- `hybrid`: python prompt → llm propose k candidates → python criteria → jev select → python decision
+- `jev`: python catalog → jev pick (`questions_expression`) → python decision
+- `llm`: python context → agent (one native tool-calling turn) for tool tasks; python prompt → llm draft for single-shot tasks
+
+Evolution may add a `hand_to_llm` catalog option and an `agent` node to a jev route; `route_of_spec` reports that graph as `jev+llm`.
 
 ## Evolution
 
