@@ -29,7 +29,7 @@ cost, Jev probabilities and harness version.
 
 ## Architecture
 
-![Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store; the evolution loops feed a new harness version back into the compiler and the router](docs/media/fig_runtime_path.svg)
+![Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store; the evolution loops feed a new harness version back into the execution layer and the router](docs/media/fig_runtime_path.svg)
 
 **Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
 picks, so Jev picks actions and free-text arguments need a small LLM slot filler. It is single-pass,
