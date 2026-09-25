@@ -1,8 +1,8 @@
 {
- "title": "Mixed Harness architecture",
+ "title": "Jev + LLM harness: runtime path and evolution loops",
  "canvas": {
-  "width": 1300,
-  "height": 670
+  "width": 1280,
+  "height": 760
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -11,142 +11,190 @@
  },
  "nodes": [
   {
-   "id": "task",
-   "label": "Task description",
-   "sublabel": "objective \u00b7 actions \u00b7 evaluator \u00b7 examples",
-   "x": 115,
+   "id": "state",
+   "label": "Task state",
+   "x": 90,
    "y": 190,
-   "width": 215,
-   "height": 66,
-   "fill": "#F3F4F6",
-   "stroke": "#9CA3AF"
-  },
-  {
-   "id": "facts",
-   "label": "probe (python)",
-   "sublabel": "9 fields, free",
-   "x": 345,
-   "y": 190,
-   "width": 175,
-   "height": 60,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6"
-  },
-  {
-   "id": "dispatch",
-   "label": "dispatch (Jev)",
-   "sublabel": "one request: which route",
-   "x": 545,
-   "y": 190,
-   "width": 165,
-   "height": 60,
-   "fill": "#FEF3C7",
-   "stroke": "#F59E0B"
-  },
-  {
-   "id": "j1",
-   "label": "code",
-   "x": 865,
-   "y": 130,
-   "width": 104,
-   "height": 44,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6",
-   "font_size": 12
-  },
-  {
-   "id": "j2",
-   "label": "Jev",
-   "x": 983,
-   "y": 130,
-   "width": 104,
-   "height": 44,
-   "fill": "#FEF3C7",
-   "stroke": "#F59E0B",
-   "font_size": 12
-  },
-  {
-   "id": "j3",
-   "label": "code",
-   "x": 1101,
-   "y": 130,
-   "width": 104,
-   "height": 44,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6",
-   "font_size": 12
-  },
-  {
-   "id": "l1",
-   "label": "agent \u00b7 policy + tools + conversation \u00b7 native tool calling",
-   "x": 1000,
-   "y": 250,
-   "width": 380,
-   "height": 44,
-   "fill": "#EDE9FE",
-   "stroke": "#8B5CF6",
-   "font_size": 12
-  },
-  {
-   "id": "hx",
-   "label": " ",
-   "x": 1000,
-   "y": 310,
-   "width": 6,
-   "height": 6,
-   "shape": "rect",
-   "fill": "#22C55E",
-   "stroke": "#22C55E"
-  },
-  {
-   "id": "tx",
-   "label": " ",
-   "x": 445,
-   "y": 252,
-   "width": 6,
-   "height": 6,
-   "shape": "rect",
-   "fill": "#22C55E",
-   "stroke": "#22C55E"
-  },
-  {
-   "id": "history",
-   "label": "run history",
-   "sublabel": "trajectories \u00b7 rewards \u00b7 dispatch decision vs realised route",
-   "x": 690,
-   "y": 420,
-   "width": 430,
+   "width": 130,
    "height": 56,
    "fill": "#F3F4F6",
-   "stroke": "#9CA3AF"
+   "stroke": "#9CA3AF",
+   "font_size": 13,
+   "sublabel": "observation, tools"
   },
   {
-   "id": "evo_h",
-   "label": "evolutionary loop over the routes",
-   "sublabel": "proposes a rewritten route from its trajectories \u00b7 accepted only on strict reward improvement",
+   "id": "compiler",
+   "label": "action-space compiler (code)",
+   "x": 300,
+   "y": 190,
+   "width": 240,
+   "height": 56,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 13,
+   "sublabel": "typed options A(s) \u00b7 minimal state slice \u00b7 closed or open?"
+  },
+  {
+   "id": "router",
+   "label": "Jev router",
+   "x": 560,
+   "y": 190,
+   "width": 170,
+   "height": 56,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B",
+   "font_size": 13,
+   "sublabel": "closed \u00b7 narrow \u00b7 escalate"
+  },
+  {
+   "id": "closed",
+   "label": "closed: Jev decides",
+   "x": 810,
+   "y": 100,
+   "width": 230,
+   "height": 56,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B",
+   "font_size": 13,
+   "sublabel": "pick from A(s) \u00b7 accept if conf \u2265 \u03c4(s)"
+  },
+  {
+   "id": "narrow",
+   "label": "narrow: LLM writes a menu, Jev picks",
+   "x": 810,
+   "y": 190,
+   "width": 300,
+   "height": 56,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 13,
+   "sublabel": "the LLM compiles the open part into candidates"
+  },
+  {
+   "id": "escalate",
+   "label": "escalate: LLM executes",
+   "x": 810,
+   "y": 280,
+   "width": 300,
+   "height": 56,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 13,
+   "sublabel": "ReAct with tool calls \u00b7 open A(s), low confidence, or stalled"
+  },
+  {
+   "id": "guard",
+   "label": "guard + execute (code)",
+   "x": 1080,
+   "y": 190,
+   "width": 230,
+   "height": 56,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 13,
+   "sublabel": "schema \u00b7 preconditions \u00b7 irreversible \u2192 escalate"
+  },
+  {
+   "id": "traces",
+   "label": "trace store",
+   "x": 250,
+   "y": 340,
+   "width": 190,
+   "height": 56,
+   "fill": "#F3F4F6",
+   "stroke": "#9CA3AF",
+   "font_size": 13,
+   "sublabel": "route \u00b7 action \u00b7 outcome \u00b7 cost \u00b7 Jev probabilities \u00b7 version"
+  },
+  {
+   "id": "a1",
+   "label": "question evolution",
+   "x": 250,
+   "y": 500,
+   "width": 190,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "templates, options, state slices"
+  },
+  {
+   "id": "a2",
+   "label": "macro-action mining",
+   "x": 470,
+   "y": 500,
+   "width": 190,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "frequent LLM tool sequences \u2192 new Jev options"
+  },
+  {
+   "id": "a3",
+   "label": "open-model distillation",
+   "x": 690,
+   "y": 500,
+   "width": 200,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "optional weight arm"
+  },
+  {
+   "id": "b1",
+   "label": "router bandit",
+   "x": 250,
+   "y": 620,
+   "width": 190,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "reward = success \u2212 \u03bb\u00b7cost"
+  },
+  {
+   "id": "b2",
+   "label": "counterfactual shadow runs",
+   "x": 470,
+   "y": 620,
+   "width": 200,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "\u03b5-explore the path not taken \u00b7 doubly robust"
+  },
+  {
+   "id": "b3",
+   "label": "conformal recalibration",
+   "x": 690,
+   "y": 620,
+   "width": 200,
+   "height": 56,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "\u03c4(s) per state cluster, per version"
+  },
+  {
+   "id": "deploy",
+   "label": "deploy harness version",
    "x": 1000,
-   "y": 540,
-   "width": 470,
-   "height": 60,
+   "y": 400,
+   "width": 200,
+   "height": 56,
    "fill": "#DCFCE7",
-   "stroke": "#22C55E"
-  },
-  {
-   "id": "evo_t",
-   "label": "evolutionary loop over the dispatcher",
-   "sublabel": "proposes new dispatch questions \u00b7 accepted only if replay agreement with realised routes rises",
-   "x": 340,
-   "y": 540,
-   "width": 470,
-   "height": 60,
-   "fill": "#DCFCE7",
-   "stroke": "#22C55E"
+   "stroke": "#22C55E",
+   "font_size": 13,
+   "sublabel": "version-pinned in every trace"
   },
   {
    "id": "legend0",
    "label": " ",
    "x": 60,
-   "y": 640,
+   "y": 735,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -156,8 +204,8 @@
   {
    "id": "legend1",
    "label": " ",
-   "x": 210,
-   "y": 640,
+   "x": 190,
+   "y": 735,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -167,8 +215,8 @@
   {
    "id": "legend2",
    "label": " ",
-   "x": 360,
-   "y": 640,
+   "x": 320,
+   "y": 735,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -178,8 +226,8 @@
   {
    "id": "legend3",
    "label": " ",
-   "x": 510,
-   "y": 640,
+   "x": 450,
+   "y": 735,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -189,181 +237,218 @@
   {
    "id": "legend4",
    "label": " ",
-   "x": 700,
-   "y": 640,
+   "x": 580,
+   "y": 735,
    "width": 18,
    "height": 14,
    "shape": "rect",
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
+  },
+  {
+   "id": "ax",
+   "label": " ",
+   "x": 250,
+   "y": 452,
+   "width": 6,
+   "height": 6,
+   "shape": "rect",
+   "fill": "#22C55E",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "bx",
+   "label": " ",
+   "x": 120,
+   "y": 620,
+   "width": 6,
+   "height": 6,
+   "shape": "rect",
+   "fill": "#22C55E",
+   "stroke": "#22C55E"
   }
  ],
  "edges": [
   {
-   "from": "task",
-   "to": "facts"
+   "from": "state",
+   "to": "compiler"
   },
   {
-   "from": "facts",
-   "to": "dispatch"
+   "from": "compiler",
+   "to": "router"
   },
   {
-   "from": "dispatch",
-   "to": "j1",
-   "label": "Jev route"
+   "from": "router",
+   "to": "closed"
   },
   {
-   "from": "dispatch",
-   "to": "l1",
-   "label": "LLM route"
+   "from": "router",
+   "to": "narrow"
   },
   {
-   "from": "j1",
-   "to": "j2",
-   "thickness": 1,
-   "color": "#9CA3AF"
+   "from": "router",
+   "to": "escalate"
   },
   {
-   "from": "j2",
-   "to": "j3",
-   "thickness": 1,
-   "color": "#9CA3AF"
+   "from": "closed",
+   "to": "guard"
   },
   {
-   "from": "hx",
-   "to": "history",
-   "label": "every episode",
+   "from": "narrow",
+   "to": "guard"
+  },
+  {
+   "from": "escalate",
+   "to": "guard"
+  },
+  {
+   "from": "guard",
+   "to": "traces",
+   "label": "every step",
    "color": "#6B7280"
   },
   {
-   "from": "history",
-   "to": "evo_h",
+   "from": "a1",
+   "to": "a2",
+   "thickness": 1
+  },
+  {
+   "from": "a2",
+   "to": "a3",
+   "thickness": 1
+  },
+  {
+   "from": "b1",
+   "to": "b2",
+   "thickness": 1
+  },
+  {
+   "from": "b2",
+   "to": "b3",
+   "thickness": 1
+  },
+  {
+   "from": "a3",
+   "to": "deploy",
    "color": "#15803D"
   },
   {
-   "from": "evo_h",
-   "to": "hx",
-   "color": "#15803D",
-   "label": "accepted route"
-  },
-  {
-   "from": "history",
-   "to": "evo_t",
+   "from": "b3",
+   "to": "deploy",
    "color": "#15803D"
   },
   {
-   "from": "evo_t",
-   "to": "tx",
+   "from": "deploy",
+   "to": "traces",
+   "style": "dashed",
+   "color": "#6B7280",
+   "label": "new traces"
+  },
+  {
+   "from": "traces",
+   "to": "ax",
+   "color": "#15803D"
+  },
+  {
+   "from": "traces",
+   "to": "bx",
    "color": "#15803D",
-   "curve": true,
-   "label": "accepted questions"
+   "curve": true
   }
  ],
  "groups": [
   {
-   "id": "disp",
-   "label": "dispatcher \u00b7 runs once per task",
+   "id": "paths",
+   "label": "three execution paths, chosen per step",
    "node_ids": [
-    "facts",
-    "dispatch"
+    "closed",
+    "narrow",
+    "escalate"
    ],
    "fill": "#F0FDF4",
    "stroke": "#22C55E",
-   "padding": 26
+   "padding": 22
   },
   {
-   "id": "routes",
-   "label": "execution layer \u00b7 two routes",
+   "id": "loopA",
+   "label": "loop A \u00b7 execution layer (slow): evolve the questions, not Jev\u2019s weights",
    "node_ids": [
-    "j1",
-    "j2",
-    "j3",
-    "l1"
+    "a1",
+    "a2",
+    "a3"
    ],
    "fill": "#F0FDF4",
    "stroke": "#22C55E",
-   "padding": 40
+   "padding": 22
+  },
+  {
+   "id": "loopB",
+   "label": "loop B \u00b7 division of labor (fast): learn when to trust Jev",
+   "node_ids": [
+    "b1",
+    "b2",
+    "b3"
+   ],
+   "fill": "#F0FDF4",
+   "stroke": "#22C55E",
+   "padding": 22
   }
  ],
  "labels": [
   {
-   "text": "two routes and one dispatcher: the dispatcher picks a route once per task; evolution then rewrites the route",
+   "text": "runtime path: every step is routed to Jev when the action space is closed, to the LLM when it is open, and to a Jev-picks-from-an-LLM-menu path in between",
    "x": 640,
    "y": 36,
-   "font_size": 14,
+   "font_size": 13,
    "color": "#374151",
    "anchor": "middle"
   },
   {
-   "text": "Jev route \u00b7 code computes the facts, Jev makes the bounded choices, code acts",
-   "x": 812,
-   "y": 96,
-   "font_size": 11,
-   "color": "#15803D",
-   "anchor": "start"
-  },
-  {
-   "text": "LLM route \u00b7 one full model call per turn, the standard agent",
-   "x": 812,
-   "y": 216,
-   "font_size": 11,
-   "color": "#15803D",
-   "anchor": "start"
-  },
-  {
-   "text": "both loops apply one acceptance rule to one history: propose, evaluate on the same trajectories, accept only on improvement",
-   "x": 690,
-   "y": 605,
+   "text": "routing updates faster than execution updates; after any execution-layer change, recalibrate \u03c4(s) and warm-start the bandit before shifting traffic",
+   "x": 640,
+   "y": 700,
    "font_size": 12,
    "color": "#15803D",
    "anchor": "middle"
   },
   {
-   "text": "code (python)",
+   "text": "code",
    "x": 74,
-   "y": 644,
+   "y": 739,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
    "text": "Jev judgment",
-   "x": 224,
-   "y": 644,
+   "x": 204,
+   "y": 739,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "LLM generation",
-   "x": 374,
-   "y": 644,
+   "text": "LLM",
+   "x": 334,
+   "y": 739,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "a harness / its evolution",
-   "x": 524,
-   "y": 644,
+   "text": "evolution",
+   "x": 464,
+   "y": 739,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "data: inputs and records",
-   "x": 714,
-   "y": 644,
+   "text": "data",
+   "x": 594,
+   "y": 739,
    "font_size": 11,
    "color": "#374151",
-   "anchor": "start"
-  },
-  {
-   "text": "evolution may add a hand-to-LLM step to the Jev route for the turns that need writing",
-   "x": 812,
-   "y": 296,
-   "font_size": 11,
-   "color": "#15803D",
    "anchor": "start"
   }
  ]

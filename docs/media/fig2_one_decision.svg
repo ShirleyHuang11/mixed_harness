@@ -1,5 +1,5 @@
-<svg font-family="Inter, Helvetica, Arial, sans-serif" height="420" viewBox="0 0 1280 420" width="1280" xmlns="http://www.w3.org/2000/svg">
-  <rect fill="#FFFFFF" height="420" width="1280"/>
+<svg font-family="Inter, Helvetica, Arial, sans-serif" height="530" viewBox="0 0 1280 530" width="1280" xmlns="http://www.w3.org/2000/svg">
+  <rect fill="#FFFFFF" height="530" width="1280"/>
   <defs>
     <marker id="arrow-default" markerHeight="10" markerUnits="strokeWidth" markerWidth="10" orient="auto" refX="8" refY="4">
       <polygon fill="#555555" points="0 0, 8 4, 0 8"/>
@@ -35,54 +35,89 @@
       <polygon fill="#37474F" points="0 0, 8 4, 0 8"/>
     </marker>
   </defs>
-  <path d="M 290.0,130.0 L 312.0,130.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 437.0,130.0 L 459.0,130.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 584.0,130.0 L 606.0,130.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 741.0,130.0 L 763.0,130.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 290.0,255.0 L 312.0,255.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <path d="M 832.0,255.0 L 854.0,255.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
-  <rect fill="#F3F4F6" height="46.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="120.0" x="170.0" y="107.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="230.0" y="134.2">observation</text>
-  <rect fill="#DBEAFE" height="46.0" rx="8" stroke="#3B82F6" stroke-width="2" width="125.0" x="312.0" y="107.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="374.5" y="127.2">facts · code</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="374.5" y="141.2">ids, legal actions</text>
-  <rect fill="#FEF3C7" height="46.0" rx="8" stroke="#F59E0B" stroke-width="2" width="125.0" x="459.0" y="107.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="521.5" y="127.2">judge · Jev</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="521.5" y="141.2">all questions, 1 request</text>
-  <rect fill="#DBEAFE" height="46.0" rx="8" stroke="#3B82F6" stroke-width="2" width="135.0" x="606.0" y="107.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="673.5" y="127.2">decision · code</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="673.5" y="141.2">arguments, rules</text>
-  <rect fill="#DCFCE7" height="46.0" rx="8" stroke="#22C55E" stroke-width="2" width="120.0" x="763.0" y="107.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="823.0" y="127.2">tool call</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="823.0" y="141.2">find_user_id_by_name_zip</text>
-  <rect fill="#F3F4F6" height="46.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="120.0" x="170.0" y="232.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="230.0" y="259.2">observation</text>
-  <rect fill="#EDE9FE" height="46.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="520.0" x="312.0" y="232.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="572.0" y="252.2">agent · policy + tools + whole conversation</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="572.0" y="266.2">reads ≈ 8,000 tokens, decides and writes</text>
-  <rect fill="#DCFCE7" height="46.0" rx="8" stroke="#22C55E" stroke-width="2" width="120.0" x="854.0" y="232.0"/>
-  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="914.0" y="252.2">tool call</text>
-  <text fill="#888888" font-size="9" text-anchor="middle" x="914.0" y="266.2">find_user_id_by_name_zip</text>
-  <rect fill="#DBEAFE" height="14.0" rx="0" stroke="#3B82F6" stroke-width="2" width="18.0" x="51.0" y="383.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="60.0" y="394.6"> </text>
-  <rect fill="#FEF3C7" height="14.0" rx="0" stroke="#F59E0B" stroke-width="2" width="18.0" x="201.0" y="383.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="210.0" y="394.6"> </text>
-  <rect fill="#EDE9FE" height="14.0" rx="0" stroke="#8B5CF6" stroke-width="2" width="18.0" x="351.0" y="383.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="360.0" y="394.6"> </text>
-  <rect fill="#DCFCE7" height="14.0" rx="0" stroke="#22C55E" stroke-width="2" width="18.0" x="501.0" y="383.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="510.0" y="394.6"> </text>
-  <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="651.0" y="383.0"/>
-  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="660.0" y="394.6"> </text>
-  <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="134.0">Jev route</text>
-  <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="259.0">LLM route</text>
-  <text fill="#6B7280" font-size="11" text-anchor="start" x="170.0" y="174.0">1 Jev request · no LLM · ≈ 0.4 s · a question no template covers ends in a transfer</text>
-  <text fill="#6B7280" font-size="11" text-anchor="start" x="170.0" y="299.0">1 model call · ≈ 8,000 input tokens · ≈ 2 s · can do anything · pays the full call on every turn</text>
-  <text fill="#374151" font-size="14" text-anchor="middle" x="640.0" y="40.0">The same turn on each route. Customer: “I’m Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156.”</text>
-  <text fill="#374151" font-size="12" text-anchor="middle" x="640.0" y="330.0">Where they part: three turns later the customer asks for the specifications of the replacement items.</text>
-  <text fill="#6B7280" font-size="11" text-anchor="middle" x="640.0" y="350.0">Jev route: no template answers, the call is transferred.   LLM route: the model answers.   Evolution’s job: give the Jev route a hand-to-LLM step for exactly such turns.</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="394.0">code (python)</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="224.0" y="394.0">Jev judgment</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="374.0" y="394.0">LLM generation</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="524.0" y="394.0">action</text>
-  <text fill="#374151" font-size="11" text-anchor="start" x="674.0" y="394.0">data</text>
+  <path d="M 250.0,120.0 L 272.0,120.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 422.0,120.0 L 444.0,120.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 574.0,120.0 L 596.0,120.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 746.0,120.0 L 768.0,120.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 898.0,120.0 L 920.0,120.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 250.0,245.0 L 272.0,245.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 422.0,245.0 L 444.0,245.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 614.0,245.0 L 636.0,245.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 766.0,245.0 L 788.0,245.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 918.0,245.0 L 940.0,245.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 250.0,370.0 L 272.0,370.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 422.0,370.0 L 444.0,370.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 764.0,370.0 L 786.0,370.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <path d="M 916.0,370.0 L 938.0,370.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="1"/>
+  <rect fill="#F3F4F6" height="48.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="100.0" x="150.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="200.0" y="124.2">state</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="150.0" x="272.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="347.0" y="117.2">compiler · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="347.0" y="131.2">A(s) is closed</text>
+  <rect fill="#FEF3C7" height="48.0" rx="8" stroke="#F59E0B" stroke-width="2" width="130.0" x="444.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="509.0" y="117.2">Jev picks</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="509.0" y="131.2">conf 0.72 ≥ τ</text>
+  <rect fill="#EDE9FE" height="48.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="150.0" x="596.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="671.0" y="117.2">slot filler · LLM</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="671.0" y="131.2">only if an argument is free text</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="130.0" x="768.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="833.0" y="117.2">guard · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="833.0" y="131.2">schema, preconditions</text>
+  <rect fill="#DCFCE7" height="48.0" rx="8" stroke="#22C55E" stroke-width="2" width="110.0" x="920.0" y="96.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="975.0" y="117.2">execute</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="975.0" y="131.2">tool call</text>
+  <rect fill="#F3F4F6" height="48.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="100.0" x="150.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="200.0" y="249.2">state</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="150.0" x="272.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="347.0" y="242.2">compiler · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="347.0" y="256.2">A(s) is open</text>
+  <rect fill="#EDE9FE" height="48.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="170.0" x="444.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="529.0" y="242.2">LLM writes a menu</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="529.0" y="256.2">3–5 candidate actions</text>
+  <rect fill="#FEF3C7" height="48.0" rx="8" stroke="#F59E0B" stroke-width="2" width="130.0" x="636.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="701.0" y="242.2">Jev picks</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="701.0" y="256.2">from the menu</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="130.0" x="788.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="853.0" y="242.2">guard · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="853.0" y="256.2">schema, preconditions</text>
+  <rect fill="#DCFCE7" height="48.0" rx="8" stroke="#22C55E" stroke-width="2" width="110.0" x="940.0" y="221.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="995.0" y="242.2">execute</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="995.0" y="256.2">tool call</text>
+  <rect fill="#F3F4F6" height="48.0" rx="8" stroke="#9CA3AF" stroke-width="2" width="100.0" x="150.0" y="346.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="200.0" y="374.2">state</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="150.0" x="272.0" y="346.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="347.0" y="367.2">compiler · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="347.0" y="381.2">A(s) open, or stalled</text>
+  <rect fill="#EDE9FE" height="48.0" rx="8" stroke="#8B5CF6" stroke-width="2" width="320.0" x="444.0" y="346.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="604.0" y="367.2">LLM executes</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="604.0" y="381.2">ReAct: policy, tools, conversation, tool calls</text>
+  <rect fill="#DBEAFE" height="48.0" rx="8" stroke="#3B82F6" stroke-width="2" width="130.0" x="786.0" y="346.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="851.0" y="367.2">guard · code</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="851.0" y="381.2">irreversible? schema</text>
+  <rect fill="#DCFCE7" height="48.0" rx="8" stroke="#22C55E" stroke-width="2" width="110.0" x="938.0" y="346.0"/>
+  <text fill="#333333" font-size="12" font-weight="bold" text-anchor="middle" x="993.0" y="367.2">execute</text>
+  <text fill="#888888" font-size="9" text-anchor="middle" x="993.0" y="381.2">tool call</text>
+  <rect fill="#DBEAFE" height="14.0" rx="0" stroke="#3B82F6" stroke-width="2" width="18.0" x="51.0" y="493.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="60.0" y="504.6"> </text>
+  <rect fill="#FEF3C7" height="14.0" rx="0" stroke="#F59E0B" stroke-width="2" width="18.0" x="181.0" y="493.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="190.0" y="504.6"> </text>
+  <rect fill="#EDE9FE" height="14.0" rx="0" stroke="#8B5CF6" stroke-width="2" width="18.0" x="311.0" y="493.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="320.0" y="504.6"> </text>
+  <rect fill="#DCFCE7" height="14.0" rx="0" stroke="#22C55E" stroke-width="2" width="18.0" x="441.0" y="493.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="450.0" y="504.6"> </text>
+  <rect fill="#F3F4F6" height="14.0" rx="0" stroke="#9CA3AF" stroke-width="2" width="18.0" x="571.0" y="493.0"/>
+  <text fill="#333333" font-size="13" font-weight="bold" text-anchor="middle" x="580.0" y="504.6"> </text>
+  <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="124.0">closed</text>
+  <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="249.0">narrow</text>
+  <text fill="#374151" font-size="13" text-anchor="start" x="20.0" y="374.0">escalate</text>
+  <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="166.0">≈ 1 Jev call · the LLM only fills a free-text argument · lowest cost and latency</text>
+  <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="291.0">1 short LLM call to enumerate + 1 Jev call to choose · the LLM does not act</text>
+  <text fill="#6B7280" font-size="11" text-anchor="start" x="150.0" y="416.0">1 full LLM call per step · used when the action space is open, confidence is low, or progress has stalled</text>
+  <text fill="#374151" font-size="13" text-anchor="middle" x="640.0" y="40.0">The same step on the three paths. The router picks one per step; the guard runs on every path and forces escalation for irreversible actions regardless of confidence.</text>
+  <text fill="#15803D" font-size="12" text-anchor="middle" x="640.0" y="460.0">What moves between paths over time: macro-action mining turns frequent LLM sequences into new Jev options, so open territory becomes closed territory.</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="74.0" y="504.0">code</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="204.0" y="504.0">Jev judgment</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="334.0" y="504.0">LLM</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="464.0" y="504.0">action</text>
+  <text fill="#374151" font-size="11" text-anchor="start" x="594.0" y="504.0">data</text>
 </svg>

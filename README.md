@@ -8,93 +8,93 @@ seconds per turn (measured on 2 tasks, see below). Some decisions are not small:
 does not script, a plan across several tool calls, a reply that has to be composed. For those, the full
 model call is the right tool.
 
-Mixed Harness starts from that difference. **A probe decides what kind of task this is, and the task is
-dispatched to a route of execution built for that kind.** One route is driven by a judgment model, the other
-by a language model. Which route runs is a decision the system makes, records, and learns from.
+Mixed Harness starts from that difference. **Every step is routed: to Jev, TypeSafe's judgment model, when the
+action space is closed; to a language model when it is open; and to a middle path where the language model
+writes a short menu and Jev picks from it.** Which path a step takes is a decision the system makes, records,
+and learns from, and the division of labor between Jev and the LLM moves over time as traces accumulate.
 
-- **The Jev route.** Code computes the facts (ids in the message, what earlier tool calls returned, which
-  actions are legal right now, the rules that must never depend on a model). [Jev](https://docs.typesafe.ai),
-  TypeSafe's judgment model, takes those facts and typed questions (pick one of these, yes or no, rate on a
-  scale) and answers all of them in one request with probabilities, in a few hundred milliseconds. Code
-  turns the answers into the action. No language model is called.
-- **The LLM route.** A complete language-model agent: the policy, the tool schemas and the conversation go to
-  the model with native tool calling, and the model decides and writes. Tasks that need generation or
-  multi-step reasoning go here. The route is the same thing a standard agent framework runs.
+- **Closed path: Jev decides.** Code compiles the state into a typed action set, the facts that matter and a
+  minimal state slice. Jev picks from that set in one request and returns calibrated probabilities. The
+  pick is accepted when its confidence clears a per-cluster threshold; a small LLM call fills a free-text
+  argument when one is needed. Cost: about one Jev call.
+- **Narrow path: the LLM writes a menu, Jev picks.** For an open subproblem the LLM does not act; it
+  compiles the open part into a few candidate actions and Jev chooses among them. Often the most useful
+  mode in practice.
+- **Escalate path: the LLM executes.** A full ReAct turn with tool calls, for open action spaces, low
+  confidence, or a trajectory that has stalled.
 
-A task that needs no model at all (sort these words, count these objects) goes to a fourth, code-only route.
+A guard runs on every path: schema validation, precondition checks, and a hard escalation for irreversible
+actions regardless of confidence. Every step is logged to a trace store with its route, action, outcome,
+cost, Jev probabilities and harness version.
 
 ## Architecture
 
-![Mixed Harness architecture](docs/media/fig1_architecture.svg)
+![Jev + LLM harness: runtime path and evolution loops](docs/media/fig1_architecture.svg)
 
-There is one kind of machine here, used at two levels. A **route** decides what to do on every turn of a
-task. The **triage** decides which route a task gets, once per task. Both are the same three-node shape
-(code, one Jev request, code), both run through the same runtime, and both improve by the same rule:
-propose a change, replay it, keep it only if the score rises.
+**Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
+picks, so Jev picks actions and free-text arguments need a small LLM slot filler. It is single-pass,
+non-autoregressive and returns calibrated confidence, so an accept threshold is cheap to set and can be
+recalibrated per domain with conformal prediction. Extraneous context lowers its accuracy and its context is
+capped, so the compiler must produce a minimal state slice per question, and slice selection is something
+to evolve. Its weights are proprietary, so the questions evolve, not the model; an open decision model can
+run as an optional weight arm. It is weaker on long horizons, so per-step confidence overstates trajectory
+reliability and the router adds trajectory-level escalation.
 
-**Triage.** The triage takes the task description (objective, action space, evaluator, a few examples) as
-its observation. Its python node is a free, deterministic probe that computes nine fields: the declared
-action kind, the label count, whether the examples carry a legal-action catalog, whether the evaluator is
-exact, the shape of the expected output. Its Jev node reads those fields and the examples and returns a
-probability over the routes. Code then fills the winning route's template from the task description; that
-filled template is the seed the route starts from. The decision is recorded with its full distribution, so
-a low-confidence dispatch is visible and can be overridden.
+**Runtime path.** The action-space compiler turns tool schemas and the current state into a typed action
+set A(s), flags it as closed or open, and emits the minimal state slice for each Jev question. The Jev
+router asks one choice question per state, closed, narrow or escalate, at the cost of about one Jev call.
+Each path produces an action. The guard checks it, then it executes and is logged. Trajectory-level escalation
+forces the LLM path after k consecutive low-margin steps or when progress stalls.
 
-**Where the language model enters the Jev route.** Evolution can add one step to a Jev route: a `hand_to_llm`
-option in the catalog and an `agent` node that runs a full model turn only when Jev picks that option. The
-route stays the Jev route: on the turns that need writing it pays one model call, on every other turn one
-Jev request. That per-turn choice is learned, not designed in. The benchmark's third arm is a route with
-that step already added by hand, which measures the target of evolution before evolution reaches it.
+**Loop A, execution layer (slow).** Evolve the questions, not Jev's weights: question templates, option
+sets, rubric definitions and state-slice selection are treated as programs and optimized on traces with
+fitness = outcome reward minus calibration error. Macro-action mining promotes frequent LLM tool-call
+subsequences to new options in Jev's choice set, so open territory becomes closed territory over time: the
+LLM explores, Jev compiles and exploits. An optional weight arm distills LLM escalations into an open
+decision model. On the LLM side, prompts and tool docs evolve on failed traces; weights stay frozen.
 
-**Loop 1: the routes improve.** The seeded route runs on training tasks and every run leaves a complete
-trace: node inputs and outputs, Jev questions and answers, LLM prompts and tool calls, memory, failures, and
-the score. An evolutionary loop reads those traces, proposes a rewritten route, and keeps the proposal only
-if it beats its parent on the same training batch and holds up on validation. For the Jev route
-a proposal can add or remove nodes, change a node's kind, insert a generate-then-select structure, or move
-logic from a model call into code. For the LLM route it rewrites the agent's instructions. The loop is
-defined by that acceptance rule, not by one optimizer: GEPA is the current implementation (its reflection
-model writes the proposals and its Pareto frontier over task instances picks the parents), and any
-proposer that respects the same rule can replace it. A wrong dispatch is corrected here rather than by
-re-running the triage: the summary of every run records both the route the triage chose and the route the
-evolved graph turned out to be.
+**Loop B, division of labor (fast).** The router is a contextual bandit over the three paths. Its reward is
+success minus λ·latency minus λ·tokens, weighted on multi-step success rather than per-step accuracy, and
+sweeping λ traces the Pareto frontier. Counterfactual shadow runs execute the path not taken with probability ε and use doubly robust
+off-policy estimates, otherwise Jev only sees states the router already trusts it with and its traffic
+share cannot grow. Conformal recalibration sets τ(s) per state cluster so the error rate on accepted Jev
+decisions stays below α, and is redone after every harness version.
 
-**Loop 2: the triage improves.** That pair, route chosen versus what the graph became, is appended to a
-history after every run. The reflection model proposes a new question map for the triage's Jev node; the
-old and the new map are both replayed over the whole history, and the new one is kept only if it agrees
-with the recorded outcomes strictly more often. It is loop 1 with a different training set: past tasks
-instead of past turns.
+**Coupling.** Routing updates faster than execution updates. After any execution-layer change, recalibrate
+τ(s) and warm-start the bandit before shifting traffic, or the router optimizes against a Jev that no
+longer exists. Every component is version-pinned in the traces.
 
-## The same turn on each route
+**Metrics that show the harness is evolving rather than tuning.**
 
-The two routes are two answers to the same question: who decides, and who writes. The figure runs one
-customer turn through each of them. The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange
-the keyboard in order #W2378156."
+- Jev traffic share over time.
+- Escalation precision: how often the LLM disagreed with Jev's top choice on escalated states.
+- Error rate on accepted Jev decisions, against α.
+- The success versus cost and latency frontier.
+- Trajectory-level completion rate by route mix.
 
-![The same turn on each route](docs/media/fig2_one_decision.svg)
+## The same step on the three paths
 
-| | Jev route | LLM route |
-|---|---|---|
-| decides the action | Jev, one request with every question the turn might need | the language model, one call |
-| computes the facts | code: ids in the message, what earlier tools returned, which actions are legal now | the model, from the whole conversation |
-| enforces the rules | code: no database write before the customer has seen the details and said "yes" | the policy text in the prompt |
-| writes free text | never; templates only | always available |
-| cost of this turn | 1 Jev request, about 0.4 s | 1 model call, about 8,000 input tokens, about 2 s |
-| where it fails | a question no template covers ends in a transfer | nothing on this turn; it pays the full call on every turn |
+![The same step on the three paths](docs/media/fig2_one_decision.svg)
 
-On this turn both routes arrive at the same tool call, `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. The
-Jev route gets there through the graph in `examples/tau2/seeds.py`. A **facts** node in code finds the
-name, zip and order id and lists the legal actions. One **judge** request to Jev answers every question at
-once: the action should be the lookup (0.72), and the customer has not confirmed anything yet (0.05). A
-**decision** node in code fills the arguments. The LLM route hands the policy, the tool schemas and the
-conversation to the model in one native tool-calling turn and lets it decide and write.
+The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156."
+The compiler finds a name, a zip code and an order id and lists the actions that are legal right now; the
+action set is closed (look the customer up, or ask for identification), so the router sends the step down
+the closed path. Jev picks the lookup with confidence 0.72, above τ for this cluster, no argument is free
+text, the guard accepts the call, and `find_user_id_by_name_zip(Yusuf, Rossi, 19122)` executes. Cost: one
+Jev call.
 
-Three turns later the routes part. The customer asks for the specifications of the replacement items. On
-the Jev route no template answers that, and after three identical replies the call is transferred. On the
-LLM route the model writes the answer. That turn is what evolution is for. The shape it is expected to
-reach from the Jev route adds a `hand_to_llm` option and an `agent` node: that one turn costs a model call,
-every other turn stays on code and Jev. Measured on the two τ²-bench retail tasks the smoke run completed,
-that shape called the model on 1 turn in 3, and the Jev route cost $0.0044 per task against $0.17 for the
-LLM route.
+Three turns later the customer asks for the specifications of the replacement items. The action set is
+open, so the router does not send the step to Jev alone. On the narrow path the LLM writes a short menu
+(quote the two variants, ask which matters more, offer to list all) and Jev picks one. On the escalate path
+the LLM answers in a full turn with tool calls. Which of the two the router chooses is what loop B learns
+from traces; which turns stop needing the LLM at all is what loop A's macro-action mining changes over time.
+
+| | closed | narrow | escalate |
+|---|---|---|---|
+| who decides | Jev, from the compiled action set | Jev, from a menu the LLM wrote | the LLM |
+| who writes | a small LLM slot filler, only for free-text arguments | the LLM, a few candidates | the LLM |
+| cost per step | about one Jev call | one short LLM call and one Jev call | one full LLM call |
+| guard | schema, preconditions, irreversible → escalate | same | same |
 
 ## Measuring it
 
@@ -121,12 +121,17 @@ counts what it should, and that Jev answers in about 400 ms.
 | Part | State |
 |---|---|
 | Runtime, sandbox, expression language, spec format | done, tested on mock providers |
-| Jev route and LLM route seeds for τ²-bench retail, and the hand-written evolved shape | done, run against real Jev |
-| Triage as a spec through the same runtime, loop 2 | done |
-| GEPA evolution of a route (loop 1) | done, tested with a mock reflection model |
-| LLM route with native tool calling | done: the `agent` node runs one native tool-calling turn |
-| Code-only route | not yet |
-| Dispatcher row and oracle in the benchmark table | not yet: the runner scores the three routes as arms |
+| Closed path: compiler, Jev pick, code decision (the τ²-bench Jev-route seed) | done, run against real Jev |
+| Escalate path: `agent` node, one native tool-calling turn | done |
+| Guard: schema and argument checks, confirm-before-write in code | done in the seed's decision node; irreversible-action escalation not yet |
+| Trace store: trajectories, rewards, route chosen vs realised | done (`mixedharness/store.py`, `triage_store`) |
+| Loop A, question evolution (GEPA over the whole spec) | done, tested with a mock reflection model |
+| Per-step Jev router with closed / narrow / escalate | not yet: today the dispatch is once per task, and the hand-to-LLM option is a catalog entry |
+| Narrow path (LLM menu, Jev picks) | not yet |
+| Trajectory-level escalation | partial: the seed transfers after three identical replies |
+| Loop A, macro-action mining and the weight arm | not yet |
+| Loop B: router bandit, shadow runs, conformal τ(s) | not yet |
+| Dispatcher row and oracle in the benchmark table | not yet: the runner scores the routes as arms |
 
 ## Quick start
 

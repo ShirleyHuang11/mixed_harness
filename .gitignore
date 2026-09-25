@@ -23,3 +23,5 @@ node_modules/
 /REVIEW.md
 /SCALE_EXPERIMENT.md
 .superpowers/
+# Private working notes, not part of the public repo.
+local/
