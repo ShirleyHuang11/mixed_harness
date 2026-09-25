@@ -2,7 +2,7 @@
  "title": "Mixed Harness architecture",
  "canvas": {
   "width": 1260,
-  "height": 660
+  "height": 690
  },
  "style": {
   "font_family": "Inter, Helvetica, Arial, sans-serif",
@@ -34,130 +34,163 @@
   },
   {
    "id": "route",
-   "label": "route (Jev)",
-   "sublabel": "one arrow per route",
+   "label": "dispatch (Jev)",
+   "sublabel": "picks the route for this task",
    "x": 505,
    "y": 200,
-   "width": 140,
+   "width": 160,
    "height": 60,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B"
   },
   {
-   "id": "s1",
+   "id": "j1",
    "label": "code",
-   "x": 830,
+   "x": 850,
    "y": 110,
-   "width": 108,
+   "width": 104,
    "height": 40,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6",
    "font_size": 12
   },
   {
-   "id": "s2",
-   "label": "Jev pick",
-   "x": 952,
+   "id": "j2",
+   "label": "Jev",
+   "x": 968,
    "y": 110,
-   "width": 108,
+   "width": 104,
    "height": 40,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B",
    "font_size": 12
   },
   {
-   "id": "s3",
+   "id": "j3",
    "label": "code",
-   "x": 1074,
+   "x": 1086,
    "y": 110,
-   "width": 108,
+   "width": 104,
    "height": 40,
    "fill": "#DBEAFE",
    "stroke": "#3B82F6",
    "font_size": 12
   },
   {
-   "id": "h1",
-   "label": "code",
-   "x": 830,
-   "y": 290,
-   "width": 98,
-   "height": 40,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6",
-   "font_size": 12
-  },
-  {
-   "id": "h2",
-   "label": "Jev judge",
-   "x": 940,
-   "y": 290,
-   "width": 98,
-   "height": 40,
-   "fill": "#FEF3C7",
-   "stroke": "#F59E0B",
-   "font_size": 12
-  },
-  {
-   "id": "h3",
-   "label": "code",
-   "x": 1050,
-   "y": 290,
-   "width": 98,
-   "height": 40,
-   "fill": "#DBEAFE",
-   "stroke": "#3B82F6",
-   "font_size": 12
-  },
-  {
-   "id": "h4",
-   "label": "LLM, if needed",
-   "x": 1160,
-   "y": 290,
-   "width": 98,
+   "id": "l1",
+   "label": "LLM agent",
+   "x": 998,
+   "y": 200,
+   "width": 300,
    "height": 40,
    "fill": "#EDE9FE",
    "stroke": "#8B5CF6",
    "font_size": 12
   },
   {
-   "id": "gepa",
-   "label": "evolutionary loop over the execution layer",
-   "sublabel": "rewrites a route from its full traces \u00b7 kept only if the score rises",
-   "x": 1000,
-   "y": 440,
-   "width": 380,
-   "height": 62,
-   "fill": "#DCFCE7",
+   "id": "m1",
+   "label": "code",
+   "x": 850,
+   "y": 290,
+   "width": 104,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "m2",
+   "label": "Jev",
+   "x": 968,
+   "y": 290,
+   "width": 104,
+   "height": 40,
+   "fill": "#FEF3C7",
+   "stroke": "#F59E0B",
+   "font_size": 12
+  },
+  {
+   "id": "m3",
+   "label": "code",
+   "x": 1086,
+   "y": 290,
+   "width": 104,
+   "height": 40,
+   "fill": "#DBEAFE",
+   "stroke": "#3B82F6",
+   "font_size": 12
+  },
+  {
+   "id": "m4",
+   "label": "LLM if needed",
+   "x": 1204,
+   "y": 290,
+   "width": 104,
+   "height": 40,
+   "fill": "#EDE9FE",
+   "stroke": "#8B5CF6",
+   "font_size": 12
+  },
+  {
+   "id": "hx",
+   "label": " ",
+   "x": 1035,
+   "y": 356,
+   "width": 6,
+   "height": 6,
+   "shape": "rect",
+   "fill": "#22C55E",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "tx",
+   "label": " ",
+   "x": 420,
+   "y": 262,
+   "width": 6,
+   "height": 6,
+   "shape": "rect",
+   "fill": "#22C55E",
    "stroke": "#22C55E"
   },
   {
    "id": "history",
    "label": "run history",
-   "sublabel": "route chosen vs what the graph became",
-   "x": 1000,
-   "y": 555,
-   "width": 270,
-   "height": 54,
+   "sublabel": "full traces \u00b7 scores \u00b7 the route chosen vs what the route became",
+   "x": 690,
+   "y": 455,
+   "width": 400,
+   "height": 56,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
   },
   {
-   "id": "improve",
-   "label": "improve the triage harness",
-   "sublabel": "reflection model proposes new questions \u00b7 Jev replay keeps them only if agreement rises",
-   "x": 505,
-   "y": 555,
-   "width": 500,
-   "height": 54,
-   "fill": "#EDE9FE",
-   "stroke": "#8B5CF6"
+   "id": "evo_h",
+   "label": "evolution of the routes",
+   "sublabel": "reflection rewrites the route (graph or instructions) \u00b7 kept only if the score rises",
+   "x": 1035,
+   "y": 575,
+   "width": 420,
+   "height": 60,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
+  },
+  {
+   "id": "evo_t",
+   "label": "evolution of the triage",
+   "sublabel": "reflection rewrites the dispatch questions \u00b7 kept only if replay agreement rises",
+   "x": 330,
+   "y": 575,
+   "width": 450,
+   "height": 60,
+   "fill": "#DCFCE7",
+   "stroke": "#22C55E"
   },
   {
    "id": "legend0",
    "label": " ",
    "x": 60,
-   "y": 630,
+   "y": 660,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -168,7 +201,7 @@
    "id": "legend1",
    "label": " ",
    "x": 210,
-   "y": 630,
+   "y": 660,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -179,7 +212,7 @@
    "id": "legend2",
    "label": " ",
    "x": 360,
-   "y": 630,
+   "y": 660,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -190,7 +223,7 @@
    "id": "legend3",
    "label": " ",
    "x": 510,
-   "y": 630,
+   "y": 660,
    "width": 18,
    "height": 14,
    "shape": "rect",
@@ -201,23 +234,12 @@
    "id": "legend4",
    "label": " ",
    "x": 700,
-   "y": 630,
+   "y": 660,
    "width": 18,
    "height": 14,
    "shape": "rect",
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
-  },
-  {
-   "id": "o2",
-   "label": "LLM agent \u00b7 policy, tools, conversation \u00b7 native tool calling",
-   "x": 1030,
-   "y": 200,
-   "width": 340,
-   "height": 40,
-   "fill": "#EDE9FE",
-   "stroke": "#8B5CF6",
-   "font_size": 12
   }
  ],
  "edges": [
@@ -230,85 +252,73 @@
    "to": "route"
   },
   {
-   "from": "s1",
-   "to": "s2",
+   "from": "route",
+   "to": "l1"
+  },
+  {
+   "from": "j1",
+   "to": "j2",
    "thickness": 1,
    "color": "#9CA3AF"
   },
   {
-   "from": "s2",
-   "to": "s3",
+   "from": "j2",
+   "to": "j3",
    "thickness": 1,
    "color": "#9CA3AF"
   },
   {
-   "from": "h1",
-   "to": "h2",
+   "from": "m1",
+   "to": "m2",
    "thickness": 1,
    "color": "#9CA3AF"
   },
   {
-   "from": "h2",
-   "to": "h3",
+   "from": "m2",
+   "to": "m3",
    "thickness": 1,
    "color": "#9CA3AF"
   },
   {
-   "from": "h3",
-   "to": "h4",
+   "from": "m3",
+   "to": "m4",
    "thickness": 1,
-   "color": "#9CA3AF",
-   "style": "dashed"
+   "color": "#9CA3AF"
   },
   {
-   "from": "h4",
-   "to": "gepa",
-   "label": "traces + scores",
-   "color": "#15803D"
-  },
-  {
-   "from": "gepa",
-   "to": "h2",
-   "color": "#15803D",
-   "style": "solid",
-   "curve": true
-  },
-  {
-   "from": "gepa",
+   "from": "hx",
    "to": "history",
-   "style": "dashed",
+   "label": "every run",
    "color": "#6B7280"
   },
   {
    "from": "history",
-   "to": "improve",
-   "style": "dashed",
-   "color": "#6B7280"
+   "to": "evo_h",
+   "color": "#15803D"
   },
   {
-   "from": "improve",
-   "to": "route",
-   "style": "dashed",
-   "color": "#6B7280",
-   "label": "new question map, next task"
+   "from": "evo_h",
+   "to": "hx",
+   "color": "#15803D",
+   "label": "rewritten route"
   },
   {
-   "from": "route",
-   "to": "s1"
+   "from": "history",
+   "to": "evo_t",
+   "color": "#15803D"
   },
   {
-   "from": "route",
-   "to": "o2"
-  },
-  {
-   "from": "route",
-   "to": "h1"
+   "from": "evo_t",
+   "to": "tx",
+   "color": "#15803D",
+   "curve": true,
+   "label": "new questions, next task"
   }
  ],
  "groups": [
   {
    "id": "triage",
-   "label": "triage harness \u00b7 runs once per task",
+   "label": "triage \u00b7 runs once per task",
    "node_ids": [
     "probe",
     "route"
@@ -319,16 +329,16 @@
   },
   {
    "id": "harness",
-   "label": "routes of execution \u00b7 the triage dispatches each task to one \u00b7 a route runs once per decision",
+   "label": "execution layer \u00b7 one route per task, chosen by the triage \u00b7 runs once per decision",
    "node_ids": [
-    "s1",
-    "s2",
-    "s3",
-    "o2",
-    "h1",
-    "h2",
-    "h3",
-    "h4"
+    "j1",
+    "j2",
+    "j3",
+    "l1",
+    "m1",
+    "m2",
+    "m3",
+    "m4"
    ],
    "fill": "#F0FDF4",
    "stroke": "#22C55E",
@@ -337,7 +347,7 @@
  ],
  "labels": [
   {
-   "text": "Jev route \u00b7 code \u2192 Jev \u2192 code",
+   "text": "Jev route \u00b7 code + judgment, no language model",
    "x": 812,
    "y": 86,
    "font_size": 11,
@@ -345,7 +355,7 @@
    "anchor": "start"
   },
   {
-   "text": "LLM route \u00b7 one full model call per turn",
+   "text": "LLM route \u00b7 a complete language-model agent with tool calling",
    "x": 812,
    "y": 176,
    "font_size": 11,
@@ -353,7 +363,7 @@
    "anchor": "start"
   },
   {
-   "text": "mixed route \u00b7 LLM only on the turns that need it",
+   "text": "mixed route \u00b7 the Jev route plus an LLM only on the turns that need writing",
    "x": 812,
    "y": 266,
    "font_size": 11,
@@ -363,7 +373,7 @@
   {
    "text": "code (python)",
    "x": 74,
-   "y": 634,
+   "y": 664,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -371,7 +381,7 @@
   {
    "text": "Jev judgment",
    "x": 224,
-   "y": 634,
+   "y": 664,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -379,15 +389,15 @@
   {
    "text": "LLM generation",
    "x": 374,
-   "y": 634,
+   "y": 664,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "a harness / its output",
+   "text": "a harness / its evolution",
    "x": 524,
-   "y": 634,
+   "y": 664,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
@@ -395,13 +405,13 @@
   {
    "text": "data: inputs and records",
    "x": 714,
-   "y": 634,
+   "y": 664,
    "font_size": 11,
    "color": "#374151",
    "anchor": "start"
   },
   {
-   "text": "a probe decides what kind of task this is; the task is dispatched to a route built for that kind",
+   "text": "one kind of machine at two levels: a route that decides what to do, and a triage that decides which route a task gets",
    "x": 600,
    "y": 36,
    "font_size": 14,
@@ -409,28 +419,20 @@
    "anchor": "middle"
   },
   {
-   "text": "loop 1: the routes improve",
-   "x": 960,
-   "y": 490,
-   "font_size": 12,
-   "color": "#15803D",
-   "anchor": "middle"
-  },
-  {
-   "text": "loop 2: the dispatch improves, same rule: propose, replay, keep only if better",
-   "x": 730,
-   "y": 600,
-   "font_size": 12,
-   "color": "#6B7280",
-   "anchor": "middle"
-  },
-  {
-   "text": "the mixed route, zoomed in on the next figure",
+   "text": "+ a code-only route for tasks that need no model \u00b7 mixed route zoomed in below",
    "x": 812,
    "y": 344,
    "font_size": 11,
    "color": "#15803D",
    "anchor": "start"
+  },
+  {
+   "text": "both loops run the same rule on the same history: propose, replay, keep only if better",
+   "x": 690,
+   "y": 640,
+   "font_size": 12,
+   "color": "#15803D",
+   "anchor": "middle"
   }
  ]
 }

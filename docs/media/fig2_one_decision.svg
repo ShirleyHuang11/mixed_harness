@@ -36,7 +36,7 @@
     </marker>
   </defs>
   <rect fill="#F0FDF4" height="248.0" rx="8" stroke="#22C55E" stroke-width="1" width="775.0" x="202.5" y="113.0"/>
-  <text fill="#999999" font-size="11" font-weight="bold" x="210.5" y="129.0">execution-layer harness — the green box in the architecture figure, seen from inside one turn</text>
+  <text fill="#999999" font-size="11" font-weight="bold" x="210.5" y="129.0">the mixed route — one row of the execution layer in the architecture figure, seen from inside one turn</text>
   <path d="M 190.0,175.0 L 232.5,175.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
   <path d="M 447.5,175.0 L 482.5,175.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>
   <path d="M 697.5,175.0 L 732.5,175.0" fill="none" marker-end="url(#arrow-default)" stroke="#555555" stroke-width="2"/>

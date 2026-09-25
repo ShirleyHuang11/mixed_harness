@@ -166,7 +166,7 @@
  "groups": [
   {
    "id": "layer",
-   "label": "execution-layer harness \u2014 the green box in the architecture figure, seen from inside one turn",
+   "label": "the mixed route \u2014 one row of the execution layer in the architecture figure, seen from inside one turn",
    "node_ids": [
     "facts",
     "judge",
