@@ -59,8 +59,8 @@ Walk one turn of the retail seed (`examples/tau2/seeds.py`). The customer writes
    the action should be the name-and-zip lookup (0.72); the customer has not confirmed anything yet (0.05).
    More questions in the same request cost almost no extra time.
 3. **decision (python).** Code turns the answers into a concrete action: the tool call
-   `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. The rules that must never be left to a model also live
-   here: before any database write, the details are listed and the customer has to say "yes".
+   `find_user_id_by_name_zip(Yusuf, Rossi, 19122)`. Rules that must not depend on a model live here too.
+   One example: no database write happens before the customer has seen the details and said "yes".
 4. **draft (LLM), only when needed.** This turn needs no free text, so the decision node sets the draft
    prompt to `null` and the runtime skips the node: no call, no cost. When a customer asks something no
    template covers, the prompt is a string and the LLM writes the reply.
