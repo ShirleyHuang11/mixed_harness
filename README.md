@@ -1,14 +1,33 @@
 # Mixed Harness
 
-**Code computes the facts, a judgment model makes the bounded choices, and a language model writes only the
-text that has to be written.** Mixed Harness builds such a decision pipeline from a task description, then
-improves it on two levels: the pipeline itself, through GEPA evolution over its full execution traces, and
-the triage that chose the pipeline's shape, through replay against recorded outcomes.
+An agent that serves customers, calls tools and follows a policy makes a decision on every turn. Most of
+those decisions are small: which record to look up, which of four items the customer meant, whether they
+just said yes. A standard LLM agent pays a full model call for each one, re-reading the policy, the tool
+list and the whole conversation every time. On τ²-bench retail that is about 8,500 input tokens and 2.4
+seconds per turn for the stock agent (measured on 2 tasks, see below).
 
-The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness): a harness is a graph
-of sandboxed Python nodes and calls to [Jev](https://docs.typesafe.ai), TypeSafe's judgment model, which
-answers typed questions with probabilities in a few hundred milliseconds. Mixed Harness adds the routing
-layer, `llm` nodes for generation, and the second improvement loop.
+Mixed Harness splits every decision into three kinds of work and gives each to the cheapest thing that can
+do it:
+
+- **Code computes the facts.** The ids in the message, what earlier tool calls returned, which actions are
+  legal right now, and the rules that must never depend on a model, such as "no write before the customer
+  says yes".
+- **A judgment model makes the bounded choices.** [Jev](https://docs.typesafe.ai), TypeSafe's judgment
+  model, takes a state and typed questions (pick one of these, yes or no, rate on a scale) and answers all
+  of them in one request with probabilities, in a few hundred milliseconds.
+- **A language model writes only what has to be written.** Free text for the customer, or an argument no
+  code can extract. On a turn where nothing needs writing it is not called at all.
+
+A harness turn is therefore one Jev request plus a few milliseconds of code, and a language-model call only
+on the turns that need one. Two more things follow from the split. The rules live in code, so they hold on
+every turn instead of being a hope about a prompt. And the harness is a small data file, a graph of nodes,
+so the system can build it from a task description and keep rewriting it from its own execution traces:
+the graph improves through GEPA evolution, and the triage that picks the graph's shape improves by replay
+against what past harnesses turned out to need.
+
+The execution layer follows the design of [JevHarness](https://github.com/TianyuCodings/JevHarness), a
+harness as a graph of sandboxed code and Jev calls evolved with GEPA, implemented independently here. Mixed
+Harness adds the triage, `llm` nodes for generation, and the second improvement loop.
 
 ## Architecture
 
