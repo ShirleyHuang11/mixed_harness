@@ -102,23 +102,30 @@ version-pinned in the traces.
 
 ## Measuring it
 
-![The tau2-bench test](docs/media/fig3_three_arms.svg)
+![The tau2-bench test: four arms on the same benchmark, one table](docs/media/fig_measurement.svg)
 
-The claim is about the dispatch, so the test scores the routes and the dispatcher on the same terms. On
-τ²-bench retail (114 tasks, 16 tools, reward computed from the database state), every route runs every task
-against the same simulated user with the same seeds: the Jev route, the LLM route, and the evolved Jev route.
-The best of the three on each task is the oracle. The fourth row is the triage's own pick. One table is
-generated from the artifacts: pass^1, dollars per task, milliseconds per turn, and LLM and Jev calls per
-turn, for each route, for the oracle, and for the dispatcher. The claim holds if the dispatcher lands within
-noise of the oracle's accuracy at a fraction of the LLM route's cost; it fails if the dispatcher trails the
-best single route. Predictions and the decision table are written down before any run in
-`docs/design/tau2-three-arms.md`; `docs/guides/tau2.md` covers setup and reading.
+The claim is about the router, so the test scores each path alone and the router across them on the same
+terms. On τ²-bench retail (114 tasks, 16 tools, reward computed from the database state) four arms run
+every task against the same simulated user with the same seeds:
+
+- **LLM only.** Every step escalates: the stock τ² agent, one full model call per turn.
+- **Jev only.** Every step on the closed path: compiler, one Jev pick, code, templates for text. It exists to
+  show where generation is needed. It is expected to lose.
+- **Routed.** The router picks a path per step; the LLM is called only where Jev hands over.
+- **Routed, evolved.** The same harness after loops A and B ran on the train split.
+
+One table is generated from the artifacts: pass^1, dollars per task, milliseconds per turn, LLM and Jev
+calls per turn, and the three evolution metrics above: Jev traffic share, error rate on accepted Jev
+decisions against α, and escalation precision. The best single arm on each task is the per-task oracle.
+The claim holds if the routed arm lands within noise of LLM only on pass^1 at a fraction of its cost; it
+fails if the routed arm trails the best single arm. Predictions and the decision table are written down
+before any run in `docs/design/tau2-three-arms.md`; `docs/guides/tau2.md` covers setup and reading.
 
 Measured so far, on 2 retail tasks (the run stopped when the language-model account ran out of credit):
-the LLM route passed 2 of 2 at $0.17 per task and 2.1 s per turn; the Jev route passed 0 of 2 at $0.004 per
-task and 0.47 s per turn, with one Jev request per turn and no LLM calls; the hand-written evolved shape
-(the Jev route plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks say nothing about accuracy (±35 points); they do say the instrument
-counts what it should, and that Jev answers in about 400 ms.
+LLM only passed 2 of 2 at $0.17 per task and 2.1 s per turn; Jev only passed 0 of 2 at $0.004 per task and
+0.47 s per turn, with one Jev request per turn and no LLM calls; the hand-written routed shape (closed path
+plus a hand-to-LLM step) passed 1 of 2 with 0.33 LLM calls per turn. Two tasks say nothing about accuracy
+(±35 points); they do say the instrument counts what it should, and that Jev answers in about 400 ms.
 
 ## Status
 
@@ -130,12 +137,12 @@ counts what it should, and that Jev answers in about 400 ms.
 | Guard: schema and argument checks, confirm-before-write in code | done in the seed's decision node; irreversible-action escalation not yet |
 | Trace store: trajectories, rewards, route chosen vs realised | done (`mixedharness/store.py`, `triage_store`) |
 | Loop A, question evolution (GEPA over the whole spec) | done, tested with a mock reflection model |
-| Per-step Jev router with closed / narrow / escalate | not yet: today the dispatch is once per task, and the hand-to-LLM option is a catalog entry |
+| Per-step Jev router with closed / narrow / escalate | partial: the hand-to-LLM option is a catalog entry Jev picks per step; a per-task dispatcher picks the seed |
 | Narrow path (LLM menu, Jev picks) | not yet |
 | Trajectory-level escalation | partial: the seed transfers after three identical replies |
 | Loop A, macro-action mining | not yet |
 | Loop B: conformal τ(s), router bandit with ε shadow runs | not yet |
-| Dispatcher row and oracle in the benchmark table | not yet: the runner scores the routes as arms |
+| Routed arm in the benchmark table | partial: the runner scores LLM only, Jev only and the hand-written routed shape; the evolved arm takes a spec from a run |
 
 ## Quick start
 
@@ -156,12 +163,11 @@ the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandb
 | `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, evolution, triage, routing, freeze |
 | `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
 | `examples/tau2/` | the τ²-bench adapter, the agent wrapper, and the route seeds |
-| `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the benchmark test) |
+| `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the four-arm benchmark test) |
 | `docs/design/` | `routing.md`, `tau2-three-arms.md` (predictions and decision table), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
-| `docs/media/` | figures: `fig_runtime_path.svg` and `fig_evolution_loops.svg` (hand-drawn SVG), `fig3_three_arms.svg` (rendered from `specs/`) |
+| `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` (hand-drawn SVG) |
 
 The execution layer follows the design of [JevHarness](https://github.com/TianyuCodings/JevHarness), a
 harness as a graph of sandboxed code and Jev calls evolved with GEPA, implemented independently here. GEPA
-is the optimizer of Agrawal et al., arXiv:2507.19457. Figures are rendered from the specs in
-`docs/media/specs/`; edit the spec, not the SVG.
+is the optimizer of Agrawal et al., arXiv:2507.19457.
