@@ -1,9 +1,8 @@
 """Single-step label routing. The label never enters the observation; the labels list does."""
-import copy
 import json
 from pathlib import Path
 
-from auto_jev.runtime import PipelineExecutionError, PipelineRuntime
+from mixedharness.runtime import PipelineError, Runtime
 
 HERE = Path(__file__).resolve().parent
 TRAIN_ROWS = 24
@@ -25,21 +24,22 @@ def load(split):
 
 def evaluate_episode(spec, episode, jev, llm=None, *, capture_traces=True):
     observation = {'text': episode['text'], 'labels': list(episode['labels'])}
-    runtime = PipelineRuntime(spec, jev, llm)
+    runtime = Runtime(spec, jev, llm)
     try:
         decision = runtime.run(observation, memory={})
-    except PipelineExecutionError as exc:
-        partial = copy.deepcopy(exc.partial_result)
-        partial.update(observation=observation, status='error')
-        raise PipelineExecutionError(str(exc), partial_result={'episode_id': episode['id'], 'score': None,
-                                     'error': str(exc), 'traces': [partial]}, cause=exc.cause, causes=exc.causes) from exc
+    except PipelineError as exc:
+        partial = dict(exc.partial, observation=observation, status='error')
+        raise PipelineError(str(exc), partial={'episode_id': episode['id'], 'score': None, 'error': str(exc), 'traces': [partial]},
+                            causes=exc.causes) from exc
+    finally:
+        runtime.close()
     output = decision['output']
     record = {**decision, 'observation': observation, 'status': 'ok'}
     if not isinstance(output, str) or output not in episode['labels']:
-        record.update(status='error', error='Policy returned a value outside the label set')
-        error = ValueError('Policy returned a value outside the label set')
-        raise PipelineExecutionError(str(error), partial_result={'episode_id': episode['id'], 'score': None,
-                                     'error': str(error), 'traces': [record]}, cause=error) from error
+        record.update(status='error', error='the harness returned a value outside the label set')
+        raise PipelineError('the harness returned a value outside the label set',
+                            partial={'episode_id': episode['id'], 'score': None, 'error': record['error'], 'traces': [record]},
+                            causes=[ValueError(record['error'])])
     return {'episode_id': episode['id'], 'task_id': 'banking_intents', 'status': 'completed',
             'score': 1.0 if output == episode['label'] else 0.0, 'output': output,
             'traces': [record] if capture_traces else []}

@@ -4,7 +4,7 @@ Companion diagram: https://claude.ai/artifact/PDRJpw5s2nNLd4opTtxqmA
 
 ## Goal
 
-Extend JevHarness (`auto_jev`) so that, for a new task, the system first decides whether the
+Extend the JevHarness idea so that, for a new task, the system first decides whether the
 task has a settled (enumerable) action space or an open-ended output, seeds **one** harness from
 the chosen route's template, and evolves it with the existing GEPA loop unchanged. Re-routing
 happens inside that single evolution: the reflection model may swap node kinds. Level 2 (evolving
@@ -47,7 +47,7 @@ the improver itself) is out of scope; Level 1 must ship as working, tested softw
 
 ## Components
 
-### 1. Linux sandbox (`auto_jev/python_nodes.py`)
+### 1. Linux sandbox (`mixedharness/sandbox.py`)
 `_sandbox_spec()` returns `{command, executable, sandbox_executable, profile, interpreter_flags}`.
 On darwin it builds the existing `sandbox-exec` command. On linux it builds a `bwrap` command:
 `--unshare-all --die-with-parent --new-session --clearenv`, read-only binds of `/usr`,
@@ -59,7 +59,7 @@ RSS polling is darwin-only. Any other platform, or missing `bwrap`, raises
 the argument profile, stdlib `.py` tree, `lib-dynload`, and `/etc/os-release`.
 Known limitation (documented): bwrap cannot deny reading pre-existing `.pyc`; identity binds `.py`.
 
-### 2. LLM provider (`auto_jev/llm.py`, `auto_jev/schema.py`)
+### 2. LLM provider (`mixedharness/llm.py`, `mixedharness/schema.py`)
 `LLMClient(kind='mock'|'anthropic'|'openai', model, api_key_env=None, cache_dir=None,
 cache_namespace=None, cache_only=False, timeout=60, max_tokens=1024, mock_responder=None)`.
 `complete(prompt: str, output_schema: dict|None=None, model=None) -> dict` with keys
@@ -79,12 +79,12 @@ Version 4 = version 3 + `llm` nodes + optional top-level `llm_model` (required w
 node exists). llm node fields: `id, kind:"llm", prompt_expression (restricted expression →
 string), output_schema (dict, optional), max_tokens (int, optional), depends_on (optional)`.
 Dependencies: inferred from `prompt_expression` plus `depends_on`. Runtime:
-`PipelineRuntime(spec, jev, llm=None, max_workers=8)`; constructing with llm nodes and
+`Runtime(spec, jev, llm=None, max_workers=8)`; constructing with llm nodes and
 `llm=None` raises `ValueError`. Node record adds `prompt`, `output_schema`, `response`;
 result = `response['value']` if schema else `response['text']`. `pipeline_schema(4)` describes it.
 All `version==3` checks become `version>=3`.
 
-### 4. Budgets (`evolution.py`, new `auto_jev/budget.py`)
+### 4. Budgets (`evolution.py`, new `mixedharness/budget.py`)
 `episode_usage(result) -> {latency_ms_p95, latency_ms_median, decisions, cost_usd|None,
 unpriced_calls}` computed from `result['traces'][*]['elapsed_ms']` and each jev/llm node
 response's cost. `check_budget(usage, budget) -> list[str]` (violations); budget keys
@@ -93,7 +93,7 @@ an evaluated episode that violates budget gets `score=FAILURE_SCORE`, `status='o
 `error` naming the violation; usage is stored in the evaluation record and in `config['budget']`.
 Evaluators that declare an `llm` parameter receive it. `evaluate_frozen(..., llm=None)` same.
 
-### 5. Triage (`auto_jev/triage.py`)
+### 5. Triage (`mixedharness/triage.py`)
 - `probe(task: TaskDescription) -> evidence` (pure code): `declared_action_kind`,
   `label_count`, `catalog_present_in_examples` (every example obs has a non-empty list at
   `catalog_field`), `exact_validator` (evaluator kind ∈ {exact_match, environment, code_check}),
@@ -119,7 +119,7 @@ Evaluators that declare an `llm` parameter receive it. `evaluate_frozen(..., llm
   Every template passes `validate_spec` and runs end-to-end under mock providers.
 - `route_of_spec(spec) -> 'jev'|'llm'|'hybrid'|'code'`.
 
-### 6. Routed evolution (`auto_jev/routed.py`)
+### 6. Routed evolution (`mixedharness/routed.py`)
 `run_routed_evolution(task, train, validation, *, jev, llm, proposer, store, evaluator, task_id,
 route=None, seed_pipeline=None, budget=None, evolution_rounds=None, max_metric_calls=None,
 reflection_batch_size=None, seed=0, task_context=None, task_contract=None, triage_questions=None)
@@ -140,7 +140,7 @@ Reflection instruction (in `evolution.py`) gains one sentence for v4: node kinds
 (jev↔llm) and a generate-then-select structure may be inserted, within the stated budget — this is
 how a wrong triage gets corrected without a second run.
 
-### 8. Triage improvement (`auto_jev/triage_store.py`)
+### 8. Triage improvement (`mixedharness/triage_store.py`)
 The triage question map is the one improver component that learns, one bounded step per routed run,
 validated by replay against accumulated history. Files under `<store>/triage/`:
 - `questions.json` — `{version, questions, accepted_at, agreement, history_size}`; absent → `DEFAULT_TRIAGE_QUESTIONS`, version 0.

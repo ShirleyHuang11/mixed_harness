@@ -37,8 +37,8 @@ sys.path.insert(0, str(ROOT))
 
 from examples.tau2 import adapter  # noqa: E402
 from examples.tau2.seeds import SEEDS  # noqa: E402
-from auto_jev.llm import LLMClient  # noqa: E402
-from auto_jev.providers import JevClient  # noqa: E402
+from mixedharness.jev import JevClient  # noqa: E402
+from mixedharness.llm import LLMClient  # noqa: E402
 
 ARMS = ('llm_only', 'jev_only', 'harness')
 
@@ -155,7 +155,7 @@ def run_arm(arm, args, tasks, out_dir, jev, llm):
     else:
         spec = SEEDS[arm](args.llm_model) if arm == 'harness' else SEEDS[arm]()
         (arm_dir / 'seed_spec.json').write_text(json.dumps(spec, indent=1))
-        name = f'auto_jev_{arm}'
+        name = f'mixedharness_{arm}'
 
         def factory(tools, domain_policy, **kwargs):
             task = kwargs.get('task')
@@ -238,8 +238,7 @@ def main(argv=None):
     p.add_argument('--user-llm', default='anthropic/claude-sonnet-4-5-20250929',
                    help="user simulator (litellm name); tau2's official default is gpt-4.1-2025-04-14, which needs OpenAI credit")
     p.add_argument('--nl-judge-llm', default=None, help='NL-assertion judge (litellm name); defaults to --user-llm')
-    p.add_argument('--jev-transport', choices=['auto', 'typesafe', 'vercel'], default='auto')
-    p.add_argument('--jev-model', default='typesafe-ai/jev')
+    p.add_argument('--jev-model', default='jev-1.13.0')
     p.add_argument('--concurrency', type=int, default=3)
     p.add_argument('--max-steps', type=int, default=adapter.DEFAULT_MAX_STEPS)
     p.add_argument('--seed', type=int, default=300)
@@ -267,21 +266,19 @@ def main(argv=None):
     if args.mock:
         jev, llm = JevClient(mock=True), LLMClient(kind='mock', model='mock-llm')
     else:
-        transport = args.jev_transport if args.jev_transport != 'auto' else ('vercel' if os.getenv('AI_GATEWAY_API_KEY') else 'typesafe')
         needs_jev = any(a in ('jev_only', 'harness') for a in arms)
-        key_env = 'AI_GATEWAY_API_KEY' if transport == 'vercel' else 'TYPESAFE_API_KEY'
-        if needs_jev and not os.getenv(key_env):
-            p.error(f'{key_env} is not set; the jev_only and harness arms need it')
-        jev = JevClient(transport=transport, model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace)
+        if needs_jev and not os.getenv('TYPESAFE_API_KEY'):
+            p.error('TYPESAFE_API_KEY is not set; the jev_only and harness arms need it')
+        jev = JevClient(model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace)
         llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir=str(ROOT / '.cache/llm'), cache_namespace=namespace, max_tokens=800)
     manifest = {'stamp': stamp, 'domain': args.domain, 'split': args.split, 'task_ids': [str(t.id) for t in tasks], 'trials': args.trials,
                 'arms': arms, 'agent_llm': args.agent_llm, 'llm_model': args.llm_model, 'user_llm': args.user_llm,
                 'nl_judge_llm': nl_judge, 'nl_judge_tau2_default': nl_judge_previous[0],
                 'llm_args_agent': llm_args_for(args.agent_llm), 'llm_args_user': llm_args_for(args.user_llm),
-                'jev_model': args.jev_model, 'jev_transport': getattr(jev, 'transport', 'mock'), 'mock': args.mock,
+                'jev_model': args.jev_model, 'jev_transport': jev.transport, 'mock': args.mock,
                 'seed': args.seed, 'max_steps': args.max_steps, 'concurrency': args.concurrency, 'namespace': namespace,
                 'git': {'mixed_harness': git_head(ROOT), 'tau2_bench': git_head(Path(os.environ.get('TAU2_HOME') or Path.home() / 'tau2-bench'))},
-                'credentials_present': {k: bool(os.getenv(k)) for k in ('TYPESAFE_API_KEY', 'AI_GATEWAY_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY')},
+                'credentials_present': {k: bool(os.getenv(k)) for k in ('TYPESAFE_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY')},
                 'started': dt.datetime.now().isoformat()}
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=1))
     summaries = []
@@ -291,7 +288,7 @@ def main(argv=None):
         summaries.append(summary)
         print(json.dumps({k: v for k, v in summary.items() if k not in ('counters_total',)}, indent=1, default=str), flush=True)
     manifest.update({'finished': dt.datetime.now().isoformat(), 'jev_stats': getattr(jev, 'stats', None), 'llm_stats': getattr(llm, 'stats', None),
-                     'jev_actual_model': (getattr(jev, 'metadata', {}) or {}).get('actual_model')})
+                     'jev_actual_models': jev.metadata.get('actual_models')})
     (out_dir / 'manifest.json').write_text(json.dumps(manifest, indent=1, default=str))
     n = len(tasks) * args.trials
     pbar = 0.8

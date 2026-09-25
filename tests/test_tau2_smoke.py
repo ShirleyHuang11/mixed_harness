@@ -5,19 +5,19 @@ see docs/guides/tau2.md); the runtime rule they rely on is tested without tau2.
 """
 import pytest
 
-from auto_jev.llm import LLMClient
-from auto_jev.providers import JevClient
-from auto_jev.runtime import PipelineRuntime
-from auto_jev.spec import validate_spec
+from mixedharness.jev import JevClient
+from mixedharness.llm import LLMClient
+from mixedharness.runtime import Runtime
+from mixedharness.spec import FORMAT, validate_spec
 
 
 def test_llm_node_with_null_prompt_is_skipped_without_a_call():
-    spec = validate_spec({'version': 4, 'name': 'skip', 'jev_model': 'typesafe-ai/jev', 'llm_model': 'mock-llm',
+    spec = validate_spec({'format': FORMAT, 'name': 'skip', 'jev_model': 'jev-1.13.0', 'llm_model': 'mock-llm',
                           'nodes': [{'id': 'gate', 'kind': 'expression', 'expression': "obs['want'] if obs['want'] else None"},
-                                    {'id': 'draft', 'kind': 'llm', 'prompt_expression': "nodes['gate']"}],
+                                    {'id': 'draft', 'kind': 'llm', 'prompt': "nodes['gate']"}],
                           'output': "nodes['draft']"})
     llm = LLMClient(kind='mock', model='mock-llm')
-    runtime = PipelineRuntime(spec, JevClient(mock=True), llm)
+    runtime = Runtime(spec, JevClient(mock=True), llm)
     skipped = runtime.run({'want': None})
     assert skipped['output'] is None
     assert [n['status'] for n in skipped['trace'] if n['id'] == 'draft'] == ['skipped']
@@ -70,7 +70,8 @@ def test_pipeline_agent_turns_are_valid_tau2_messages_and_counted():
             assert state.memory.get('user_id') == 'yusuf_rossi_9620'
         counters = agent.counters
         assert counters['turns'] >= 1 and counters['jev_calls'] == counters['turns']
-        assert counters['llm_calls'] == 0  # mock Jev never picks reply:llm; harness llm nodes are skipped, not called
-        if name == 'harness':
-            assert counters['llm_skipped'] == 2 * counters['turns']
+        if name == 'jev_only':
+            assert counters['llm_calls'] == 0 and counters['llm_skipped'] == 0
+        else:
+            assert counters['llm_calls'] + counters['llm_skipped'] == 2 * counters['turns']
         assert counters['invalid_actions'] == 0 and counters['candidate_errors'] == 0

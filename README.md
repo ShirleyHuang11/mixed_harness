@@ -68,11 +68,11 @@ predictions and the decision table are written down before any run in
 ## Quick start
 
     uv sync --locked --extra dev
-    uv run pytest                                   # 400+ tests on mock providers, no keys needed
-    uv run auto-jev doctor                          # which credentials are present
+    uv run pytest                                   # mock providers, no keys needed
+    uv run mixedharness doctor                      # sandbox and credentials present
 
-Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` or `AI_GATEWAY_API_KEY` for Jev,
-`ANTHROPIC_API_KEY` for llm nodes. Sandboxed Python nodes run under `bwrap` on Linux and `sandbox-exec`
+Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` for Jev, `ANTHROPIC_API_KEY` for llm
+nodes. Sandboxed Python nodes run under `bwrap` on Linux and `sandbox-exec`
 on macOS.
 
     uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
@@ -82,7 +82,7 @@ on macOS.
 
 | Path | What it holds |
 |---|---|
-| `auto_jev/` | spec validation, parallel runtime, Jev and LLM transports, triage, routed evolution, freezing |
+| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, evolution, triage, routing, freeze |
 | `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
 | `examples/tau2/` | the τ²-bench adapter, the agent wrapper, and the two seed harnesses |
 | `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the three-arm test) |

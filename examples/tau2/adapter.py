@@ -1,12 +1,12 @@
-"""tau2-bench retail as an auto_jev task: episodes are tau2 tasks, the evaluator runs one tau2 simulation.
+"""tau2-bench retail as a Mixed Harness task: episodes are tau2 tasks, the evaluator runs one tau2 simulation.
 
 `load(split)` returns (TaskDescription, episodes). Splits map to tau2's own: 'train' (74), 'validation'
 (tau2 'test', 40), 'base' (all 114). Episode ids are unique across splits because tau2 task ids are.
 
 `evaluate_episode(spec, episode, jev, llm=None, ...)` builds the environment, a `PipelineAgent` for the spec,
 the official user simulator, and the orchestrator; runs the simulation with full evaluation; and returns the
-auto_jev result contract: score (tau2 reward, 0 or 1), output (termination, reward breakdown, tau2 costs) and
-one trace per agent turn. Infrastructure errors propagate as PipelineExecutionError with the partial trace.
+evaluator contract: score (tau2 reward, 0 or 1), output (termination, reward breakdown, tau2 costs) and
+one trace per agent turn. Infrastructure errors propagate as PipelineError with the partial trace.
 
 tau2-bench must be importable (see docs/guides/tau2.md for the sibling checkout and `TAU2_HOME`).
 """
@@ -89,14 +89,14 @@ def run_episode(spec, episode, jev, llm=None, *, user_llm=DEFAULT_USER_LLM, max_
 
 def evaluate_episode(spec, episode, jev, llm=None, *, capture_traces=True, user_llm=DEFAULT_USER_LLM,
                      max_steps=DEFAULT_MAX_STEPS, label='pipeline'):
-    from auto_jev.runtime import PipelineExecutionError
+    from mixedharness.runtime import PipelineError
     agent = None
     try:
         result, agent = run_episode(spec, episode, jev, llm, user_llm=user_llm, max_steps=max_steps, label=label)
-    except PipelineExecutionError as exc:
+    except PipelineError as exc:
         partial = {'episode_id': episode['id'], 'score': None, 'error': str(exc),
-                   'traces': [_trace(e) for e in (agent.ledger if agent else [])] + [dict(copy.deepcopy(exc.partial_result or {}), status='error')]}
-        raise PipelineExecutionError(str(exc), partial_result=partial, cause=exc.cause, causes=exc.causes) from exc
+                   'traces': [_trace(e) for e in (agent.ledger if agent else [])] + [dict(copy.deepcopy(exc.partial or {}), status='error')]}
+        raise PipelineError(str(exc), partial=partial, causes=exc.causes) from exc
     reward = float(result.reward_info.reward) if result.reward_info is not None else 0.0
     output = {'termination_reason': str(result.termination_reason), 'reward': reward,
               'reward_info': _reward_summary(result.reward_info), 'messages': len(result.messages or []),
@@ -108,7 +108,7 @@ def evaluate_episode(spec, episode, jev, llm=None, *, capture_traces=True, user_
 
 
 def _trace(entry):
-    """Ledger entry -> auto_jev decision record: the complete runtime result plus observation and action."""
+    """Ledger entry -> decision record: the complete runtime result plus observation and action."""
     decision = entry.get('decision') or {}
     record = dict(decision) if isinstance(decision, dict) else {}
     record.update(observation=entry['observation'], action=entry['action'], status='error' if entry.get('error') else 'ok',

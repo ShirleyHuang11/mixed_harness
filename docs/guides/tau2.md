@@ -40,19 +40,17 @@ the complete runtime result), `summary.json` and `table.md` (generated from the 
 | `jev_only` | `examples.tau2.seeds.jev_only_seed()` | 1 python node (facts + catalog + questions), 1 Jev request, 1 python node (decision) |
 | `harness` | `examples.tau2.seeds.harness_seed()` | the same, plus two llm nodes that run only when the decision asks, and a merge node |
 
-`examples/tau2/agent.py` wraps a `PipelineRuntime` as a tau2 `HalfDuplexAgent`; `examples/tau2/adapter.py`
-exposes the same thing through the auto_jev evaluator contract for evolution.
+`examples/tau2/agent.py` wraps a `Runtime` as a tau2 `HalfDuplexAgent`; `examples/tau2/adapter.py`
+exposes the same thing through the evaluator contract for evolution.
 
 ## Reading the table
 
 - `pass^1` is tau2's reward (DB state plus assertions). `failed` counts simulations that never reached
   evaluation (infrastructure errors); they are not zeros.
 - `turn latency` is wall time per agent turn. `model-only ms` sums the Jev and LLM node times; `sandbox ms`
-  sums the sandboxed-Python node times. On this cluster a sandboxed node costs about 0.5 s of process
-  spawn regardless of its work (measured 2026-09-24: trivial node 640 ms, `bwrap` alone ~300 ms), which is an
-  implementation cost, not a model cost. Both numbers are reported; the design's latency prediction is on
-  the model-only number, and the wall number is the one a deployment would pay until the sandbox keeps a
-  warm worker.
+  sums the sandboxed-Python node times. Python nodes run in a warm worker, so a turn costs a few
+  milliseconds of sandbox time after the first one (mock plumbing on this cluster: 21 ms median per turn,
+  p95 about 400 ms from the first-turn worker start). Both numbers are reported.
 - The user simulator and the NL-assertion judge default to `anthropic/claude-sonnet-4-5-20250929` because
   the OpenAI account on this machine has no credit. The manifest records both the model used and tau2's
   default. Numbers from different user simulators are not comparable.

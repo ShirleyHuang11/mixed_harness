@@ -27,9 +27,9 @@ Output contract: {'kind': 'tool', 'name': str, 'arguments': dict} or {'kind': 'm
 import copy
 import json
 
-from auto_jev.spec import validate_spec
+from mixedharness.spec import FORMAT, validate_spec
 
-JEV_MODEL = 'typesafe-ai/jev'
+JEV_MODEL = 'jev-1.13.0'
 
 WRITE_TOOLS = ('cancel_pending_order', 'exchange_delivered_order_items', 'modify_pending_order_address',
                'modify_pending_order_items', 'modify_pending_order_payment', 'modify_user_address',
@@ -526,33 +526,33 @@ def _fill(source, allow_llm):
 
 def _base_nodes(allow_llm):
     return [
-        {'id': 'facts', 'kind': 'python', 'source': _fill(FACTS_SOURCE, allow_llm), 'depends_on': []},
+        {'id': 'facts', 'kind': 'python', 'source': _fill(FACTS_SOURCE, allow_llm), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['facts']['state']", 'questions_expression': "nodes['facts']['questions']"},
-        {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm), 'depends_on': ['facts', 'judge']},
+        {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm), 'inputs': ['facts', 'judge']},
     ]
 
 
 def jev_only_seed():
-    spec = {'version': 4, 'name': 'tau2 retail · Jev-only seed', 'jev_model': JEV_MODEL,
+    spec = {'format': FORMAT, 'name': 'tau2 retail · Jev-only seed', 'jev_model': JEV_MODEL,
             'nodes': _base_nodes(False),
             'output': "nodes['decision']['action']",
-            'memory_update': "nodes['decision']['memory']"}
+            'memory': "nodes['decision']['memory']"}
     return validate_spec(spec)
 
 
 def harness_seed(llm_model='claude-sonnet-5'):
     nodes = _base_nodes(True) + [
-        {'id': 'draft_reply', 'kind': 'llm', 'prompt_expression': "nodes['decision']['llm_prompt']",
-         'output_schema': copy.deepcopy(REPLY_SCHEMA), 'max_tokens': 600},
-        {'id': 'draft_args', 'kind': 'llm', 'prompt_expression': "nodes['decision']['llm_args_prompt']",
-         'output_schema': copy.deepcopy(ARGS_SCHEMA), 'max_tokens': 400},
+        {'id': 'draft_reply', 'kind': 'llm', 'prompt': "nodes['decision']['llm_prompt']",
+         'schema': copy.deepcopy(REPLY_SCHEMA), 'max_tokens': 600},
+        {'id': 'draft_args', 'kind': 'llm', 'prompt': "nodes['decision']['llm_args_prompt']",
+         'schema': copy.deepcopy(ARGS_SCHEMA), 'max_tokens': 400},
         {'id': 'final', 'kind': 'python', 'source': _fill(FINAL_SOURCE, True),
-         'depends_on': ['decision', 'draft_reply', 'draft_args']},
+         'inputs': ['decision', 'draft_reply', 'draft_args']},
     ]
-    spec = {'version': 4, 'name': 'tau2 retail · harness seed', 'jev_model': JEV_MODEL, 'llm_model': llm_model,
+    spec = {'format': FORMAT, 'name': 'tau2 retail · harness seed', 'jev_model': JEV_MODEL, 'llm_model': llm_model,
             'nodes': nodes,
             'output': "nodes['final']['action']",
-            'memory_update': "nodes['final']['memory']"}
+            'memory': "nodes['final']['memory']"}
     return validate_spec(spec)
 
 

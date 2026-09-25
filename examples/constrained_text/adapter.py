@@ -3,7 +3,7 @@ import copy
 import json
 from pathlib import Path
 
-from auto_jev.runtime import PipelineExecutionError, PipelineRuntime
+from mixedharness.runtime import PipelineError, Runtime
 
 HERE = Path(__file__).resolve().parent
 TRAIN_ROWS = 12
@@ -23,7 +23,7 @@ def load(split):
 
 
 def score_constraints(text, constraints):
-    """Fraction of constraints satisfied; unknown kinds are a configuration error."""
+    """Fraction of constraints satisfied; an unknown kind is a configuration error."""
     if not constraints:
         return 1.0
     words = text.split()
@@ -47,21 +47,21 @@ def score_constraints(text, constraints):
 
 def evaluate_episode(spec, episode, jev, llm=None, *, capture_traces=True):
     observation = {'instruction': episode['instruction'], 'constraints': copy.deepcopy(episode['constraints'])}
-    runtime = PipelineRuntime(spec, jev, llm)
+    runtime = Runtime(spec, jev, llm)
     try:
         decision = runtime.run(observation, memory={})
-    except PipelineExecutionError as exc:
-        partial = copy.deepcopy(exc.partial_result)
-        partial.update(observation=observation, status='error')
-        raise PipelineExecutionError(str(exc), partial_result={'episode_id': episode['id'], 'score': None,
-                                     'error': str(exc), 'traces': [partial]}, cause=exc.cause, causes=exc.causes) from exc
+    except PipelineError as exc:
+        partial = dict(exc.partial, observation=observation, status='error')
+        raise PipelineError(str(exc), partial={'episode_id': episode['id'], 'score': None, 'error': str(exc), 'traces': [partial]},
+                            causes=exc.causes) from exc
+    finally:
+        runtime.close()
     output = decision['output']
     record = {**decision, 'observation': observation, 'status': 'ok'}
     if not isinstance(output, dict) or not isinstance(output.get('text'), str) or not output['text'].strip():
-        record.update(status='error', error='Policy must return {"text": nonempty string}')
-        error = ValueError('Policy must return {"text": nonempty string}')
-        raise PipelineExecutionError(str(error), partial_result={'episode_id': episode['id'], 'score': None,
-                                     'error': str(error), 'traces': [record]}, cause=error) from error
+        record.update(status='error', error='the harness must return {"text": nonempty string}')
+        raise PipelineError(record['error'], partial={'episode_id': episode['id'], 'score': None, 'error': record['error'], 'traces': [record]},
+                            causes=[ValueError(record['error'])])
     return {'episode_id': episode['id'], 'task_id': 'constrained_reply', 'status': 'completed',
             'score': score_constraints(output['text'], episode['constraints']), 'output': output,
             'traces': [record] if capture_traces else []}

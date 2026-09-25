@@ -73,8 +73,8 @@ Smoke: rerun the classify example under mock providers before and after and diff
   Two changes: the graph now asks every question in one Jev request (speculative fan-out: action choice plus
   the selections the action might need), which cut the graph to two python nodes for jev_only and three for
   harness; and the ledger reports model-only latency and sandbox time separately. The latency prediction in
-  the table below is on the model-only number. A warm sandbox worker is the proper fix and is an upgrade
-  condition, not part of this test.
+  the table below is on the model-only number. The rewrite of the execution layer (`docs/design/implementation.md`)
+  then added a warm sandbox worker: the same mock plumbing run went from 1.3 s to 21 ms median per turn.
 - **The OpenAI account has no credit**, so tau2's official user simulator (`gpt-4.1-2025-04-14`) cannot run.
   The user simulator and the NL-assertion judge default to `anthropic/claude-sonnet-4-5-20250929`, the same
   for every arm; the manifest records both the model used and tau2's default. The positive-control threshold
@@ -142,7 +142,7 @@ the manifest; nothing is estimated after the fact.
 - `examples/tau2/task.json` — TaskDescription: catalog action space, environment evaluator.
 - `examples/tau2/adapter.py` — `load(split)`, `evaluate_episode(spec, episode, jev, llm)`.
 - `examples/tau2/agent.py` — `PipelineAgent`, a tau2 `HalfDuplexAgent` that runs one
-  `PipelineRuntime` call per turn and carries memory across turns.
+  `Runtime` call per turn and carries memory across turns.
 - `examples/tau2/seeds.py` — the Jev-only and harness seed specs.
 - `scripts/tau2_compare.py` — runs the arms, writes `runs/tau2/<stamp>/manifest.json`,
   per-arm results, and `table.md` generated from the artifacts.

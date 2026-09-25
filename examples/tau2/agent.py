@@ -1,4 +1,4 @@
-"""A tau2-bench HalfDuplexAgent that runs one PipelineRuntime call per turn.
+"""A tau2-bench HalfDuplexAgent that runs one Runtime call per turn.
 
 The pipeline sees a bounded, parsed view of the conversation plus the tool schemas and policy, and returns
 either a tool call or a message. Memory produced by the pipeline is carried to the next turn. Every turn is
@@ -16,12 +16,7 @@ import uuid
 from tau2.agent.base_agent import HalfDuplexAgent
 from tau2.data_model.message import AssistantMessage, MultiToolMessage, ToolCall, ToolMessage, UserMessage
 
-from auto_jev.llm import LLMProviderError
-from auto_jev.providers import JevProviderError
-from auto_jev.python_nodes import PythonSandboxUnavailable
-from auto_jev.runtime import PipelineExecutionError, PipelineRuntime
-
-INFRASTRUCTURE_ERRORS = (JevProviderError, LLMProviderError, PythonSandboxUnavailable)
+from mixedharness.runtime import PipelineError, Runtime
 MAX_CONVERSATION = 40
 MAX_RESULT_CHARS = 6000
 FALLBACK_TEXT = "I'm sorry, I did not catch that. Could you tell me a bit more about what you would like to do?"
@@ -93,7 +88,7 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
         self.jev = jev
         self.llm = llm
         self.label = label
-        self.runtime = PipelineRuntime(spec, jev, llm, max_workers=max_workers)
+        self.runtime = Runtime(spec, jev, llm, max_workers=max_workers)
         self.tool_schemas = {tool.name: tool_schema(tool) for tool in tools}
         self.tool_names_by_id = {}
         self.ledger = []
@@ -121,9 +116,8 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
         decision, error = None, None
         try:
             decision = self.runtime.run(obs, memory=state.memory)
-        except PipelineExecutionError as exc:
-            causes = list(exc.causes or []) + ([exc.cause] if exc.cause else [])
-            if any(isinstance(c, INFRASTRUCTURE_ERRORS) for c in causes):
+        except PipelineError as exc:
+            if exc.infrastructure:
                 raise
             error = exc
         elapsed_ms = (time.perf_counter() - started) * 1000
@@ -173,8 +167,8 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
         cost, unpriced = 0.0, 0
         model_ms = sandbox_ms = 0.0   # model-only latency vs sandboxed-python process overhead
         trace = (decision or {}).get('trace') if decision else None
-        if trace is None and error is not None and isinstance(error.partial_result, dict):
-            trace = error.partial_result.get('trace')
+        if trace is None and error is not None and isinstance(error.partial, dict):
+            trace = error.partial.get('trace')
         for node in trace or []:
             kind = node.get('kind')
             elapsed = float(node.get('elapsed_ms') or 0.0)
@@ -236,7 +230,7 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
                 'llm_input_tokens': llm_in, 'llm_output_tokens': llm_out, 'cost_usd': cost, 'unpriced_calls': unpriced,
                 'chosen': chosen, 'action': action, 'invalid': invalid,
                 'error': str(error) if error is not None else None,
-                'observation': obs, 'decision': decision if decision is not None else (error.partial_result if error is not None else None)}
+                'observation': obs, 'decision': decision if decision is not None else (error.partial if error is not None else None)}
 
     def _assistant_message(self, action, entry):
         usage = {'jev_input_tokens': entry['jev_input_tokens'], 'llm_input_tokens': entry['llm_input_tokens'],

@@ -1,70 +1,90 @@
-# Routed harness (Level 1)
+# Routed harness: reference
 
-## Flow
+## The spec
 
-1. `triage.probe(task)` computes deterministic evidence from a `TaskDescription` (declared action kind,
-   label count, whether examples carry a legal-action catalog, evaluator exactness, expected output shape).
-2. `triage.triage(task, jev)` sends the evidence and up to five clipped examples to Jev with the current
-   triage question map (initially `DEFAULT_TRIAGE_QUESTIONS`). The `route` is the argmax of the choice
-   distribution; the distribution is recorded so a low-confidence call is visible, and the caller may pass
-   `route=` to override.
-3. `triage.seed_for_route(route, task)` returns a version-4 spec: `settled` → python catalog + jev pick +
-   python decision; `open_ended` → python prompt + llm draft + python validate; `hybrid` → llm propose k
-   candidates → python criteria → jev select → python decision.
-4. `routed.run_routed_evolution(...)` runs `evolution.run_evolution` exactly once with that seed. A wrong
-   triage is corrected inside evolution: the reflection model may swap node kinds. `final_route` in the
-   summary reports what the selected candidate ended up as. Artifacts: `runs/routed/<id>/{decision,summary}.json`.
-5. After the run, `triage_store.record` appends `{state, probabilities, triage_route, final_route → target}` to
-   `runs/triage/history.jsonl` and `triage_store.improve` asks the reflection model for a better question map.
-   Old and new maps are replayed through Jev on the whole history; the proposal is accepted only if its
-   agreement with the targets is strictly higher. Accepted maps are versioned in `runs/triage/questions.json`.
+A harness is a JSON graph (`mixedharness/spec.py`):
 
-## Version 4 specs
+    {"format": "mixedharness/1", "name": "...", "jev_model": "jev-1.13.0", "llm_model": "claude-sonnet-5",
+     "nodes": [...], "output": "<expr>", "memory": "<expr>"}
 
-Adds `llm` nodes (`prompt_expression`, optional `output_schema`, optional `max_tokens`) and top-level
-`llm_model`. Reflection may swap node kinds and insert generate-then-select structures; it may not change
-`jev_model`, `llm_model` or the evaluator.
+| Node | Fields | Reads |
+|---|---|---|
+| `python` | `source` (defines `run(obs, nodes, memory)`), `inputs` (node ids) | exactly its `inputs` |
+| `expression` | `expression` | node ids referenced as `nodes['id']` |
+| `jev` | `state` (expr), `questions` (map) or `questions_expression` (expr) | ids referenced in either |
+| `llm` | `prompt` (expr; `null` skips the node), `schema` (JSON Schema subset), `max_tokens` | ids referenced in `prompt` |
 
-## LLM nodes that decide not to run
+Expressions are a restricted language over `obs`, `nodes` and `memory`: literals, indexing, arithmetic,
+comparisons, conditionals, and a fixed set of functions (`len min max sum abs round mean median std last get
+clip column text sorted any all`). Python nodes are validated against an allow-list before they run and
+execute in a native sandbox (`bwrap` on Linux, `sandbox-exec` on macOS) with no network, no host environment
+and memory, CPU and wall-time limits. `uv run mixedharness schema` prints the schema given to authoring models.
 
-An `llm` node whose `prompt_expression` evaluates to `null` is skipped: no call, no cost, output `null`, trace
-status `skipped`. Code decides whether generation is needed; downstream nodes must treat `nodes['<id>']`
-as possibly `null`. A prompt that evaluates to anything else must be a nonempty string.
+## One run
 
-## LLM errors
+    from mixedharness.runtime import Runtime
+    result = Runtime(spec, jev, llm).run(obs, memory)
 
-`LLMProviderError` (missing key, timeout, HTTP failure, cache-only miss, cache corruption) is tagged
-`task_infrastructure_error` and stops an evolution run like a Jev outage. `LLMOutputError` (empty, unparsable or
-schema-violating answer) is a candidate-level node error and only scores that candidate down.
+Nodes run in dependency waves, independent nodes in parallel. `result['trace']` has one record per node
+with its status (`ok`, `skipped`, `error`, `blocked`), timing, and everything the node saw and returned:
+the Jev state, questions and response; the LLM prompt and reply; the python source hash and in-worker time.
+A failing node raises `PipelineError` after the wave with the partial result attached; `infrastructure=True`
+means a provider or sandbox outage rather than a candidate fault, and evolution treats the two differently.
 
-## Budgets
+Python nodes run in a warm worker: one sandboxed interpreter per pool slot, started on first use and reused.
+Starting one costs a few hundred milliseconds on a network filesystem; a warm node costs a few milliseconds.
 
-`run_evolution(..., budget={'latency_ms_p95': ..., 'cost_usd_per_episode': ...})`. Usage is derived from
-complete traces (`budget.episode_usage`). A scored episode over budget becomes an invalid candidate
-(`status='over_budget'`, score `-1e9`). Unpriced calls are counted, not guessed.
+## Task description and triage
 
-## Linux
+`mixedharness/triage.py` reads a TaskDescription (name, objective, observation fields, action space,
+evaluator kind, decisions per episode, examples). `probe(task)` computes nine deterministic fields;
+`triage(task, jev)` sends them, the objective and up to five clipped examples to Jev with the current
+question map and returns the route (argmax of the `route` choice), the full distribution and the state sent.
+`seed_for_route(route, task)` builds the seed:
 
-Functional Python nodes run under `bwrap`: empty root, read-only `/usr` and the interpreter prefix,
-no network, no host environment, `RLIMIT_AS`/`RLIMIT_CPU`/wall-time limits. Missing `bwrap` or refused
-user namespaces raise `PythonSandboxUnavailable` (an infrastructure error, never a candidate score).
-bwrap 0.4 has no `--clearenv`; the worker is launched with an explicit minimal environment instead.
+- `settled`: python catalog → jev pick (`questions_expression`) → python decision
+- `open_ended`: python prompt → llm draft (with the task's `output_schema`) → python validate
+- `hybrid`: python prompt → llm propose k candidates → python criteria → jev select → python decision
 
-## Examples
+## Evolution
 
-    uv run python -c "from examples.classify import adapter as a; print(a.load('train')[0]['name'])"
+    from mixedharness.evolve import run_evolution
+    summary = run_evolution(train, validation, jev=..., llm=..., proposer=..., evaluator=..., store=...,
+                            seed_spec=spec, task={...}, rounds=5, batch_size=2, budget=None)
 
-`examples/classify` (settled, labels) and `examples/constrained_text` (open-ended, code-checked) run
-end-to-end with mock providers in `tests/test_routed.py`.
+The evaluator is task code: `evaluator(spec, episode, jev, llm=None, capture_traces=True)` returning
+`{'episode_id', 'score', 'traces'}` with one trace per decision (the runtime result plus observation and
+action). Each round GEPA selects a parent from the Pareto frontier over training instances, evaluates it on
+a batch, hands the complete trajectories to the proposer (`mixedharness/reflect.py`), evaluates the proposed
+spec on the same batch and keeps it only on strict improvement, then scores it on the full validation set.
+Proposals that change `format`, `jev_model` or `llm_model`, or fail validation, are rejected and logged.
+`budget={'latency_ms_p95': ..., 'cost_usd_per_episode': ...}` turns an over-budget episode into an invalid
+candidate; usage is read from traces, never estimated.
 
-## Live run
+Everything lands in the store (`mixedharness/store.py`): `run.json`, `events.jsonl`, `candidates/`,
+`evaluations.jsonl`, `traces/`, `reflections/`, and GEPA's own log under `gepa/`.
 
-With `TYPESAFE_API_KEY` (direct, from https://console.typesafe.ai/keys) or `AI_GATEWAY_API_KEY` (Vercel AI Gateway),
-plus `ANTHROPIC_API_KEY` for llm nodes, in `.env`:
+## The routed run
 
-    uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
-    uv run python scripts/live_run.py --task classify --jev-transport typesafe --jev-model jev-latest
+    from mixedharness.routed import run_routed
+    summary = run_routed(task, train, validation, jev=..., llm=..., proposer=..., store=..., evaluator=...,
+                         task_id='classify', route=None, rounds=3, batch_size=2)
 
-Reflection uses the local `claude` CLI (`configs/claude_local.json`). Responses are cached under
-`.cache/{jev,llm}/<namespace>/`; reuse `--namespace` to replay. Outputs land in `runs/routed/<id>/`
-(`decision.json`, `summary.json`), `runs/<run_id>/` (events, reflections, candidates) and `runs/triage/`.
+Probe, triage, seed, one evolution, then two records: `summary['route']` (what the triage chose) and
+`summary['final_route']` (what the selected harness is made of). The pair is appended to
+`<store>/triage/history.jsonl`, and `triage_store.improve` asks the proposer for a better question map,
+replays the old and the new map through Jev over the whole history, and accepts the new one only if its
+agreement with the recorded outcomes is strictly higher. Accepted maps are versioned in
+`<store>/triage/questions.json`. Pass `route=` to override the triage; `improve_triage=False` skips loop 2.
+
+## Freezing
+
+`mixedharness/freeze.py` binds a spec to its hash, the sandbox interpreter identity, the evaluator's source
+hash and the model ids. `evaluate_frozen` refuses to run when any of those changed.
+
+## Errors, in one table
+
+| Class | Meaning | Effect in evolution |
+|---|---|---|
+| `JevError`, `LLMError`, `SandboxUnavailable`, `ReflectionError` | provider, transport, sandbox or reflection-model failure | the run aborts; the store keeps everything so far |
+| `NodeError`, `SourceError`, `ExpressionError`, `LLMOutputError`, `SchemaError` | the candidate's own fault | the episode scores `FAILURE_SCORE`; the run continues |
