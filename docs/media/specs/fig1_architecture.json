@@ -1,7 +1,7 @@
 {
  "title": "Mixed Harness architecture",
  "canvas": {
-  "width": 1260,
+  "width": 1330,
   "height": 690
  },
  "style": {
@@ -34,11 +34,11 @@
   },
   {
    "id": "route",
-   "label": "dispatch (Jev)",
-   "sublabel": "picks the route for this task",
+   "label": "route (Jev)",
+   "sublabel": "one arrow per route",
    "x": 505,
    "y": 200,
-   "width": 160,
+   "width": 150,
    "height": 60,
    "fill": "#FEF3C7",
    "stroke": "#F59E0B"
@@ -56,7 +56,7 @@
   },
   {
    "id": "j2",
-   "label": "Jev",
+   "label": "Jev pick",
    "x": 968,
    "y": 110,
    "width": 104,
@@ -78,10 +78,10 @@
   },
   {
    "id": "l1",
-   "label": "LLM agent",
-   "x": 998,
+   "label": "LLM agent \u00b7 policy, tools, conversation \u00b7 native tool calling",
+   "x": 1035,
    "y": 200,
-   "width": 300,
+   "width": 356,
    "height": 40,
    "fill": "#EDE9FE",
    "stroke": "#8B5CF6",
@@ -100,7 +100,7 @@
   },
   {
    "id": "m2",
-   "label": "Jev",
+   "label": "Jev judge",
    "x": 968,
    "y": 290,
    "width": 104,
@@ -122,7 +122,7 @@
   },
   {
    "id": "m4",
-   "label": "LLM if needed",
+   "label": "LLM, if needed",
    "x": 1204,
    "y": 290,
    "width": 104,
@@ -166,8 +166,8 @@
   },
   {
    "id": "evo_h",
-   "label": "evolution of the routes",
-   "sublabel": "reflection rewrites the route (graph or instructions) \u00b7 kept only if the score rises",
+   "label": "evolutionary loop over the execution layer",
+   "sublabel": "rewrites a route from its full traces \u00b7 kept only if the score rises",
    "x": 1035,
    "y": 575,
    "width": 420,
@@ -177,8 +177,8 @@
   },
   {
    "id": "evo_t",
-   "label": "evolution of the triage",
-   "sublabel": "reflection rewrites the dispatch questions \u00b7 kept only if replay agreement rises",
+   "label": "evolutionary loop over the triage",
+   "sublabel": "rewrites the route questions \u00b7 kept only if replay agreement rises",
    "x": 330,
    "y": 575,
    "width": 450,
@@ -253,7 +253,15 @@
   },
   {
    "from": "route",
+   "to": "j1"
+  },
+  {
+   "from": "route",
    "to": "l1"
+  },
+  {
+   "from": "route",
+   "to": "m1"
   },
   {
    "from": "j1",
@@ -312,13 +320,13 @@
    "to": "tx",
    "color": "#15803D",
    "curve": true,
-   "label": "new questions, next task"
+   "label": "new question map, next task"
   }
  ],
  "groups": [
   {
    "id": "triage",
-   "label": "triage \u00b7 runs once per task",
+   "label": "triage harness \u00b7 runs once per task",
    "node_ids": [
     "probe",
     "route"
@@ -329,7 +337,7 @@
   },
   {
    "id": "harness",
-   "label": "execution layer \u00b7 one route per task, chosen by the triage \u00b7 runs once per decision",
+   "label": "routes of execution \u00b7 the triage dispatches each task to one \u00b7 runs once per decision",
    "node_ids": [
     "j1",
     "j2",
@@ -347,7 +355,7 @@
  ],
  "labels": [
   {
-   "text": "Jev route \u00b7 code + judgment, no language model",
+   "text": "Jev route \u00b7 code \u2192 Jev \u2192 code",
    "x": 812,
    "y": 86,
    "font_size": 11,
@@ -355,7 +363,7 @@
    "anchor": "start"
   },
   {
-   "text": "LLM route \u00b7 a complete language-model agent with tool calling",
+   "text": "LLM route \u00b7 one full model call per turn",
    "x": 812,
    "y": 176,
    "font_size": 11,
@@ -363,7 +371,7 @@
    "anchor": "start"
   },
   {
-   "text": "mixed route \u00b7 the Jev route plus an LLM only on the turns that need writing",
+   "text": "mixed route \u00b7 LLM only on the turns that need it",
    "x": 812,
    "y": 266,
    "font_size": 11,
@@ -411,7 +419,7 @@
    "anchor": "start"
   },
   {
-   "text": "one kind of machine at two levels: a route that decides what to do, and a triage that decides which route a task gets",
+   "text": "a probe decides what kind of task this is; the task is dispatched to a route built for that kind",
    "x": 600,
    "y": 36,
    "font_size": 14,
@@ -419,7 +427,7 @@
    "anchor": "middle"
   },
   {
-   "text": "+ a code-only route for tasks that need no model \u00b7 mixed route zoomed in below",
+   "text": "the mixed route, zoomed in on the next figure",
    "x": 812,
    "y": 344,
    "font_size": 11,
