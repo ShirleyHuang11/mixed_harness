@@ -29,7 +29,16 @@ cost, Jev probabilities and harness version.
 
 ## Architecture
 
-![Jev + LLM harness: runtime path and evolution loops](docs/media/fig1_architecture.svg)
+<table>
+<tr>
+<td width="48%" valign="top"><img src="docs/media/fig_runtime_path.svg" alt="Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store" width="100%"></td>
+<td width="52%" valign="top"><img src="docs/media/fig_evolution_loops.svg" alt="Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast), both deploy a new harness version" width="100%"></td>
+</tr>
+<tr>
+<td align="center">runtime path, one step</td>
+<td align="center">evolution loops, over the trace store</td>
+</tr>
+</table>
 
 **Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
 picks, so Jev picks actions and free-text arguments need a small LLM slot filler. It is single-pass,
@@ -73,8 +82,6 @@ longer exists. Every component is version-pinned in the traces.
 - Trajectory-level completion rate by route mix.
 
 ## The same step on the three paths
-
-![The same step on the three paths](docs/media/fig2_one_decision.svg)
 
 The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156."
 The compiler finds a name, a zip code and an order id and lists the actions that are legal right now; the
@@ -155,7 +162,7 @@ the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandb
 | `scripts/` | `live_run.py` (small real-model routed run), `tau2_compare.py` (the benchmark test) |
 | `docs/design/` | `routing.md`, `tau2-three-arms.md` (predictions and decision table), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
-| `docs/media/` | figures and the JSON specs they are rendered from |
+| `docs/media/` | figures: `fig_runtime_path.svg` and `fig_evolution_loops.svg` (hand-drawn SVG), `fig3_three_arms.svg` (rendered from `specs/`) |
 
 The execution layer follows the design of [JevHarness](https://github.com/TianyuCodings/JevHarness), a
 harness as a graph of sandboxed code and Jev calls evolved with GEPA, implemented independently here. GEPA
