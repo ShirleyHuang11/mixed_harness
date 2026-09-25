@@ -156,10 +156,10 @@
   {
    "id": "history",
    "label": "run history",
-   "sublabel": "full traces \u00b7 scores \u00b7 the route chosen vs what the route became",
+   "sublabel": "trajectories \u00b7 rewards \u00b7 dispatch decision vs realised route",
    "x": 690,
    "y": 455,
-   "width": 400,
+   "width": 430,
    "height": 56,
    "fill": "#F3F4F6",
    "stroke": "#9CA3AF"
@@ -167,10 +167,10 @@
   {
    "id": "evo_h",
    "label": "evolutionary loop over the execution layer",
-   "sublabel": "rewrites a route from its full traces \u00b7 kept only if the score rises",
+   "sublabel": "proposes a rewritten route from its trajectories \u00b7 accepted only on strict reward improvement",
    "x": 1035,
    "y": 575,
-   "width": 420,
+   "width": 470,
    "height": 60,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
@@ -178,10 +178,10 @@
   {
    "id": "evo_t",
    "label": "evolutionary loop over the triage",
-   "sublabel": "rewrites the route questions \u00b7 kept only if replay agreement rises",
+   "sublabel": "proposes a new question map \u00b7 accepted only if replay agreement with realised routes rises",
    "x": 330,
    "y": 575,
-   "width": 450,
+   "width": 470,
    "height": 60,
    "fill": "#DCFCE7",
    "stroke": "#22C55E"
@@ -296,7 +296,7 @@
   {
    "from": "hx",
    "to": "history",
-   "label": "every run",
+   "label": "every episode",
    "color": "#6B7280"
   },
   {
@@ -308,7 +308,7 @@
    "from": "evo_h",
    "to": "hx",
    "color": "#15803D",
-   "label": "rewritten route"
+   "label": "accepted route"
   },
   {
    "from": "history",
@@ -320,7 +320,7 @@
    "to": "tx",
    "color": "#15803D",
    "curve": true,
-   "label": "new question map, next task"
+   "label": "accepted question map, next task"
   }
  ],
  "groups": [
@@ -435,7 +435,7 @@
    "anchor": "start"
   },
   {
-   "text": "both loops run the same rule on the same history: propose, replay, keep only if better",
+   "text": "both loops apply one acceptance rule to one history: propose, evaluate on the same trajectories, accept only on improvement",
    "x": 690,
    "y": 640,
    "font_size": 12,
