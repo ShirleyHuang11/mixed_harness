@@ -29,16 +29,7 @@ cost, Jev probabilities and harness version.
 
 ## Architecture
 
-<table>
-<tr>
-<td width="48%" valign="top"><img src="docs/media/fig_runtime_path.svg" alt="Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store" width="100%"></td>
-<td width="52%" valign="top"><img src="docs/media/fig_evolution_loops.svg" alt="Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast), both deploy a new harness version" width="100%"></td>
-</tr>
-<tr>
-<td align="center">runtime path, one step</td>
-<td align="center">evolution loops, over the trace store</td>
-</tr>
-</table>
+![Runtime path: task state, action-space compiler, Jev router, three paths, guard, trace store, evolution loops](docs/media/fig_runtime_path.svg)
 
 **Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
 picks, so Jev picks actions and free-text arguments need a small LLM slot filler. It is single-pass,
@@ -54,6 +45,35 @@ set A(s), flags it as closed or open, and emits the minimal state slice for each
 router asks one choice question per state, closed, narrow or escalate, at the cost of about one Jev call.
 Each path produces an action. The guard checks it, then it executes and is logged. Trajectory-level escalation
 forces the LLM path after k consecutive low-margin steps or when progress stalls.
+
+## The same step on the three paths
+
+The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156."
+The compiler finds a name, a zip code and an order id and lists the actions that are legal right now; the
+action set is closed (look the customer up, or ask for identification), so the router sends the step down
+the closed path. Jev picks the lookup with confidence 0.72, above τ for this cluster, no argument is free
+text, the guard accepts the call, and `find_user_id_by_name_zip(Yusuf, Rossi, 19122)` executes. Cost: one
+Jev call.
+
+Three turns later the customer asks for the specifications of the replacement items. The action set is
+open, so the router does not send the step to Jev alone. On the narrow path the LLM writes a short menu
+(quote the two variants, ask which matters more, offer to list all) and Jev picks one. On the escalate path
+the LLM answers in a full turn with tool calls. Which of the two the router chooses is what loop B learns
+from traces; which turns stop needing the LLM at all is what loop A's macro-action mining changes over time.
+
+| | closed | narrow | escalate |
+|---|---|---|---|
+| who decides | Jev, from the compiled action set | Jev, from a menu the LLM wrote | the LLM |
+| who writes | a small LLM slot filler, only for free-text arguments | the LLM, a few candidates | the LLM |
+| cost per step | about one Jev call | one short LLM call and one Jev call | one full LLM call |
+| guard | schema, preconditions, irreversible → escalate | same | same |
+
+## Evolution loops
+
+![Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast); both deploy a new harness version](docs/media/fig_evolution_loops.svg)
+
+The box at the bottom right of the runtime figure, opened up. Both loops read the trace store; the slow one
+changes what Jev is asked, the fast one changes when Jev is trusted.
 
 **Loop A, execution layer (slow).** Evolve the questions, not Jev's weights: question templates, option
 sets, rubric definitions and state-slice selection are treated as programs and optimized on traces with
@@ -80,28 +100,6 @@ longer exists. Every component is version-pinned in the traces.
 - Error rate on accepted Jev decisions, against α.
 - The success versus cost and latency frontier.
 - Trajectory-level completion rate by route mix.
-
-## The same step on the three paths
-
-The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange the keyboard in order #W2378156."
-The compiler finds a name, a zip code and an order id and lists the actions that are legal right now; the
-action set is closed (look the customer up, or ask for identification), so the router sends the step down
-the closed path. Jev picks the lookup with confidence 0.72, above τ for this cluster, no argument is free
-text, the guard accepts the call, and `find_user_id_by_name_zip(Yusuf, Rossi, 19122)` executes. Cost: one
-Jev call.
-
-Three turns later the customer asks for the specifications of the replacement items. The action set is
-open, so the router does not send the step to Jev alone. On the narrow path the LLM writes a short menu
-(quote the two variants, ask which matters more, offer to list all) and Jev picks one. On the escalate path
-the LLM answers in a full turn with tool calls. Which of the two the router chooses is what loop B learns
-from traces; which turns stop needing the LLM at all is what loop A's macro-action mining changes over time.
-
-| | closed | narrow | escalate |
-|---|---|---|---|
-| who decides | Jev, from the compiled action set | Jev, from a menu the LLM wrote | the LLM |
-| who writes | a small LLM slot filler, only for free-text arguments | the LLM, a few candidates | the LLM |
-| cost per step | about one Jev call | one short LLM call and one Jev call | one full LLM call |
-| guard | schema, preconditions, irreversible → escalate | same | same |
 
 ## Measuring it
 
