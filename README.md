@@ -123,14 +123,13 @@ fails if the routed arm trails the best single arm. Before any routed run, stage
 closed fraction and Jev's agreement with the LLM are measured first. Stages, predictions and the decision table
 are written down in `docs/design/tau2-four-arms.md`; `docs/guides/tau2.md` covers setup and reading.
 
-Measured so far. Stage 0 ran on the 41 recorded LLM-only turns (2 retail tasks, each run twice) with real Jev:
-80% of turns are closed by the rule label (interval 66% to 90%; 41% if every text label were wrong), Jev agreed with
-the LLM on 4 of 4 identity-lookup turns and on 73% of closed turns overall, and on 18 of 18 picks whose reported
-confidence was 0.90 or higher against 6 of 15 below it. The misses are the turn-1 greeting, where Jev asks for
-identity instead, and step-order differences the guard absorbs. The threshold 0.9 is now the seed default. The
-earlier two-task run gave the cost picture: LLM only at $0.17 per task and 2.1 s per turn, Jev only at $0.004 per
-task and 0.47 s per turn with one Jev request per turn. Two tasks say nothing about accuracy; the four-arm run
-does, and it waits on LLM credit.
+Measured so far. Stage 2 ran on all 114 retail tasks (`docs/design/tau2-four-arms.md` has the table): LLM only
+0.842 at $0.22 per task, Jev only 0.158 at $0.003, routed 0.439 at $0.27. The routed harness fails the pre-registered
+test by 40 points and costs more, because it drifts: a third of its episodes repeat the same action three or more
+times, and the narrow path re-fetches the same order and re-asks for a confirmation the customer already gave. The
+step tables say which mechanisms, and the next version fixes them by hand before anything is evolved. Stage 0 on the
+41 recorded LLM-only turns had said the closed path itself is sound: Jev agreed with the LLM on 18 of 18 picks at
+confidence 0.9 or higher.
 
 ## Status
 
@@ -149,7 +148,7 @@ does, and it waits on LLM credit.
 | Loop A, macro-action mining (`mixedharness/mining.py`) | done as a miner; promotion to options is a proposal step |
 | Loop B, per-cluster policy from steps, embedded in the spec (`mixedharness/router.py`) | done; per-cluster τ(s) once clusters have enough steps |
 | Stage 0 labels and Jev replay (`scripts/stage0_label_replay.py`) | done; run on 41 turns with real Jev |
-| Four-arm benchmark runner with step tables and the stage 2 decision table | done; real runs blocked on LLM credit |
+| Four-arm benchmark runner with step tables, merge of partial runs, replay user | done; stage 2 run on 114 tasks: routed fails by 40 points (see the design doc) |
 
 ## Quick start
 

@@ -63,6 +63,31 @@ routed within 7.5 points of llm_only at ≤ 0.5× its agent cost; jev_only well 
 - `routed_evolved` takes a spec from an evolution run on the train split (74 tasks) and is scored on the test
   split (40), interval ±12 points; or the routed seed with a loop-B policy fitted on the `routed` arm's steps.
 
+Stage 2 result (2026-09-25, `runs/tau2/20260925-stage2-merged/table.md`, 114 tasks, all three arms complete, ±7.3 pt):
+
+| arm | pass^1 | $/task | turns/task | Jev share | narrow | escalate | guard interventions |
+|---|---|---|---|---|---|---|---|
+| llm_only | 0.842 | 0.224 | 12.2 | 0 | 0 | 1.00 | 0 |
+| jev_only | 0.158 | 0.0033 | 15.4 | 1.00 | 0 | 0 | 0 |
+| routed | 0.439 | 0.271 | 21.7 | 0.26 | 0.56 | 0.18 | 93 |
+
+**FAILS**: routed trails llm_only by 40.4 points and costs 1.2× as much. The positive control held (0.842 > 0.60) and
+the instrument counted correctly (jev_only made no LLM calls). The failure is drift, not wrong picks: on the 66 tasks
+with step records, 32 episodes contain three or more identical consecutive actions; the narrow path (Jev picked it on
+57% of steps) produced `get_order_details` 190 times, twice in a row in 41 episodes and three times in 18; the write
+gate fired 74 times in 41 episodes, 60 of them on the narrow path, because the menu's arguments differ slightly
+from turn to turn and the gate compares them exactly, so a confirmed write is asked to be confirmed again. Lost
+episodes have more narrow steps (60% vs 48%), more turns (23 vs 16) and more guard interventions (1.7 vs 1.0 per
+episode) than won ones. Closed picks were accepted at confidence ≥ 0.9 on 329 of 344 steps. The routed arm's first 48
+tasks lost their step records when the login node killed the run (a sandbox pool per agent leaked processes; fixed).
+
+What this decides for the next version (loop A, by hand, from these records): (1) the write gate on the LLM paths
+matches on tool and order, not on exact arguments; (2) a loaded order becomes the focused order, and the compiler asks
+"which order" when several are loaded, so the catalog stops offering a lookup that already happened; (3) an identical
+tool call repeated is "stuck" and escalates, and a lookup already in memory is answered from memory; (4) the narrow
+path is off by default: a narrow pick escalates, since won episodes used escalate more and narrow produced a message
+the LLM had written anyway on 410 of 746 steps. Version 2 is scored on the same 114 tasks against this table.
+
 **Stage 3, only if stage 2 holds: a second domain.** Airline (50 tasks, 14 tools), compiler written fresh and
 timed; and τ³ `banking_knowledge` for the first genuinely open tasks, where the narrow path is tested on something
 a template cannot cover.
