@@ -86,13 +86,15 @@ def parse_message(message, tool_names_by_id):
 
 
 class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
-    def __init__(self, tools, domain_policy, spec, jev, llm=None, *, label='pipeline', max_workers=8):
+    def __init__(self, tools, domain_policy, spec, jev, llm=None, *, label='pipeline', max_workers=8, pool=None):
         super().__init__(tools=tools, domain_policy=domain_policy)
         self.spec = spec
         self.jev = jev
         self.llm = llm
         self.label = label
-        self.runtime = Runtime(spec, jev, llm, max_workers=max_workers)
+        # A shared pool keeps the sandbox process count flat across simulations: one pool per arm, not one per agent.
+        self.runtime = Runtime(spec, jev, llm, max_workers=max_workers, pool=pool)
+        self.owns_pool = pool is None
         self.tool_schemas = {tool.name: tool_schema(tool) for tool in tools}
         self.tool_names_by_id = {}
         self.ledger = []
@@ -101,6 +103,10 @@ class PipelineAgent(HalfDuplexAgent[PipelineAgentState]):
                          'candidate_errors': 0, 'invalid_actions': 0, 'elapsed_ms': 0.0, 'cost_usd': 0.0,
                          'unpriced_calls': 0}
         self.actual_models = {'jev': set(), 'llm': set()}
+
+    def close(self):
+        if self.owns_pool:
+            self.runtime.close()
 
     # -- tau2 contract ----------------------------------------------------------------------------
     def get_init_state(self, message_history=None):

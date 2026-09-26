@@ -38,6 +38,7 @@ import os
 import statistics
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -51,7 +52,10 @@ from examples.tau2.seeds import SEEDS, routed_seed  # noqa: E402
 from mixedharness.jev import JevClient  # noqa: E402
 from mixedharness.llm import LLMClient  # noqa: E402
 from mixedharness.router import fit_policy, route_metrics  # noqa: E402
+from mixedharness.sandbox import WorkerPool  # noqa: E402
 from mixedharness.trace import read_steps, write_steps  # noqa: E402
+
+FLUSH_SECONDS = 60   # ledgers and steps of finished-so-far agents are written this often, so a killed run keeps them
 
 ARMS = ('llm_only', 'jev_only', 'routed', 'routed_evolved')
 PIPELINE_ARMS = ('jev_only', 'routed', 'routed_evolved')
@@ -246,14 +250,37 @@ def run_arm(arm, args, tasks, out_dir, jev, llm, evolved_spec):
         (arm_dir / 'seed_spec.json').write_text(json.dumps(spec, indent=1))
         name = f'mixedharness_{arm}'
         uses_llm = arm != 'jev_only'
+        pool = WorkerPool(size=max(4, 2 * args.concurrency))
 
         def factory(tools, domain_policy, **kwargs):
             task = kwargs.get('task')
-            agent = PipelineAgent(tools, domain_policy, spec, jev, llm if uses_llm else None, label=arm)
+            agent = PipelineAgent(tools, domain_policy, spec, jev, llm if uses_llm else None, label=arm, pool=pool)
             agents[(str(task.id) if task is not None else 'unknown', len(agents))] = agent
             return agent
         registry.register_agent_factory(factory, name)
         agent_name, agent_llm = name, 'none'
+
+    def flush(final=False):
+        if not agents:
+            return
+        snapshot = dict(agents)
+        (arm_dir / 'ledgers.json').write_text(json.dumps({f'{k[0]}#{k[1]}': a.ledger for k, a in snapshot.items()}, default=str))
+        (arm_dir / 'agents.json').write_text(json.dumps({f'{k[0]}#{k[1]}': a.summary() for k, a in snapshot.items()}, indent=1))
+        if not final:
+            rows = [row for (task_id, k), a in snapshot.items() for row in a.steps(episode=task_id, arm=arm, trial=k, reward=None)]
+            tmp = arm_dir / 'steps.partial.jsonl'
+            tmp.write_text(''.join(json.dumps(r, default=str) + '\n' for r in rows))
+
+    stop_flush = threading.Event()
+
+    def flusher():
+        while not stop_flush.wait(FLUSH_SECONDS):
+            try:
+                flush()
+            except Exception:
+                pass
+    if agents is not None and arm != 'llm_only':
+        threading.Thread(target=flusher, daemon=True).start()
     config = TextRunConfig(domain=args.domain, task_split_name=adapter.SPLITS[args.split], agent=agent_name,
                            user='replay_user' if args.user == 'replay' else 'user_simulator',
                            llm_agent=agent_llm, llm_args_agent=llm_args_for(agent_llm),
@@ -261,15 +288,19 @@ def run_arm(arm, args, tasks, out_dir, jev, llm, evolved_spec):
                            num_trials=args.trials, max_steps=args.max_steps, max_concurrency=args.concurrency,
                            seed=args.seed, log_level='ERROR')
     started = time.perf_counter()
-    results = run_tasks(config, tasks, save_path=arm_dir / 'results.json', save_dir=arm_dir, console_display=False)
+    try:
+        results = run_tasks(config, tasks, save_path=arm_dir / 'results.json', save_dir=arm_dir, console_display=False)
+    finally:
+        stop_flush.set()
+        if arm != 'llm_only':
+            flush(final=True)
+            pool.close()
     wall = time.perf_counter() - started
     summary = summarize_results(results, agents if agents else None)
     summary.update({'arm': arm, 'wall_s': wall, 'expected': len(tasks) * args.trials, 'agent_name': agent_name, 'agent_llm': agent_llm})
     if agents:
-        ledgers = {f'{k[0]}#{k[1]}': a.ledger for k, a in agents.items()}
-        (arm_dir / 'ledgers.json').write_text(json.dumps(ledgers, default=str))
-        (arm_dir / 'agents.json').write_text(json.dumps({f'{k[0]}#{k[1]}': a.summary() for k, a in agents.items()}, indent=1))
         steps = _steps_with_rewards(results, agents, arm)
+        (arm_dir / 'steps.partial.jsonl').unlink(missing_ok=True)
     else:
         steps = _llm_only_steps(results)
     write_steps(arm_dir / 'steps.jsonl', steps)
