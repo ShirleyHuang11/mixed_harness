@@ -52,7 +52,7 @@ TRANSFER_TEXT = 'YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.'
 TAU = 0.9                     # accept a closed pick only at this action confidence or above; set from stage 0 (2026-09-25):
                               # on 41 recorded turns every pick at >= 0.9 agreed with the LLM, 6 of 15 below it did
 LOW_AGREEMENT_STREAK = 3      # consecutive closed picks with disagreement before trajectory-level escalation
-STUCK_REPLIES = 3             # identical template replies in a row before trajectory-level escalation
+STUCK_REPLIES = 2             # identical actions (tool call or text) in a row before trajectory-level escalation
 
 # ---------------------------------------------------------------------------------------------------------
 # Helpers shared by the python nodes (prepended to each node's source).
@@ -173,6 +173,46 @@ def unit_hash(text):
 
 def describe_args(args):
     return "; ".join(str(k) + ": " + str(v) for k, v in args.items())
+
+
+def action_signature(action):
+    if not isinstance(action, dict):
+        return ""
+    if action.get("kind") == "tool":
+        args = action.get("arguments") or {}
+        return "tool:" + str(action.get("name")) + ":" + ",".join(str(k) + "=" + str(args[k]) for k in sorted(args))
+    return "msg:" + str(action.get("text") or "")[:200]
+
+
+def summarise_order(order):
+    items = ", ".join(str(i.get("name")) + " (item " + str(i.get("item_id")) + ", $" + str(i.get("price")) + ")" for i in (order.get("items") or []))
+    return "Order " + str(order.get("order_id")) + " is " + str(order.get("status")) + ". Items: " + items + ". Shipping to " + str((order.get("address") or {}).get("city")) + ". How can I help with this order?"
+
+
+def summarise_product(product):
+    avail = [v for v in (product.get("variants") or {}).values() if v.get("available")]
+    lines = []
+    for v in avail[:12]:
+        opts = ", ".join(str(k) + " " + str(val) for k, val in (v.get("options") or {}).items())
+        lines.append("item " + str(v.get("item_id")) + ": " + opts + " ($" + str(v.get("price")) + ")")
+    return "Available variants of " + str(product.get("name")) + ": " + "; ".join(lines) + ". Which one would you like?"
+
+
+def summarise_user(user):
+    return "You are verified. I can see " + str(len(user.get("orders") or [])) + " orders on your account: " + ", ".join(user.get("orders") or []) + ". Which one can I help with?"
+
+
+def same_write(pending, name, args):
+    if not isinstance(pending, dict) or pending.get("tool") != name:
+        return False
+    p = pending.get("arguments") or {}
+    if "order_id" in p or "order_id" in args:
+        if str(p.get("order_id")) != str(args.get("order_id")):
+            return False
+    if "item_ids" in p or "item_ids" in args:
+        if set(str(x) for x in (p.get("item_ids") or [])) != set(str(x) for x in (args.get("item_ids") or [])):
+            return False
+    return True
 '''
 
 # ---------------------------------------------------------------------------------------------------------
@@ -183,7 +223,8 @@ def run(obs, nodes, memory):
     mem = dict(memory) if isinstance(memory, dict) else {}
     for key, default in [("user_id", None), ("user", None), ("orders", {}), ("products", {}), ("pending", None),
                          ("completed", []), ("transferred", False), ("turns", 0), ("tried", []),
-                         ("low_agreement_streak", 0), ("same_reply_streak", 0), ("last_path", None)]:
+                         ("low_agreement_streak", 0), ("same_reply_streak", 0), ("last_path", None),
+                         ("focus_order", None), ("last_signature", None)]:
         mem.setdefault(key, default)
     mem["turns"] = mem["turns"] + 1
     conv = conversation_with_incoming(obs)
@@ -257,6 +298,10 @@ def run(obs, nodes, memory):
         if oid in user_orders or not user_orders:
             focus = oid
             break
+    if focus is None and mem.get("focus_order") in known_orders:
+        focus = mem["focus_order"]          # Jev answered "which order" on an earlier turn
+    if focus is None and len(known_orders) == 1:
+        focus = known_orders[0]             # the one order that has been looked up is the one we are talking about
     if focus is None and len(user_orders) == 1:
         focus = user_orders[0]
     order = mem["orders"].get(focus) if focus else None
@@ -406,6 +451,12 @@ def run(obs, nodes, memory):
     questions["fits"] = {"type": "noul", "instructions": "Does at least one of the listed options fit what the customer's latest message asks for, without needing anything the facts do not contain?"}
     questions["user_confirms"] = {"type": "noul", "instructions": "Does the user's latest message give an explicit yes to proceed with the action the agent just listed? Answer near 0 if the agent has not listed an action yet or the user changed the request."}
     candidates = {}
+    if focus is None and len(known_orders) > 1:
+        crit = {}
+        for oid in known_orders[:8]:
+            o = mem["orders"][oid]
+            crit[oid] = "Order " + oid + ", " + str(o.get("status")) + ": " + ", ".join(str(i.get("name")) for i in (o.get("items") or [])[:4])
+        questions["which_order"] = {"type": "choice", "instructions": "Several of the customer's orders have been looked up. Which one is the customer talking about now?", "criteria": crit}
     if len(names) > 1:
         crit = {}
         for n in names:
@@ -454,6 +505,7 @@ def run(obs, nodes, memory):
     f = cx["facts"]
     mem = cx["memory"]
     allow_llm = __ALLOW_LLM__
+    allow_narrow = __ALLOW_NARROW__
     policy = __POLICY__
     paths = ["closed", "narrow", "escalate"]
     route_answer = sel.get("route") or {}
@@ -485,8 +537,10 @@ def run(obs, nodes, memory):
     if not cx["closed"] and path == "closed":
         path = "narrow"   # neither the policy nor a shadow draw may put an open step on the closed path
     if mem.get("low_agreement_streak", 0) >= __LOW_AGREEMENT_STREAK__ or mem.get("same_reply_streak", 0) >= __STUCK_REPLIES__:
-        if path != "escalate":
+        if path != "escalate" and allow_llm:
             path, source = "escalate", "trajectory"
+    if not allow_narrow and path == "narrow":
+        path = "escalate"   # the narrow path is off: the LLM takes the step itself (source unchanged)
     if not allow_llm and path != "closed":
         path, source = "closed", "forced"
     if mem.get("transferred") and path != "closed":
@@ -511,7 +565,8 @@ def run(obs, nodes, memory):
                 conv_lines.append(str(m.get("role")) + ": " + str(m.get("text"))[:600])
         known = {"user_id": f["user_id"], "focus_order": f["focus_order"], "focus_order_status": f["focus_order_status"],
                  "orders_loaded": f["orders_loaded"], "products_loaded": f["products_loaded"], "pending_write": f["pending"],
-                 "completed_writes": f["completed"], "options_code_can_execute": list(cx["options"].keys())}
+                 "completed_writes": f["completed"], "options_code_can_execute": list(cx["options"].keys()),
+                 "note": "orders_loaded and products_loaded are already in memory: never propose fetching them again; use their contents"}
         menu_prompt = ("You are a retail customer-service agent. Follow this policy exactly:\\n" + str(obs.get("policy") or "") +
                        "\\n\\nTools:\\n" + "\\n".join(tool_lines) +
                        "\\n\\nWhat the system already knows: " + str(known) +
@@ -542,6 +597,9 @@ def run(obs, nodes, memory):
     pm = f.get("payment_methods") or {}
     chosen = (sel.get("action") or {}).get("choice")
     confirms = float((sel.get("user_confirms") or {}).get("noul") or 0.0)
+    which = (sel.get("which_order") or {}).get("choice")
+    if which and which in (mem.get("orders") or {}):
+        mem["focus_order"] = which
     action = None
     reply = None
     tool = None
@@ -764,24 +822,40 @@ def run(obs, nodes, memory):
                 guard = "bad_arguments"
                 action = {"kind": "message", "text": "I need a little more information before I can do that. Could you confirm the details (order id, items and the option you want)?"}
             elif name in write_tools and path != "closed":
-                # The irreversible gate on the LLM paths: an explicit yes to these exact details, else ask for it.
+                # The irreversible gate on the LLM paths: the customer said yes to this tool on this order (item set
+                # included when there is one); other argument differences between turns are not a new operation.
                 pending = mem.get("pending")
-                same = pending is not None and pending.get("tool") == name and pending.get("arguments") == args
+                same = same_write(pending, name, args)
                 confirmed = f["last_user_says"] == "yes" or (float(dec.get("confirms") or 0.0) > 0.5 and f["last_user_says"] != "no")
                 if not (same and confirmed):
                     mem["pending"] = {"tool": name, "arguments": args}
                     guard = "write_gate"
                     action = {"kind": "message", "text": "Please confirm the following action so I can proceed: " + str(name) + " with " + describe_args(args) + ". Reply 'yes' to confirm or tell me what to change."}
+    # --- a read already in memory is answered from memory, not re-fetched ------------------------------
+    if action.get("kind") == "tool" and guard == "ok":
+        name = action.get("name")
+        args = action.get("arguments") or {}
+        if name == "get_order_details" and str(args.get("order_id")) in (mem.get("orders") or {}):
+            action = {"kind": "message", "text": summarise_order(mem["orders"][str(args["order_id"])])}
+            guard = "memory_answer"
+            mem["focus_order"] = str(args["order_id"])
+        elif name == "get_product_details" and str(args.get("product_id")) in (mem.get("products") or {}):
+            action = {"kind": "message", "text": summarise_product(mem["products"][str(args["product_id"])])}
+            guard = "memory_answer"
+        elif name == "get_user_details" and mem.get("user") and str(args.get("user_id")) == str(mem.get("user_id")):
+            action = {"kind": "message", "text": summarise_user(mem["user"])}
+            guard = "memory_answer"
     # --- trajectory counters --------------------------------------------------------------------------
     if rt["path_jev"] == "closed" and rt["agreement"] is False:
         mem["low_agreement_streak"] = mem.get("low_agreement_streak", 0) + 1
     else:
         mem["low_agreement_streak"] = 0
-    recent = [m.get("text") for m in (obs.get("conversation") or [])[-4:] if m.get("role") == "assistant" and m.get("text")]
-    if action.get("kind") == "message" and recent and recent[-1] == action.get("text"):
-        mem["same_reply_streak"] = mem.get("same_reply_streak", 0) + 1
+    signature = action_signature(action)
+    if signature and signature == mem.get("last_signature"):
+        mem["same_reply_streak"] = mem.get("same_reply_streak", 0) + 1   # the same tool call or the same text, twice in a row
     else:
         mem["same_reply_streak"] = 0
+    mem["last_signature"] = signature
     if path == "escalate":
         mem["low_agreement_streak"] = 0
         mem["same_reply_streak"] = 0
@@ -809,8 +883,9 @@ MENU_SCHEMA = {'type': 'object', 'required': ['options'], 'additionalProperties'
                                   'when': {'type': 'string'}}}}}}
 
 
-def _fill(source, *, allow_llm, policy=None, tau=TAU):
+def _fill(source, *, allow_llm, policy=None, tau=TAU, narrow=False):
     return (COMMON_SOURCE + source).replace('__ALLOW_LLM__', 'True' if allow_llm else 'False') \
+        .replace('__ALLOW_NARROW__', 'True' if narrow else 'False') \
         .replace('__TAU__', repr(float(tau))) \
         .replace('__WRITE_TOOLS__', json.dumps(list(WRITE_TOOLS))) \
         .replace('__TRANSFER_TEXT__', json.dumps(TRANSFER_TEXT)) \
@@ -819,11 +894,11 @@ def _fill(source, *, allow_llm, policy=None, tau=TAU):
         .replace('__STUCK_REPLIES__', str(STUCK_REPLIES))
 
 
-def _core_nodes(*, allow_llm, policy=None, tau=TAU):
+def _core_nodes(*, allow_llm, policy=None, tau=TAU, narrow=False):
     return [
         {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['compile']['state']", 'questions_expression': "nodes['compile']['questions']"},
-        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau), 'inputs': ['compile', 'judge']},
+        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau, narrow=narrow), 'inputs': ['compile', 'judge']},
         {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm=allow_llm), 'inputs': ['compile', 'judge']},
     ]
 
@@ -837,10 +912,11 @@ def jev_only_seed():
     return validate_spec(spec)
 
 
-def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU):
-    """The routed harness: compiler, one Jev request, three paths, guard. `policy` is a fitted loop-B policy or None;
-    `tau` the action-confidence threshold below which a closed pick goes to the narrow path."""
-    nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau) + [
+def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU, narrow=False):
+    """The routed harness: compiler, one Jev request, the paths, guard. `policy` is a fitted loop-B policy or None;
+    `tau` the action-confidence threshold below which a closed pick escalates; `narrow` turns the menu path on
+    (off by default since stage 2: it cost more than escalate and produced the loops)."""
+    nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau, narrow=narrow) + [
         {'id': 'menu', 'kind': 'llm', 'prompt': "nodes['route']['menu_prompt']", 'schema': MENU_SCHEMA, 'max_tokens': 2000, 'on_error': 'null'},
         {'id': 'menu_q', 'kind': 'python', 'source': _fill(MENU_Q_SOURCE, allow_llm=True), 'inputs': ['compile', 'menu']},
         {'id': 'menu_pick', 'kind': 'jev', 'state': "nodes['menu_q']['state']", 'questions_expression': "nodes['menu_q']['questions']"},
