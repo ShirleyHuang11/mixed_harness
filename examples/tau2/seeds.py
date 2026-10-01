@@ -52,7 +52,7 @@ TRANSFER_TEXT = 'YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.'
 TAU = 0.9                     # accept a closed pick only at this action confidence or above; set from stage 0 (2026-09-25):
                               # on 41 recorded turns every pick at >= 0.9 agreed with the LLM, 6 of 15 below it did
 LOW_AGREEMENT_STREAK = 3      # consecutive closed picks with disagreement before trajectory-level escalation
-STUCK_REPLIES = 2             # identical actions (tool call or text) in a row before trajectory-level escalation
+STUCK_REPLIES = 1             # once the same action (tool call or text) has repeated, the next step escalates
 
 # ---------------------------------------------------------------------------------------------------------
 # Helpers shared by the python nodes (prepended to each node's source).
@@ -675,6 +675,13 @@ def run(obs, nodes, memory):
         mem["pending"] = None
         tool = None
         reply = "ask_change"
+    pending_now = mem.get("pending")
+    if pending_now is not None and f["incoming_role"] == "user" and (f["last_user_says"] == "yes" or confirms > 0.5) and f["last_user_says"] != "no" \
+            and pending_now.get("tool") in tools and tool != pending_now.get("tool"):
+        # The customer just confirmed the listed write (set by any path); execute exactly what was listed.
+        tool = pending_now["tool"]
+        args = dict(pending_now.get("arguments") or {})
+        reply = None
     if tool is not None:
         if tool in write_tools:
             pending = mem.get("pending")
