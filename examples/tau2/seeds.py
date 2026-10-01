@@ -435,11 +435,13 @@ def run(obs, nodes, memory):
     cluster = ("auth" if auth else "anon") + "|" + str(incoming.get("role") or "none") + "|" + str((order or {}).get("status") or "no_order") + "|" + top_intent(intents)
     # --- every question Jev is asked this turn, in one request ----------------------------------------
     questions = {}
+    route_criteria = {
+        "closed": "One of the listed options is the right next step and every value it needs is already known from the facts. Choose this whenever a listed option fits the customer's latest message, including reporting a tool result or asking a listed question, even if a language model could phrase it better.",
+        "escalate": "No listed option does what this turn needs: the customer asked for an explanation, a comparison or a value that is not in the facts, or the next step requires reasoning no option covers. Hand the whole turn to the language-model agent, at the cost of a full model call."}
+    if __ALLOW_NARROW__:
+        route_criteria["narrow"] = "The request is understood but no listed option fits exactly, or a listed option needs a value that must be composed; a short menu of candidate actions written by a language model, then a pick from it, would settle the turn."
     questions["route"] = {"type": "choice", "instructions": ("You are the routing step of a retail customer-service agent. The facts list what code already knows and "
-        "the options list the actions code can execute right now. Judge which path this turn should take."), "criteria": {
-        "closed": "One of the listed options is exactly the right next step and every value it needs is already known from the facts. Choose this whenever a listed option fits the customer's latest message.",
-        "narrow": "The request is understood but no listed option fits exactly, or a listed option needs a value that must be composed; a short menu of candidate actions written by a language model, then a pick from it, would settle the turn.",
-        "escalate": "The turn needs a free-form explanation, reasoning across several steps, or a reply no template covers; hand the whole turn to the language-model agent."}}
+        "the options list the actions code can execute right now. Judge which path this turn should take; prefer the listed options when one fits."), "criteria": route_criteria}
     questions["action"] = {"type": "choice", "instructions": ("You are the decision step of a retail customer-service agent that must follow the policy in the state. "
         "Choose exactly one next action id. Prefer a tool call when its arguments are already known; before any database write the user must have "
         "explicitly confirmed the listed details; never respond and call a tool in the same turn."), "criteria": options}
@@ -903,7 +905,7 @@ def _fill(source, *, allow_llm, policy=None, tau=TAU, narrow=False):
 
 def _core_nodes(*, allow_llm, policy=None, tau=TAU, narrow=False):
     return [
-        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm), 'inputs': []},
+        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm, narrow=narrow), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['compile']['state']", 'questions_expression': "nodes['compile']['questions']"},
         {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau, narrow=narrow), 'inputs': ['compile', 'judge']},
         {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm=allow_llm), 'inputs': ['compile', 'judge']},
