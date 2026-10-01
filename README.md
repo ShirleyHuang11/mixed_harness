@@ -8,10 +8,10 @@ retail. Some decisions are not small: an explanation the policy does not script,
 calls, a reply that has to be composed. For those, the full model call is the right tool.
 
 Mixed Harness is a framework for splitting a tool-using task along that line and for learning where the
-line is. **Code compiles each step into a typed action set; Jev, TypeSafe's judgment model, picks from it
-when it is confident; a language model takes the step when it is not; and every step is recorded so that
-the next version of the compiler is generated from what the language model had to do.** The LLM explores,
-the code takes over. The pieces are:
+line is. **Code compiles each step into a typed action set, and Jev, TypeSafe's judgment model, picks from
+it when it is confident. A language model takes the step when Jev is not confident. Every step is recorded,
+and the next version of the compiler is generated from what the language model had to do.** The LLM
+explores, the code takes over. The pieces are:
 
 - **A compiler** that turns tool schemas, the policy and the current state into the legal actions, the
   arguments code can fill, and the questions a judgment model is asked. It is domain code. In the current
@@ -40,9 +40,9 @@ and returns a probability with every pick, and that probability has resolution: 
 it agreed with the LLM on 98% of picks at confidence 0.99 or above, 82% between 0.90 and 0.99, and 35% below
 0.90. So a threshold is the abstain signal, and it is set from data per cluster. Extraneous context lowers its
 accuracy and its context is capped, so the compiler must produce a minimal state slice per question. Its
-weights are proprietary, so the questions evolve, not the model. It is weaker on long horizons: it picks well
-when the options are a judgment and poorly when they are a plan, which is why the compiler carries the
-workflow and the LLM takes the steps the compiler cannot express.
+weights are proprietary, so the questions evolve, not the model. It is weaker on long horizons. It picks
+well when the options are a judgment and poorly when they are a plan, so the compiler carries the workflow
+and the LLM takes the steps the compiler cannot express.
 
 **Runtime path.** The execution layer is the compiler, the paths and the guard; the routing layer is the Jev
 router between them. The compiler turns tool schemas and state into the legal action set, flags it closed
