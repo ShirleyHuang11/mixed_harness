@@ -111,6 +111,25 @@ shared plan: the escalate path writes a short structured plan into memory and th
 so an LLM call happens per plan change rather than per open turn; and the LLM-path write gate accepts a yes that
 follows the LLM's own confirmation message instead of demanding a recorded pending write.
 
+Routed version 3a (2026-10-01, `runs/tau2/20261001-stage2-v3a-merged/table.md`): the route question is two-way
+(closed / escalate) when narrow is off, an escalate pick needs route confidence ≥ 0.6, and a tool-result step with
+listed options defaults to closed.
+
+| arm | pass^1 (114) | $/task | turns/task | Jev share | LLM calls/episode | looping episodes |
+|---|---|---|---|---|---|---|
+| llm_only | 0.842 | 0.224 | 12.2 | 0 | 12.2 | 0% |
+| routed v2 | 0.764 (110) | 0.212 | 17.1 | 0.31 | 11.2 | 3% |
+| routed v3a | 0.807 | 0.208 | 17.9 | 0.37 | 10.6 | 3% |
+
+Accuracy is now within noise of llm_only (3.5 points, ±7.3); per task 84 both pass, 12 only llm_only, 8 only routed,
+10 both fail. Cost is 0.93×: INCONCLUSIVE ON COST by the table. The route question fix worked on its own terms, Jev
+now picks closed on 71% of steps (was about 45%), but the action-confidence gate took over: 775 of 1,926 steps (40%)
+escalated because the action pick's confidence was below τ = 0.9, median 0.73, 536 of them right after a tool
+result, where several listed options are plausible (report the result, or fetch the next thing) and the probability
+mass spreads. τ = 0.9 came from 41 turns in stage 0; the 114 LLM-only trajectories (about 1,400 turns) are the data
+to recalibrate it, per cluster, which is loop B's conformal step with real support. Stickiness is unchanged: after an
+escalate step the next step escalates 76% of the time.
+
 **Stage 3, only if stage 2 holds: a second domain.** Airline (50 tasks, 14 tools), compiler written fresh and
 timed; and τ³ `banking_knowledge` for the first genuinely open tasks, where the narrow path is tested on something
 a template cannot cover.
