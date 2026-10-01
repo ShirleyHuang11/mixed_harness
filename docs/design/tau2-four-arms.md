@@ -88,6 +88,29 @@ tool call repeated is "stuck" and escalates, and a lookup already in memory is a
 path is off by default: a narrow pick escalates, since won episodes used escalate more and narrow produced a message
 the LLM had written anyway on 410 of 746 steps. Version 2 is scored on the same 114 tasks against this table.
 
+Routed version 2 (2026-10-01, `runs/tau2/20261001-stage2-v2-merged/table.md`; the five fixes above, narrow off):
+
+| arm | pass^1 (110 common tasks) | $/task | turns/task | Jev share | LLM calls/turn | episodes with ≥3 identical replies |
+|---|---|---|---|---|---|---|
+| llm_only | 0.845 | 0.224 | 12.2 | 0 | 1.00 | 0% |
+| jev_only | 0.164 | 0.0033 | 15.4 | 1.00 | 0 | — |
+| routed v1 | 0.439 | 0.271 | 21.7 | 0.26 | 0.76 | 25% |
+| routed v2 | 0.764 | 0.212 | 17.1 | 0.31 | 0.70 | 3% |
+
+Four tasks (110 to 113) failed when the Anthropic credit ran out and are not in the table. The gap to llm_only went from
+40 points to 8.1 (noise ±7.5), so the bugs were most of the loss; the remaining gap is at the edge of resolution. Per
+task: 77 both pass, 16 only llm_only, 7 only routed, 10 both fail. Cost 0.95× llm_only, far from the pre-registered
+0.5×: the LLM still takes 69% of steps (Jev's route pick plus 14% low-confidence escalations), each as expensive as an
+llm_only turn, and v2 uses 40% more turns. The write gate fired 129 times in 78 episodes: the LLM path asks for
+confirmation in its own words (a message, so no pending write is recorded), the customer says yes, the LLM calls the
+write tool, and the gate, seeing no recorded pending write, asks again. Lost episodes carry more gates (1.35 vs 1.07
+per episode) and more turns (18.2 vs 15.4). Verdict by the table: FAILS on cost, borderline on accuracy.
+
+What this decides: the per-step router is not losing on wrong picks any more; it loses on turns. Version 3 is the
+shared plan: the escalate path writes a short structured plan into memory and the closed path executes its steps,
+so an LLM call happens per plan change rather than per open turn; and the LLM-path write gate accepts a yes that
+follows the LLM's own confirmation message instead of demanding a recorded pending write.
+
 **Stage 3, only if stage 2 holds: a second domain.** Airline (50 tasks, 14 tools), compiler written fresh and
 timed; and τ³ `banking_knowledge` for the first genuinely open tasks, where the narrow path is tested on something
 a template cannot cover.
