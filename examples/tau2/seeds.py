@@ -49,6 +49,7 @@ WRITE_TOOLS = ('cancel_pending_order', 'exchange_delivered_order_items', 'modify
                'return_delivered_order_items')
 
 TRANSFER_TEXT = 'YOU ARE BEING TRANSFERRED TO A HUMAN AGENT. PLEASE HOLD ON.'
+ESCALATE_TAU = 0.6            # Jev's escalate pick needs this route confidence when the compiler has options; else closed
 TAU = 0.9                     # accept a closed pick only at this action confidence or above; set from stage 0 (2026-09-25):
                               # on 41 recorded turns every pick at >= 0.9 agreed with the LLM, 6 of 15 below it did
 LOW_AGREEMENT_STREAK = 3      # consecutive closed picks with disagreement before trajectory-level escalation
@@ -521,6 +522,11 @@ def run(obs, nodes, memory):
     fits = (sel.get("fits") or {}).get("noul")
     path = path_jev
     source = "jev"
+    escalate_confidence = (route_answer.get("probabilities") or {}).get("escalate")
+    if path == "escalate" and cx["closed"] and (escalate_confidence is None or escalate_confidence < __ESCALATE_TAU__):
+        path, source = "closed", "escalate_below_tau"   # symmetric threshold: an unsure escalate stays on the listed options
+    if cx["closed"] and f["incoming_role"] == "tool" and f["pending"] is None and path != "closed":
+        path, source = "closed", "tool_result"          # a tool result with listed options is reported by code, not by the LLM
     if not cx["closed"] and path == "closed":
         path, source = "narrow", "code_override"
     if path == "closed" and (confidence is None or confidence < __TAU__):
@@ -896,6 +902,7 @@ def _fill(source, *, allow_llm, policy=None, tau=TAU, narrow=False):
     return (COMMON_SOURCE + source).replace('__ALLOW_LLM__', 'True' if allow_llm else 'False') \
         .replace('__ALLOW_NARROW__', 'True' if narrow else 'False') \
         .replace('__TAU__', repr(float(tau))) \
+        .replace('__ESCALATE_TAU__', repr(float(ESCALATE_TAU))) \
         .replace('__WRITE_TOOLS__', json.dumps(list(WRITE_TOOLS))) \
         .replace('__TRANSFER_TEXT__', json.dumps(TRANSFER_TEXT)) \
         .replace('__POLICY__', policy_source_literal(policy)) \

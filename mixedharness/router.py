@@ -25,7 +25,7 @@ import json
 import statistics
 
 PATHS = ('closed', 'narrow', 'escalate')
-PATH_SOURCES = ('jev', 'code_override', 'low_confidence', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
+PATH_SOURCES = ('jev', 'code_override', 'low_confidence', 'escalate_below_tau', 'tool_result', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
 DEFAULT_LAMBDA = 0.5          # success units per dollar of agent cost per step, scaled by COST_SCALE
 COST_SCALE = 100.0            # reward = success - lambda * cost_usd * COST_SCALE  (one cent of LLM cost = 0.005 success)
 MIN_SAMPLES = 8               # a path needs this many scored steps in a cluster before the policy will prefer it
