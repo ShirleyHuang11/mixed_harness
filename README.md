@@ -18,9 +18,9 @@ explores, the code takes over. The pieces are:
   version it is hand-written for one domain; the framework's claim is that it should be *generated*, by a
   language model, from the tool schemas, the policy, and what earlier runs recorded.
 - **A router** that sends each step to the closed path (Jev decides, code fills the arguments, a template
-  writes the text) or the escalate path (one native tool-calling turn of the LLM), from three signals: the
-  compiler's closed flag, Jev's own route pick, and Jev's confidence on its action pick against a threshold
-  calibrated per state cluster.
+  writes the text) or the escalate path (one native tool-calling turn of the LLM), from four signals: the
+  compiler's closed flag, Jev's own route pick, a path preference per state cluster learned from outcomes, and
+  Jev's confidence on its action pick against a threshold fitted per cluster from recorded LLM-only turns.
 - **A guard** on every path: tool and argument checks, and a write gate that lets no database write through
   without the customer's yes to that operation.
 - **A step table** that records, for every step, the cluster, the path and why, the confidence, the action,
@@ -50,8 +50,9 @@ when every argument of every option can be filled from state and the customer's 
 in it, and writes every question for one Jev request: the route pick, the action pick, a reordered paraphrase
 of it, whether any option fits, whether the customer confirmed, and the candidate questions (which item, which
 variant, which payment method, which order). The router applies the signals in order: compiler flag, Jev's
-route pick, the confidence threshold on the action pick, the per-cluster policy, trajectory-level escalation
-when an action repeats. The closed path executes; the escalate path hands the step to the LLM. The narrow
+route pick, the learned path preference for the cluster, the cluster's confidence threshold on the action pick
+(the per-step signal has the last word), trajectory-level escalation when an action repeats. The thresholds and
+preferences travel with the harness as one JSON policy (`examples/tau2/policy.json`) and hash with the spec. The closed path executes; the escalate path hands the step to the LLM. The narrow
 path, an LLM-written menu that Jev picks from, exists in the code and is off by default: on retail it cost
 more than escalating and produced most of the loops. The guard checks the action, gates writes, and writes
 the step record.
@@ -78,12 +79,14 @@ what order, with what arguments. A language model then writes the compiler from 
 and that seed, and GEPA refines it on traces with strict improvement. The hand-written retail compiler is the
 target this generator has to match; the test of the framework is a second domain with no hand-written code.
 
-**Loop B, the router is calibrated, not designed.** The step table joined to outcomes gives, per cluster, the
-agreement between Jev and the LLM at each confidence level, and the success rate of each path. The first sets
-the threshold per cluster: on retail the identity clusters are reliable at any confidence, the clusters right
-after a tool result need 0.99. The second is a bandit over the paths with reward success minus λ·cost, with
-an ε share of shadow runs so a path the router distrusts still gets measured. Recalibration runs after every
-compiler change, because a new compiler changes what Jev is asked.
+**Loop B, the router is calibrated, not designed.** Two fits, both in `scripts/fit_policy.py`. The threshold
+per cluster comes from the recorded LLM-only turns: Jev is replayed on each one and the smallest threshold at
+which its picks agree with the LLM's on at least 90% of accepted turns is kept. On retail that gives 0.6 for the
+identity clusters (Jev is right there at any confidence), 0.99 or never for the clusters right after a tool
+result (Jev is guessing which lookup comes next). The path preference per cluster comes from routed step tables
+joined to episode rewards, with reward success minus λ·cost and an ε share of shadow runs so a path the router
+distrusts still gets measured. Recalibration runs after every compiler change, because a new compiler changes
+what Jev is asked.
 
 **What JevHarness has and what this adds.** The execution layer follows
 [JevHarness](https://github.com/TianyuCodings/JevHarness): a harness as a graph of sandboxed code and Jev
@@ -134,13 +137,13 @@ again.
 | Compiler for τ²-bench retail: catalog, argument fill, closed flag, cluster, questions | done, hand-written (`examples/tau2/seeds.py`) |
 | Compiler generator: LLM writes the compiler from schemas, policy and mined seeds | designed, not built |
 | One Jev request per step with route pick, action pick, paraphrase, fits, candidates | done |
-| Router: compiler flag → Jev pick → confidence threshold → policy with ε shadow → trajectory escalation | done; τ = 0.9 global, per-cluster values measured but not yet deployed |
+| Router: compiler flag → Jev pick → learned path preference → per-cluster confidence threshold → trajectory escalation | done; thresholds and preferences fitted from 1,389 replayed turns and 114 routed episodes, embedded as `examples/tau2/policy.json` |
 | Closed and escalate paths; narrow path (off by default) | done |
-| Guard: tool and argument checks, write gate on every path, fallback | done |
+| Guard: tool and argument checks, write gate on every path (a yes after the LLM's own confirmation question counts), fallback | done |
 | Step table with routing record and episode reward; merge of partial runs | done (`mixedharness/trace.py`, `scripts/tau2_merge.py`) |
 | Loop A, labeller and sequence miner | done (`scripts/stage0_label_replay.py`, `mixedharness/mining.py`) |
 | Loop A, GEPA over the whole spec | done, tested with a mock reflection model |
-| Loop B, per-cluster policy from steps embedded in the spec | done (`mixedharness/router.py`); per-cluster τ not yet wired |
+| Loop B, threshold and path preference per cluster, fitted and embedded | done (`mixedharness/router.py`, `scripts/fit_policy.py`) |
 | Four-arm benchmark runner, replay user for credit-free plumbing | done; results above |
 | Second domain with no hand-written compiler | not started; the test of generality |
 
