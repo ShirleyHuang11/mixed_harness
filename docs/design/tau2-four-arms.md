@@ -130,6 +130,32 @@ mass spreads. τ = 0.9 came from 41 turns in stage 0; the 114 LLM-only trajector
 to recalibrate it, per cluster, which is loop B's conformal step with real support. Stickiness is unchanged: after an
 escalate step the next step escalates 76% of the time.
 
+Routed version 3b (2026-10-05, `runs/tau2/20261005-stage2-v3b-merged/table.md`): loop B deployed. Threshold per
+cluster from the 1,389-turn replay (identity clusters 0.6; clusters right after a tool result 0.99 or never), path
+preference per cluster from the v3a step table, both in `examples/tau2/policy.json`; the write gate accepts a yes
+after the LLM's own confirmation question.
+
+| arm | pass^1 (114) | $/task | turns/task | Jev share | LLM calls/episode | guard interventions |
+|---|---|---|---|---|---|---|
+| llm_only | 0.842 | 0.224 | 12.2 | 0 | 12.2 | 0 |
+| routed v3a | 0.807 | 0.208 | 17.9 | 0.37 | 10.6 | 149 |
+| routed v3b | 0.763 | 0.188 | 16.1 | 0.36 | 9.7 | 53 |
+
+Cost moved to 0.84× and the gate fix removed two thirds of the guard interventions and two turns per episode, but
+the Jev share did not move and pass^1 drifted down 4.4 points (within noise; per task 80 both, 12 only v3a, 7 only
+v3b). The per-cluster thresholds did what they were fitted to do: of the 665 low-confidence escalations, 340 are in
+the "never" clusters, all of the shape authenticated / tool result just arrived / no focused order. Those clusters
+are a quarter of all steps in a routed run, and in the recorded LLM-only turns the LLM's own action there splits
+three ways, load an order (30%), report the result (25%), ask which order (25%), while Jev picks "load the profile"
+first. The 112 steps accepted below 0.9 under the relaxed thresholds sit in lost episodes at 37% against 24% overall,
+so the 0.6 clusters are suspect too. Verdict: FAILS by 7.9 points, cost 0.84×.
+
+What this decides: the remaining escalations are not a threshold problem, they are the workflow after a lookup, and
+the LLM-only traces show that workflow is three deterministic rules (one order known → load it; several → ask which,
+listing them; a result just arrived → report it). Version 4 puts those rules in the compiler as the step's default
+when exactly one applies, asks Jev only when more than one does, and reverts the relaxed 0.6 thresholds to 0.9 until
+the routed step tables, not the LLM-only replay, support them.
+
 **Stage 3, only if stage 2 holds: a second domain.** Airline (50 tasks, 14 tools), compiler written fresh and
 timed; and τ³ `banking_knowledge` for the first genuinely open tasks, where the narrow path is tested on something
 a template cannot cover.
