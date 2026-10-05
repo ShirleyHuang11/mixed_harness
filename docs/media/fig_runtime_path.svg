@@ -47,7 +47,7 @@ text{font-family:'DejaVu Sans',sans-serif}
 <text class="ts" fill="#5F5E5A" font-size="12" x="710" y="152" dominant-baseline="central">a generated version</text>
 <text class="ts" fill="#5F5E5A" font-size="12" x="710" y="404" dominant-baseline="central">to the execution layer:</text>
 <text class="ts" fill="#5F5E5A" font-size="12" x="710" y="420" dominant-baseline="central">prompts, tool docs</text>
-<text class="ts" fill="#5F5E5A" font-size="12" x="710" y="270" dominant-baseline="central">to the router: τ per cluster, weights</text>
+<text class="ts" fill="#5F5E5A" font-size="12" x="710" y="270" dominant-baseline="central">to the router: τ per cluster</text>
 <g class="c-teal"><rect fill="#E1F5EE" stroke="#0F6E56" x="200" y="626" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="ts" font-size="12" fill="#5F5E5A" x="222" y="633" dominant-baseline="central">Jev call</text>
 <g class="c-coral"><rect fill="#FAECE7" stroke="#993C1D" x="330" y="626" width="14" height="14" rx="3" stroke-width="0.5"/></g><text class="ts" font-size="12" fill="#5F5E5A" x="352" y="633" dominant-baseline="central">LLM call</text>
 </svg>
