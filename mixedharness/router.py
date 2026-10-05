@@ -78,15 +78,59 @@ def fit_policy(steps, *, lam=DEFAULT_LAMBDA, min_samples=MIN_SAMPLES, epsilon=DE
     return {'lambda': lam, 'epsilon': epsilon, 'min_samples': min_samples, 'clusters': clusters}
 
 
+TAU_GRID = (0.6, 0.7, 0.8, 0.9, 0.95, 0.99)
+NEVER = 1.01   # a tau no confidence reaches: the cluster always escalates
+
+
+def fit_tau(replay_rows, *, target=0.9, min_n=10, grid=TAU_GRID, default=0.9):
+    """Loop B, the threshold per cluster, from stage-0 replay rows (label_closed, cluster, jev_confidence, jev_correct).
+
+    For each cluster with at least `min_n` closed-labelled turns, the smallest tau in `grid` at which Jev's
+    agreement with the LLM on the turns at or above tau is at least `target` (and at least min_n // 2 turns are
+    accepted). A cluster where no tau reaches the target gets NEVER (always escalate). Clusters with too few
+    turns are absent and fall back to the global default at runtime. Returns {'target', 'min_n', 'default',
+    'clusters': {cluster: {'tau', 'n', 'accepted', 'agreement'}}}."""
+    by = {}
+    for r in replay_rows:
+        if r.get('label_closed') and r.get('cluster') and r.get('jev_correct') is not None:
+            by.setdefault(r['cluster'], []).append(r)
+    out = {}
+    for cluster, rows in sorted(by.items()):
+        if len(rows) < min_n:
+            continue
+        chosen = None
+        for tau in grid:
+            acc = [r for r in rows if (r.get('jev_confidence') or 0.0) >= tau]
+            if len(acc) >= max(1, min_n // 2):
+                agreement = sum(1 for r in acc if r['jev_correct']) / len(acc)
+                if agreement >= target:
+                    chosen = {'tau': tau, 'n': len(rows), 'accepted': len(acc), 'agreement': agreement}
+                    break
+        out[cluster] = chosen or {'tau': NEVER, 'n': len(rows), 'accepted': 0, 'agreement': None}
+    return {'target': target, 'min_n': min_n, 'default': default, 'clusters': out}
+
+
 def compact_policy(policy):
-    """The part of a fitted policy a harness needs at runtime: {cluster: preferred path} plus epsilon."""
+    """The part of a fitted policy a harness needs at runtime: preferred path per cluster, tau per cluster, epsilon."""
     return {'epsilon': float(policy.get('epsilon', DEFAULT_EPSILON)),
-            'prefer': {c: v['prefer'] for c, v in (policy.get('clusters') or {}).items() if v.get('prefer')}}
+            'prefer': {c: v['prefer'] for c, v in (policy.get('clusters') or {}).items() if isinstance(v, dict) and v.get('prefer')},
+            'tau': {c: float(v['tau']) for c, v in (policy.get('tau_by_cluster') or {}).items() if isinstance(v, dict) and v.get('tau') is not None}}
+
+
+def merge_policy(path_policy=None, tau_policy=None, *, epsilon=DEFAULT_EPSILON):
+    """One policy from a fit_policy result (paths) and a fit_tau result (thresholds)."""
+    return {'epsilon': epsilon, 'clusters': (path_policy or {}).get('clusters') or {},
+            'tau_by_cluster': (tau_policy or {}).get('clusters') or {}}
 
 
 def policy_source_literal(policy):
-    """JSON literal for embedding in a python node's source (the seed replaces a placeholder with it)."""
-    return json.dumps(compact_policy(policy) if policy else {'epsilon': 0.0, 'prefer': {}}, sort_keys=True)
+    """JSON literal for embedding in a python node's source (the seed replaces a placeholder with it).
+    Accepts a full fitted policy or an already compact one ({'epsilon', 'prefer', 'tau'})."""
+    if not policy:
+        return json.dumps({'epsilon': 0.0, 'prefer': {}, 'tau': {}}, sort_keys=True)
+    if 'clusters' in policy or 'tau_by_cluster' in policy:
+        policy = compact_policy(policy)
+    return json.dumps({'epsilon': float(policy.get('epsilon', 0.0)), 'prefer': dict(policy.get('prefer') or {}), 'tau': dict(policy.get('tau') or {})}, sort_keys=True)
 
 
 def route_metrics(steps):

@@ -529,13 +529,14 @@ def run(obs, nodes, memory):
         path, source = "closed", "tool_result"          # a tool result with listed options is reported by code, not by the LLM
     if not cx["closed"] and path == "closed":
         path, source = "narrow", "code_override"
-    if path == "closed" and (confidence is None or confidence < __TAU__):
-        path, source = "escalate", "low_confidence"
+    prefer = (policy.get("prefer") or {}).get(cx["cluster"])
+    if prefer in paths and prefer != path and (prefer != "closed" or cx["closed"]):
+        path, source = prefer, "policy"   # outcome-based preference, applied before the per-step threshold below
+    tau_here = float((policy.get("tau") or {}).get(cx["cluster"], __TAU__))
+    if path == "closed" and (confidence is None or confidence < tau_here):
+        path, source = "escalate", "low_confidence"   # the per-step reliability signal has the last word
     if path == "closed" and agreement is False:
         path, source = "narrow", "fallthrough"
-    prefer = (policy.get("prefer") or {}).get(cx["cluster"])
-    if prefer in paths and prefer != path:
-        path, source = prefer, "policy"
     epsilon = float(policy.get("epsilon") or 0.0)
     shadow_of = None
     if epsilon > 0.0 and unit_hash(str(f["turn"]) + "|" + f["last_user_text"] + "|" + cx["cluster"]) < epsilon:
@@ -583,7 +584,7 @@ def run(obs, nodes, memory):
                        "A candidate is either one tool call with complete arguments, or one message to the customer of at most 80 words. "
                        "Never propose a database write unless the customer has explicitly confirmed its exact details; propose asking for confirmation instead. "
                        "Give each candidate a short id (a, b, c, d) and one line saying when it is the right choice.")
-    return {"path": path, "path_jev": path_jev, "path_source": source, "shadow_of": shadow_of, "route_confidence": route_confidence,
+    return {"path": path, "path_jev": path_jev, "path_source": source, "shadow_of": shadow_of, "route_confidence": route_confidence, "tau": tau_here,
             "agreement": agreement, "confidence": confidence, "fits": fits, "cluster": cx["cluster"], "closed": cx["closed"],
             "needs": cx["needs"], "menu_prompt": menu_prompt, "agent_context": agent_context}
 '''
@@ -842,6 +843,14 @@ def run(obs, nodes, memory):
                 pending = mem.get("pending")
                 same = same_write(pending, name, args)
                 confirmed = f["last_user_says"] == "yes" or (float(dec.get("confirms") or 0.0) > 0.5 and f["last_user_says"] != "no")
+                # The LLM often asks for confirmation in its own words (a message, so no pending write was recorded);
+                # the customer's yes to that question counts, provided the question named the operation's order.
+                prev = [m.get("text") or "" for m in (obs.get("conversation") or []) if m.get("role") == "assistant" and m.get("text")]
+                asked = prev[-1].lower() if prev else ""
+                cues = ["confirm", "proceed", "go ahead", "shall i", "should i", "would you like me to", "reply yes", "reply 'yes'"]
+                asked_here = any(c in asked for c in cues) and (str(args.get("order_id") or "").lower() in asked or not args.get("order_id"))
+                if pending is None and confirmed and asked_here and f["incoming_role"] == "user":
+                    same = True
                 if not (same and confirmed):
                     mem["pending"] = {"tool": name, "arguments": args}
                     guard = "write_gate"
@@ -877,7 +886,7 @@ def run(obs, nodes, memory):
     mem["last_path"] = path
     routing = {"cluster": rt["cluster"], "closed": rt["closed"], "needs": rt["needs"], "path_jev": rt["path_jev"], "path": path,
                "path_source": source, "shadow_of": rt.get("shadow_of"), "agreement": rt["agreement"], "confidence": rt["confidence"],
-               "route_confidence": rt.get("route_confidence"), "fits": rt["fits"]}
+               "route_confidence": rt.get("route_confidence"), "tau": rt.get("tau"), "fits": rt["fits"]}
     return {"action": action, "memory": mem, "chosen": chosen, "guard": guard, "routing": routing}
 '''
 

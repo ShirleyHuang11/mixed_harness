@@ -244,7 +244,7 @@ def run_arm(arm, args, tasks, out_dir, jev, llm, evolved_spec):
         if arm == 'routed_evolved':
             spec = evolved_spec
         elif arm == 'routed':
-            spec = routed_seed(args.llm_model)
+            spec = routed_seed(args.llm_model, policy=json.loads(Path(args.policy).read_text()) if args.policy else None)
         else:
             spec = SEEDS[arm]()
         (arm_dir / 'seed_spec.json').write_text(json.dumps(spec, indent=1))
@@ -387,6 +387,7 @@ def main(argv=None):
     p.add_argument('--namespace', default=None, help='response cache namespace for Jev/LLM clients')
     p.add_argument('--evolved-spec', default=None, help='spec JSON for the routed_evolved arm (a candidate from an evolution run)')
     p.add_argument('--policy-steps', default=None, help='steps.jsonl of an earlier run; fits a loop-B policy for routed_evolved when no --evolved-spec is given')
+    p.add_argument('--policy', default=None, help='compact policy JSON (scripts/fit_policy.py) embedded in the routed arm: tau per cluster, preferred paths')
     p.add_argument('--mock', action='store_true', help='mock Jev and LLM for the pipeline arms (plumbing only; scores are meaningless)')
     p.add_argument('--out', default='runs/tau2')
     args = p.parse_args(argv)
@@ -445,7 +446,7 @@ def main(argv=None):
                 'nl_judge_llm': nl_judge, 'nl_judge_tau2_default': nl_judge_previous[0],
                 'llm_args_agent': llm_args_for(args.agent_llm), 'llm_args_user': llm_args_for(args.user_llm),
                 'jev_model': args.jev_model, 'jev_transport': jev.transport, 'mock': args.mock, 'routed_evolved_source': evolved_source,
-                'user': args.user, 'replay_results': args.replay_results,
+                'user': args.user, 'replay_results': args.replay_results, 'policy': args.policy,
                 'seed': args.seed, 'max_steps': args.max_steps, 'concurrency': args.concurrency, 'namespace': namespace,
                 'git': {'mixed_harness': git_head(ROOT), 'tau2_bench': git_head(Path(os.environ.get('TAU2_HOME') or Path.home() / 'tau2-bench'))},
                 'credentials_present': {k: bool(os.getenv(k)) for k in ('TYPESAFE_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY')},

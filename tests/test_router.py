@@ -13,7 +13,7 @@ from mixedharness import sandbox as sb
 from mixedharness.jev import JevClient
 from mixedharness.llm import LLMClient
 from mixedharness.mining import mine_macro_actions
-from mixedharness.router import PATHS, agreement, compact_policy, fit_policy, policy_source_literal, route_metrics
+from mixedharness.router import NEVER, PATHS, agreement, compact_policy, fit_policy, fit_tau, merge_policy, policy_source_literal, route_metrics
 from mixedharness.runtime import Runtime
 from mixedharness.spec import FORMAT, validate_spec
 from mixedharness.trace import steps_from_ledger
@@ -43,9 +43,9 @@ def test_fit_policy_prefers_the_best_scored_path_only_with_enough_samples():
     assert policy['clusters']['c2']['prefer'] == 'escalate'          # closed fails there
     assert policy['clusters']['c3']['prefer'] is None
     compact = compact_policy(policy)
-    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}}
+    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}, 'tau': {}}
     assert json.loads(policy_source_literal(policy)) == compact
-    assert json.loads(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}}
+    assert json.loads(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}, 'tau': {}}
 
 
 def test_route_metrics_and_mining_on_step_rows():
@@ -319,3 +319,44 @@ def test_repeated_identical_tool_call_counts_as_stuck():
     assert first['output']['name'] == 'get_order_details' and first['memory']['same_reply_streak'] == 0
     second = _run(spec, _jev('closed', 'tool:get_order_details:#W2378156'), None, _obs('Tell me about order #W2378156.', turn=4), first['memory'])
     assert second['memory']['same_reply_streak'] == 1 and second['memory']['last_signature'].startswith('tool:get_order_details')
+
+
+def test_fit_tau_picks_the_smallest_reliable_threshold_per_cluster():
+    def rep(cluster, conf, ok):
+        return {'label_closed': True, 'cluster': cluster, 'jev_confidence': conf, 'jev_correct': ok}
+    rows = [rep('easy', 0.7, True) for _ in range(20)]                                   # reliable at low confidence
+    rows += [rep('hard', 0.95, False) for _ in range(10)] + [rep('hard', 0.995, True) for _ in range(10)]   # only >=0.99 is reliable
+    rows += [rep('hopeless', 0.999, False) for _ in range(10)] + [rep('hopeless', 0.999, True) for _ in range(2)]
+    rows += [rep('thin', 0.99, True) for _ in range(3)]
+    fitted = fit_tau(rows, target=0.9, min_n=10)
+    c = fitted['clusters']
+    assert c['easy']['tau'] == 0.6 and c['hard']['tau'] == 0.99 and c['hopeless']['tau'] == NEVER and 'thin' not in c
+    policy = merge_policy(None, fitted)
+    compact = compact_policy(policy)
+    assert compact['tau'] == {'easy': 0.6, 'hard': 0.99, 'hopeless': NEVER}
+    assert json.loads(policy_source_literal(policy))['tau']['hard'] == 0.99
+
+
+@needs_sandbox
+def test_route_uses_the_cluster_threshold_over_the_global_one():
+    llm = _llm()
+    policy = {'epsilon': 0.0, 'prefer': {}, 'tau': {'anon|user|no_order|cancel': 0.6}}
+    result = _run(seeds.routed_seed('mock-llm', policy=policy), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.7), llm, _obs(HELLO))
+    routing = result['nodes']['guard']['routing']
+    assert routing['path'] == 'closed' and routing['tau'] == 0.6
+    strict = {'epsilon': 0.0, 'prefer': {}, 'tau': {'anon|user|no_order|cancel': NEVER}}
+    result = _run(seeds.routed_seed('mock-llm', policy=strict), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=1.0), llm, _obs(HELLO))
+    assert result['nodes']['guard']['routing']['path'] == 'escalate'
+
+
+@needs_sandbox
+def test_write_gate_accepts_a_yes_after_the_llm_asked_in_prose():
+    write = {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': {'order_id': '#W2378156', 'reason': 'no longer needed'}, 'text': None}
+    conv = [_obs('Please cancel order #W2378156.')['incoming'],
+            {'role': 'assistant', 'text': 'I can cancel order #W2378156 (reason: no longer needed). Shall I proceed?', 'tool': None, 'arguments': None, 'result': None, 'error': False}]
+    result = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=write), _obs('Yes please.', conv, turn=3), {})
+    assert result['output']['kind'] == 'tool' and result['nodes']['guard']['guard'] == 'ok'
+    unrelated = [_obs('Please cancel order #W2378156.')['incoming'],
+                 {'role': 'assistant', 'text': 'Your order contains a keyboard and a thermostat.', 'tool': None, 'arguments': None, 'result': None, 'error': False}]
+    result = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=write), _obs('Yes.', unrelated, turn=3), {})
+    assert result['nodes']['guard']['guard'] == 'write_gate'

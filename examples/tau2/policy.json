@@ -1,0 +1,1051 @@
+{
+ "epsilon": 0.0,
+ "path_detail": {
+  "anon|tool|no_order|cancel": {
+   "closed": {
+    "mean": 0.49258175,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -0.6583117,
+    "n": 1
+   }
+  },
+  "anon|tool|no_order|exchange": {
+   "closed": {
+    "mean": 0.9933661,
+    "n": 1
+   }
+  },
+  "anon|tool|no_order|info": {
+   "closed": {
+    "mean": 0.3261968333333333,
+    "n": 3
+   }
+  },
+  "anon|tool|no_order|modify_address": {
+   "closed": {
+    "mean": 0.9924694,
+    "n": 1
+   }
+  },
+  "anon|tool|no_order|other": {
+   "closed": {
+    "mean": 0.3265237333333333,
+    "n": 3
+   }
+  },
+  "anon|tool|no_order|return": {
+   "closed": {
+    "mean": 0.9933325,
+    "n": 1
+   }
+  },
+  "anon|user|no_order|cancel": {
+   "closed": {
+    "mean": 0.6905923787878788,
+    "n": 33
+   },
+   "escalate": {
+    "mean": 0.2964854,
+    "n": 1
+   }
+  },
+  "anon|user|no_order|exchange": {
+   "closed": {
+    "mean": 0.8324223451612903,
+    "n": 62
+   },
+   "escalate": {
+    "mean": 0.3258799,
+    "n": 1
+   }
+  },
+  "anon|user|no_order|info": {
+   "closed": {
+    "mean": 0.5315003615384616,
+    "n": 13
+   },
+   "escalate": {
+    "mean": -0.30888627999999996,
+    "n": 5
+   }
+  },
+  "anon|user|no_order|modify_address": {
+   "closed": {
+    "mean": 0.69356959,
+    "n": 20
+   },
+   "escalate": {
+    "mean": 0.24494139999999998,
+    "n": 1
+   }
+  },
+  "anon|user|no_order|modify_items": {
+   "closed": {
+    "mean": 0.8510911071428572,
+    "n": 14
+   }
+  },
+  "anon|user|no_order|other": {
+   "closed": {
+    "mean": 0.805100396226415,
+    "n": 53
+   }
+  },
+  "anon|user|no_order|return": {
+   "closed": {
+    "mean": 0.8542114139534883,
+    "n": 43
+   },
+   "escalate": {
+    "mean": 0.33053920000000003,
+    "n": 1
+   }
+  },
+  "auth|tool|cancelled|cancel": {
+   "closed": {
+    "mean": 0.736029225,
+    "n": 8
+   },
+   "escalate": {
+    "mean": -0.11259689230769232,
+    "n": 13
+   }
+  },
+  "auth|tool|cancelled|other": {
+   "escalate": {
+    "mean": 0.2244657,
+    "n": 1
+   }
+  },
+  "auth|tool|delivered|cancel": {
+   "closed": {
+    "mean": 0.05130851999999998,
+    "n": 5
+   },
+   "escalate": {
+    "mean": -0.16194345454545458,
+    "n": 11
+   }
+  },
+  "auth|tool|delivered|exchange": {
+   "closed": {
+    "mean": 0.8284048076923077,
+    "n": 13
+   },
+   "escalate": {
+    "mean": -0.13056346666666666,
+    "n": 36
+   }
+  },
+  "auth|tool|delivered|goodbye": {
+   "escalate": {
+    "mean": 0.17809790000000003,
+    "n": 1
+   }
+  },
+  "auth|tool|delivered|info": {
+   "escalate": {
+    "mean": -0.1894499666666667,
+    "n": 3
+   }
+  },
+  "auth|tool|delivered|modify_address": {
+   "closed": {
+    "mean": 0.9823348,
+    "n": 3
+   },
+   "escalate": {
+    "mean": 0.08341673333333328,
+    "n": 6
+   }
+  },
+  "auth|tool|delivered|modify_items": {
+   "escalate": {
+    "mean": 0.2748632000000001,
+    "n": 1
+   }
+  },
+  "auth|tool|delivered|other": {
+   "closed": {
+    "mean": 0.4883366,
+    "n": 2
+   },
+   "escalate": {
+    "mean": 0.1366320222222222,
+    "n": 9
+   }
+  },
+  "auth|tool|delivered|return": {
+   "closed": {
+    "mean": 0.8425676571428572,
+    "n": 7
+   },
+   "escalate": {
+    "mean": -0.025548604347826142,
+    "n": 23
+   }
+  },
+  "auth|tool|exchange requested|exchange": {
+   "closed": {
+    "mean": 0.9148670533333333,
+    "n": 15
+   },
+   "escalate": {
+    "mean": -0.08701150000000002,
+    "n": 3
+   }
+  },
+  "auth|tool|exchange requested|return": {
+   "closed": {
+    "mean": 0.98548795,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -1.2194833999999999,
+    "n": 1
+   }
+  },
+  "auth|tool|no_order|cancel": {
+   "closed": {
+    "mean": 0.6947253842105263,
+    "n": 19
+   },
+   "escalate": {
+    "mean": -0.12955126250000001,
+    "n": 48
+   }
+  },
+  "auth|tool|no_order|exchange": {
+   "closed": {
+    "mean": 0.868806832,
+    "n": 25
+   },
+   "escalate": {
+    "mean": 0.004924424137931035,
+    "n": 87
+   }
+  },
+  "auth|tool|no_order|goodbye": {
+   "closed": {
+    "mean": -0.010071600000000002,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.28338426,
+    "n": 5
+   }
+  },
+  "auth|tool|no_order|info": {
+   "closed": {
+    "mean": 0.32315393333333337,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.19487016363636364,
+    "n": 11
+   }
+  },
+  "auth|tool|no_order|modify_address": {
+   "closed": {
+    "mean": 0.32052753333333334,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.04102035555555555,
+    "n": 27
+   }
+  },
+  "auth|tool|no_order|modify_items": {
+   "closed": {
+    "mean": 0.9886809999999999,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -0.01986592083333336,
+    "n": 24
+   }
+  },
+  "auth|tool|no_order|other": {
+   "closed": {
+    "mean": 0.790053056,
+    "n": 25
+   },
+   "escalate": {
+    "mean": 0.12932570999999998,
+    "n": 40
+   }
+  },
+  "auth|tool|no_order|return": {
+   "closed": {
+    "mean": 0.8362249653846154,
+    "n": 26
+   },
+   "escalate": {
+    "mean": -0.01794585185185185,
+    "n": 54
+   }
+  },
+  "auth|tool|pending (item modified)|cancel": {
+   "closed": {
+    "mean": 0.6491460166666667,
+    "n": 6
+   },
+   "escalate": {
+    "mean": -0.4014514,
+    "n": 2
+   }
+  },
+  "auth|tool|pending (item modified)|exchange": {
+   "closed": {
+    "mean": 0.58320462,
+    "n": 10
+   },
+   "escalate": {
+    "mean": -0.7147679000000001,
+    "n": 4
+   }
+  },
+  "auth|tool|pending (item modified)|modify_address": {
+   "closed": {
+    "mean": 0.98595625,
+    "n": 8
+   },
+   "escalate": {
+    "mean": -0.20429366666666668,
+    "n": 3
+   }
+  },
+  "auth|tool|pending (item modified)|modify_items": {
+   "closed": {
+    "mean": 0.9851516,
+    "n": 3
+   }
+  },
+  "auth|tool|pending (item modified)|modify_payment": {
+   "closed": {
+    "mean": 0.9849356499999999,
+    "n": 2
+   }
+  },
+  "auth|tool|pending (item modified)|return": {
+   "escalate": {
+    "mean": -0.33422050000000003,
+    "n": 1
+   }
+  },
+  "auth|tool|pending|cancel": {
+   "closed": {
+    "mean": 0.38035111875,
+    "n": 16
+   },
+   "escalate": {
+    "mean": -0.46681075416666673,
+    "n": 24
+   }
+  },
+  "auth|tool|pending|exchange": {
+   "closed": {
+    "mean": 0.58446882,
+    "n": 5
+   },
+   "escalate": {
+    "mean": -0.15168609259259258,
+    "n": 27
+   }
+  },
+  "auth|tool|pending|goodbye": {
+   "escalate": {
+    "mean": -0.741772,
+    "n": 1
+   }
+  },
+  "auth|tool|pending|info": {
+   "closed": {
+    "mean": 0.4874693,
+    "n": 2
+   }
+  },
+  "auth|tool|pending|modify_address": {
+   "closed": {
+    "mean": 0.5568143714285715,
+    "n": 7
+   },
+   "escalate": {
+    "mean": -0.2658029708333334,
+    "n": 24
+   }
+  },
+  "auth|tool|pending|modify_items": {
+   "closed": {
+    "mean": 0.9880342,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.20843474285714284,
+    "n": 7
+   }
+  },
+  "auth|tool|pending|modify_payment": {
+   "closed": {
+    "mean": 0.9868414,
+    "n": 1
+   }
+  },
+  "auth|tool|pending|other": {
+   "closed": {
+    "mean": 0.9860638749999999,
+    "n": 4
+   },
+   "escalate": {
+    "mean": 0.2593255,
+    "n": 4
+   }
+  },
+  "auth|tool|pending|return": {
+   "closed": {
+    "mean": 0.9845314000000001,
+    "n": 3
+   },
+   "escalate": {
+    "mean": 0.11274977692307692,
+    "n": 13
+   }
+  },
+  "auth|tool|processed|cancel": {
+   "closed": {
+    "mean": 0.9881959,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.07790248000000007,
+    "n": 5
+   }
+  },
+  "auth|tool|processed|exchange": {
+   "closed": {
+    "mean": -0.014834400000000001,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.5851903399999999,
+    "n": 5
+   }
+  },
+  "auth|tool|processed|modify_address": {
+   "escalate": {
+    "mean": -0.7681461,
+    "n": 1
+   }
+  },
+  "auth|tool|processed|modify_items": {
+   "escalate": {
+    "mean": 0.22686300000000004,
+    "n": 1
+   }
+  },
+  "auth|tool|processed|other": {
+   "closed": {
+    "mean": 0.9879635,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.7906852000000001,
+    "n": 1
+   }
+  },
+  "auth|tool|return requested|cancel": {
+   "closed": {
+    "mean": 0.9853591,
+    "n": 7
+   },
+   "escalate": {
+    "mean": -0.09528680000000006,
+    "n": 4
+   }
+  },
+  "auth|tool|return requested|return": {
+   "closed": {
+    "mean": 0.574846190909091,
+    "n": 22
+   },
+   "escalate": {
+    "mean": -0.8929478666666666,
+    "n": 6
+   }
+  },
+  "auth|user|cancelled|cancel": {
+   "closed": {
+    "mean": 0.9856591,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.1607333875,
+    "n": 8
+   }
+  },
+  "auth|user|delivered|cancel": {
+   "closed": {
+    "mean": 0.7117207,
+    "n": 11
+   },
+   "escalate": {
+    "mean": -0.6004446304347826,
+    "n": 23
+   }
+  },
+  "auth|user|delivered|exchange": {
+   "closed": {
+    "mean": 0.9124864862068965,
+    "n": 29
+   },
+   "escalate": {
+    "mean": -0.2645931808510638,
+    "n": 47
+   }
+  },
+  "auth|user|delivered|modify_address": {
+   "closed": {
+    "mean": 0.9848128,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.14091771250000001,
+    "n": 8
+   }
+  },
+  "auth|user|delivered|other": {
+   "escalate": {
+    "mean": 0.0700627666666666,
+    "n": 3
+   }
+  },
+  "auth|user|delivered|return": {
+   "closed": {
+    "mean": 0.8519312,
+    "n": 45
+   },
+   "escalate": {
+    "mean": -0.01821630999999999,
+    "n": 40
+   }
+  },
+  "auth|user|exchange requested|exchange": {
+   "closed": {
+    "mean": 0.9841975,
+    "n": 4
+   },
+   "escalate": {
+    "mean": -0.3303405615384615,
+    "n": 13
+   }
+  },
+  "auth|user|exchange requested|return": {
+   "escalate": {
+    "mean": -0.6506818,
+    "n": 7
+   }
+  },
+  "auth|user|no_order|cancel": {
+   "closed": {
+    "mean": 0.5445403555555556,
+    "n": 9
+   },
+   "escalate": {
+    "mean": -0.0731624447368421,
+    "n": 38
+   }
+  },
+  "auth|user|no_order|exchange": {
+   "closed": {
+    "mean": 0.88830552,
+    "n": 10
+   },
+   "escalate": {
+    "mean": 0.026367598076923064,
+    "n": 52
+   }
+  },
+  "auth|user|no_order|goodbye": {
+   "closed": {
+    "mean": 0.9898507,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.64179885,
+    "n": 2
+   }
+  },
+  "auth|user|no_order|info": {
+   "closed": {
+    "mean": 0.9904093,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.46852459999999996,
+    "n": 6
+   }
+  },
+  "auth|user|no_order|modify_address": {
+   "closed": {
+    "mean": 0.7895760199999999,
+    "n": 5
+   },
+   "escalate": {
+    "mean": -0.1987687947368421,
+    "n": 19
+   }
+  },
+  "auth|user|no_order|modify_items": {
+   "closed": {
+    "mean": 0.98765095,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -0.04356553000000002,
+    "n": 10
+   }
+  },
+  "auth|user|no_order|modify_payment": {
+   "closed": {
+    "mean": 0.9856213,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.42864065000000007,
+    "n": 2
+   }
+  },
+  "auth|user|no_order|other": {
+   "escalate": {
+    "mean": 0.125096995,
+    "n": 20
+   }
+  },
+  "auth|user|no_order|return": {
+   "closed": {
+    "mean": 0.8225622583333333,
+    "n": 12
+   },
+   "escalate": {
+    "mean": 0.09782728285714284,
+    "n": 35
+   }
+  },
+  "auth|user|pending (item modified)|cancel": {
+   "closed": {
+    "mean": 0.48278945,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -0.28739088,
+    "n": 5
+   }
+  },
+  "auth|user|pending (item modified)|exchange": {
+   "closed": {
+    "mean": 0.3189686333333333,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.5173191923076923,
+    "n": 13
+   }
+  },
+  "auth|user|pending (item modified)|modify_address": {
+   "closed": {
+    "mean": 0.9878116,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.17053870000000002,
+    "n": 6
+   }
+  },
+  "auth|user|pending (item modified)|modify_items": {
+   "closed": {
+    "mean": 0.9847771,
+    "n": 1
+   }
+  },
+  "auth|user|pending (item modified)|modify_payment": {
+   "closed": {
+    "mean": 0.9864865,
+    "n": 1
+   }
+  },
+  "auth|user|pending|cancel": {
+   "closed": {
+    "mean": 0.705466824,
+    "n": 25
+   },
+   "escalate": {
+    "mean": -0.4562259527777778,
+    "n": 72
+   }
+  },
+  "auth|user|pending|exchange": {
+   "closed": {
+    "mean": 0.38371534,
+    "n": 5
+   },
+   "escalate": {
+    "mean": -0.4587429433962264,
+    "n": 53
+   }
+  },
+  "auth|user|pending|info": {
+   "escalate": {
+    "mean": 0.22339545000000005,
+    "n": 2
+   }
+  },
+  "auth|user|pending|modify_address": {
+   "closed": {
+    "mean": 0.48653375000000004,
+    "n": 8
+   },
+   "escalate": {
+    "mean": -0.39584045762711867,
+    "n": 59
+   }
+  },
+  "auth|user|pending|modify_items": {
+   "closed": {
+    "mean": 0.98599426,
+    "n": 5
+   },
+   "escalate": {
+    "mean": -0.20225829999999997,
+    "n": 7
+   }
+  },
+  "auth|user|pending|modify_payment": {
+   "closed": {
+    "mean": 0.98751025,
+    "n": 2
+   },
+   "escalate": {
+    "mean": 0.11081272,
+    "n": 5
+   }
+  },
+  "auth|user|pending|other": {
+   "escalate": {
+    "mean": 0.17369174999999998,
+    "n": 2
+   }
+  },
+  "auth|user|pending|return": {
+   "closed": {
+    "mean": 0.9861813,
+    "n": 3
+   },
+   "escalate": {
+    "mean": -0.017836205882352945,
+    "n": 17
+   }
+  },
+  "auth|user|processed|cancel": {
+   "closed": {
+    "mean": 0.9883009,
+    "n": 3
+   },
+   "escalate": {
+    "mean": 0.0492016578947368,
+    "n": 19
+   }
+  },
+  "auth|user|processed|exchange": {
+   "escalate": {
+    "mean": -1.20539585,
+    "n": 6
+   }
+  },
+  "auth|user|processed|modify_payment": {
+   "closed": {
+    "mean": 0.9852496,
+    "n": 1
+   },
+   "escalate": {
+    "mean": -0.5160770000000001,
+    "n": 1
+   }
+  },
+  "auth|user|processed|other": {
+   "escalate": {
+    "mean": -0.17287190000000008,
+    "n": 1
+   }
+  },
+  "auth|user|return requested|cancel": {
+   "closed": {
+    "mean": 0.9871427500000001,
+    "n": 2
+   },
+   "escalate": {
+    "mean": -0.09365048947368419,
+    "n": 19
+   }
+  },
+  "auth|user|return requested|return": {
+   "closed": {
+    "mean": 0.6521761066666667,
+    "n": 15
+   },
+   "escalate": {
+    "mean": -0.8322627605263158,
+    "n": 38
+   }
+  }
+ },
+ "prefer": {
+  "anon|user|no_order|cancel": "closed",
+  "anon|user|no_order|exchange": "closed",
+  "anon|user|no_order|info": "closed",
+  "anon|user|no_order|modify_address": "closed",
+  "anon|user|no_order|modify_items": "closed",
+  "anon|user|no_order|other": "closed",
+  "anon|user|no_order|return": "closed",
+  "auth|tool|cancelled|cancel": "closed",
+  "auth|tool|delivered|cancel": "escalate",
+  "auth|tool|delivered|exchange": "closed",
+  "auth|tool|delivered|other": "escalate",
+  "auth|tool|delivered|return": "escalate",
+  "auth|tool|exchange requested|exchange": "closed",
+  "auth|tool|no_order|cancel": "closed",
+  "auth|tool|no_order|exchange": "closed",
+  "auth|tool|no_order|info": "escalate",
+  "auth|tool|no_order|modify_address": "escalate",
+  "auth|tool|no_order|modify_items": "escalate",
+  "auth|tool|no_order|other": "closed",
+  "auth|tool|no_order|return": "closed",
+  "auth|tool|pending (item modified)|exchange": "closed",
+  "auth|tool|pending (item modified)|modify_address": "closed",
+  "auth|tool|pending|cancel": "closed",
+  "auth|tool|pending|exchange": "escalate",
+  "auth|tool|pending|modify_address": "escalate",
+  "auth|tool|pending|return": "escalate",
+  "auth|tool|return requested|return": "closed",
+  "auth|user|cancelled|cancel": "escalate",
+  "auth|user|delivered|cancel": "closed",
+  "auth|user|delivered|exchange": "closed",
+  "auth|user|delivered|modify_address": "escalate",
+  "auth|user|delivered|return": "closed",
+  "auth|user|exchange requested|exchange": "escalate",
+  "auth|user|no_order|cancel": "closed",
+  "auth|user|no_order|exchange": "closed",
+  "auth|user|no_order|modify_address": "escalate",
+  "auth|user|no_order|modify_items": "escalate",
+  "auth|user|no_order|other": "escalate",
+  "auth|user|no_order|return": "closed",
+  "auth|user|pending (item modified)|exchange": "escalate",
+  "auth|user|pending|cancel": "closed",
+  "auth|user|pending|exchange": "escalate",
+  "auth|user|pending|modify_address": "closed",
+  "auth|user|pending|return": "escalate",
+  "auth|user|processed|cancel": "escalate",
+  "auth|user|return requested|cancel": "escalate",
+  "auth|user|return requested|return": "closed"
+ },
+ "provenance": {
+  "min_n": 10,
+  "min_samples": 8,
+  "replay": [
+   "runs/stage0/20261001-144920/replay.jsonl"
+  ],
+  "replay_rows": 1389,
+  "step_rows": 1926,
+  "steps": [
+   "runs/tau2/20261001-140814-retail-base/routed/steps.jsonl"
+  ],
+  "target": 0.9
+ },
+ "tau": {
+  "anon|user|no_order|cancel": 0.6,
+  "anon|user|no_order|exchange": 0.6,
+  "anon|user|no_order|modify_address": 0.6,
+  "anon|user|no_order|modify_items": 0.6,
+  "anon|user|no_order|other": 0.6,
+  "anon|user|no_order|return": 0.6,
+  "auth|tool|cancelled|cancel": 1.01,
+  "auth|tool|delivered|exchange": 1.01,
+  "auth|tool|delivered|other": 0.7,
+  "auth|tool|delivered|return": 0.6,
+  "auth|tool|no_order|cancel": 1.01,
+  "auth|tool|no_order|exchange": 1.01,
+  "auth|tool|no_order|modify_address": 1.01,
+  "auth|tool|no_order|modify_items": 1.01,
+  "auth|tool|no_order|other": 1.01,
+  "auth|tool|no_order|return": 0.99,
+  "auth|tool|pending|return": 1.01,
+  "auth|tool|return requested|return": 0.6,
+  "auth|user|delivered|exchange": 0.6,
+  "auth|user|delivered|return": 0.6,
+  "auth|user|no_order|cancel": 0.9,
+  "auth|user|no_order|exchange": 0.6,
+  "auth|user|no_order|modify_address": 0.9,
+  "auth|user|no_order|other": 0.6,
+  "auth|user|no_order|return": 0.6,
+  "auth|user|pending|cancel": 0.6
+ },
+ "tau_detail": {
+  "anon|user|no_order|cancel": {
+   "accepted": 34,
+   "agreement": 1.0,
+   "n": 34,
+   "tau": 0.6
+  },
+  "anon|user|no_order|exchange": {
+   "accepted": 56,
+   "agreement": 1.0,
+   "n": 56,
+   "tau": 0.6
+  },
+  "anon|user|no_order|modify_address": {
+   "accepted": 18,
+   "agreement": 1.0,
+   "n": 18,
+   "tau": 0.6
+  },
+  "anon|user|no_order|modify_items": {
+   "accepted": 16,
+   "agreement": 1.0,
+   "n": 16,
+   "tau": 0.6
+  },
+  "anon|user|no_order|other": {
+   "accepted": 54,
+   "agreement": 1.0,
+   "n": 168,
+   "tau": 0.6
+  },
+  "anon|user|no_order|return": {
+   "accepted": 47,
+   "agreement": 0.9787234042553191,
+   "n": 47,
+   "tau": 0.6
+  },
+  "auth|tool|cancelled|cancel": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 14,
+   "tau": 1.01
+  },
+  "auth|tool|delivered|exchange": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 21,
+   "tau": 1.01
+  },
+  "auth|tool|delivered|other": {
+   "accepted": 5,
+   "agreement": 1.0,
+   "n": 10,
+   "tau": 0.7
+  },
+  "auth|tool|delivered|return": {
+   "accepted": 10,
+   "agreement": 0.9,
+   "n": 12,
+   "tau": 0.6
+  },
+  "auth|tool|no_order|cancel": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 54,
+   "tau": 1.01
+  },
+  "auth|tool|no_order|exchange": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 75,
+   "tau": 1.01
+  },
+  "auth|tool|no_order|modify_address": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 25,
+   "tau": 1.01
+  },
+  "auth|tool|no_order|modify_items": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 14,
+   "tau": 1.01
+  },
+  "auth|tool|no_order|other": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 45,
+   "tau": 1.01
+  },
+  "auth|tool|no_order|return": {
+   "accepted": 5,
+   "agreement": 1.0,
+   "n": 61,
+   "tau": 0.99
+  },
+  "auth|tool|pending|return": {
+   "accepted": 0,
+   "agreement": null,
+   "n": 14,
+   "tau": 1.01
+  },
+  "auth|tool|return requested|return": {
+   "accepted": 11,
+   "agreement": 0.9090909090909091,
+   "n": 11,
+   "tau": 0.6
+  },
+  "auth|user|delivered|exchange": {
+   "accepted": 17,
+   "agreement": 0.9411764705882353,
+   "n": 24,
+   "tau": 0.6
+  },
+  "auth|user|delivered|return": {
+   "accepted": 19,
+   "agreement": 1.0,
+   "n": 26,
+   "tau": 0.6
+  },
+  "auth|user|no_order|cancel": {
+   "accepted": 14,
+   "agreement": 0.9285714285714286,
+   "n": 23,
+   "tau": 0.9
+  },
+  "auth|user|no_order|exchange": {
+   "accepted": 23,
+   "agreement": 0.9565217391304348,
+   "n": 26,
+   "tau": 0.6
+  },
+  "auth|user|no_order|modify_address": {
+   "accepted": 6,
+   "agreement": 1.0,
+   "n": 12,
+   "tau": 0.9
+  },
+  "auth|user|no_order|other": {
+   "accepted": 13,
+   "agreement": 0.9230769230769231,
+   "n": 13,
+   "tau": 0.6
+  },
+  "auth|user|no_order|return": {
+   "accepted": 21,
+   "agreement": 0.9047619047619048,
+   "n": 21,
+   "tau": 0.6
+  },
+  "auth|user|pending|cancel": {
+   "accepted": 11,
+   "agreement": 1.0,
+   "n": 13,
+   "tau": 0.6
+  }
+ }
+}
