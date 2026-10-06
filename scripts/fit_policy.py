@@ -34,7 +34,7 @@ def main(argv=None):
     steps = [r for f in args.steps for r in read_jsonl(f)]
     tau = fit_tau(replay, target=args.target, min_n=args.min_n) if replay else None
     paths = fit_policy(steps, min_samples=args.min_samples, epsilon=args.epsilon) if steps else None
-    learned = fit_from_steps(steps, min_n=args.min_n) if steps else None
+    learned = fit_from_steps(steps, min_n=args.min_n, replay=replay) if steps else None
     full = merge_policy(paths, tau, epsilon=args.epsilon, learned=learned)
     compact = compact_policy(full)
     out = Path(args.out)

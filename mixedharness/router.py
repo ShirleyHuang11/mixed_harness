@@ -110,14 +110,29 @@ def fit_tau(replay_rows, *, target=0.9, min_n=10, grid=TAU_GRID, default=0.9):
     return {'target': target, 'min_n': min_n, 'default': default, 'clusters': out}
 
 
-def fit_from_steps(steps, *, min_n=10, same_action=0.95, lost_ratio=1.5):
+def fit_from_steps(steps, *, min_n=10, same_action=0.95, lost_ratio=1.5, replay=None):
     """Loop B on routed step tables: which state types can move to code, which must tighten.
 
     A cluster moves to code (a `default` action) when Jev's accepted picks there were the same option at least
     `same_action` of the time over at least `min_n` steps and those steps' episodes were won at least as often as
     the overall rate. A cluster tightens to NEVER when its accepted Jev steps sit in lost episodes at more than
-    `lost_ratio` times the overall lost share (over at least `min_n` steps). Returns {'defaults': {cluster: option},
-    'tighten': [cluster], 'stats': {cluster: {...}}}."""
+    `lost_ratio` times the overall lost share (over at least `min_n` steps). Episode reward is a weak per-step signal,
+    so both moves need corroboration from the stage-0 replay when it has at least 5 closed turns in the cluster: a
+    code row needs the LLM's own action there to be that option >= 90% of the time, and a tightening is skipped when
+    the replay shows Jev agreeing with the LLM >= 80% there (the lost episodes were lost elsewhere). Returns
+    {'defaults': {cluster: option}, 'tighten': [cluster], 'stats': {cluster: {...}}}."""
+    rep = {}
+    for r in replay or []:
+        if r.get('label_closed') and r.get('cluster'):
+            rep.setdefault(r['cluster'], []).append(r)
+
+    def replay_agreement(cluster):
+        rows = rep.get(cluster) or []
+        return (sum(1 for r in rows if r.get('jev_correct')) / len(rows)) if len(rows) >= 5 else None
+
+    def replay_action_share(cluster, option):
+        rows = rep.get(cluster) or []
+        return (sum(1 for r in rows if r.get('target') == option) / len(rows)) if len(rows) >= 5 else None
     scored = [s for s in steps if s.get('reward') is not None and s.get('cluster')]
     if not scored:
         return {'defaults': {}, 'tighten': [], 'stats': {}}
@@ -137,10 +152,14 @@ def fit_from_steps(steps, *, min_n=10, same_action=0.95, lost_ratio=1.5):
         top, n_top = max(picks.items(), key=lambda kv: kv[1])
         lost = sum(1 for r in rows if r['reward'] == 0.0) / len(rows)
         stats[cluster] = {'n': len(rows), 'top': top, 'top_share': n_top / len(rows), 'lost_share': lost}
-        if top and n_top / len(rows) >= same_action and (1 - lost) >= won_overall - 0.05 and not str(top).startswith('menu:') and not str(top).startswith('agent:'):
+        share = replay_action_share(cluster, top)
+        if top and n_top / len(rows) >= same_action and (1 - lost) >= won_overall - 0.05 and not str(top).startswith('menu:') and not str(top).startswith('agent:') \
+                and (share is None or share >= 0.9):
             defaults[cluster] = top
         jev_rows = [r for r in rows if r.get('path_source') == 'jev']
-        if len(jev_rows) >= min_n and lost_overall > 0 and (sum(1 for r in jev_rows if r['reward'] == 0.0) / len(jev_rows)) > lost_ratio * lost_overall:
+        agreement = replay_agreement(cluster)
+        if len(jev_rows) >= min_n and lost_overall > 0 and (sum(1 for r in jev_rows if r['reward'] == 0.0) / len(jev_rows)) > lost_ratio * lost_overall \
+                and (agreement is None or agreement < 0.8):
             tighten.append(cluster)
     return {'defaults': defaults, 'tighten': tighten, 'stats': stats}
 
