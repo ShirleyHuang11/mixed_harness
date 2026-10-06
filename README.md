@@ -7,145 +7,101 @@ list and the whole conversation every time: about 8,300 input tokens and 2 secon
 retail. Some decisions are not small: an explanation the policy does not script, a plan across several tool
 calls, a reply that has to be composed. For those, the full model call is the right tool.
 
-Mixed Harness is a framework for splitting a tool-using task along that line and for learning where the
-line is. **Code compiles each step into a typed action set, and Jev, TypeSafe's judgment model, picks from
-it when it is confident. A language model takes the step when Jev is not confident. Every step is recorded,
-and the next version of the compiler is generated from what the language model had to do.** The LLM
-explores, the code takes over. The pieces are:
-
-- **A compiler** that turns tool schemas, the policy and the current state into the legal actions, the
-  arguments code can fill, and the questions a judgment model is asked. It is domain code. In the current
-  version it is hand-written for one domain; the framework's claim is that it should be *generated*, by a
-  language model, from the tool schemas, the policy, and what earlier runs recorded.
-- **A router** that sends each step to the closed path (Jev decides, code fills the arguments, a template
-  writes the text) or the escalate path (one native tool-calling turn of the LLM), from four signals: the
-  compiler's closed flag, Jev's own route pick, a path preference per state cluster learned from outcomes, and
-  Jev's confidence on its action pick against a threshold fitted per cluster from recorded LLM-only turns.
-- **A guard** on every path: tool and argument checks, and a write gate that lets no database write through
-  without the customer's yes to that operation.
-- **A step table** that records, for every step, the cluster, the path and why, the confidence, the action,
-  the guard's verdict, the cost and the episode's reward.
-- **Two loops over the step table.** The slow one regenerates the compiler: it labels which steps the LLM
-  took that code could have taken, mines the tool sequences the LLM repeats, and hands both to the generator
-  as seeds. The fast one recalibrates the router: the confidence threshold per cluster, and the preferred path
-  per cluster from outcomes.
+Mixed Harness splits a tool-using task along that line with one table, and learns the table from its own
+records. **For every type of state the table says who takes the step: code, Jev (TypeSafe's judgment model,
+400 ms, typed output, a probability with every answer), or an LLM. Jev takes a step only when its
+probability on its own pick clears the threshold the table holds for that state. Every step is recorded, and
+after each run the table is recomputed: a state type moves to code when the LLM always did the same thing
+there, to Jev when Jev's picks match the LLM's at some probability, and stays with the LLM otherwise.**
 
 ## Architecture
 
-![Runtime path: task state, compiler, Jev router, the paths, guard, trace store, and the loops feeding a new version back](docs/media/fig_runtime_path.svg)
+![Runtime: code lists the options, the table says who takes the step, code executes or Jev picks by probability or the LLM takes a turn, the guard checks. Offline: an LLM writes the option-listing code once from the tool schema and policy; the records recompute the table.](docs/media/fig_general.svg)
 
-**Why Jev shapes the design.** Jev returns only typed outputs, booleans, rubric scores and multiple-choice
-picks, so Jev picks actions and code or an LLM fills free-text arguments. It is single-pass, non-autoregressive
-and returns a probability with every pick, and that probability has resolution: on 1,002 recorded closed steps
-it agreed with the LLM on 98% of picks at confidence 0.99 or above, 82% between 0.90 and 0.99, and 35% below
-0.90. So a threshold is the abstain signal, and it is set from data per cluster. Extraneous context lowers its
-accuracy and its context is capped, so the compiler must produce a minimal state slice per question. Its
-weights are proprietary, so the questions evolve, not the model. It is weaker on long horizons. It picks
-well when the options are a judgment and poorly when they are a plan, so the compiler carries the workflow
-and the LLM takes the steps the compiler cannot express.
+**Runtime, every step, no domain code in the picture.** Code lists the options the state allows: the tools
+whose arguments can be filled, the known entities (orders, items, payment methods), the templates, and
+"none of these". The table is looked up by state type. Code takes the step with no model call. Jev takes it
+with one request, which also asks the candidate questions (which item, which variant, did the customer
+confirm), and the pick executes when Jev's probability on it is at or above the threshold. Otherwise the LLM
+takes the step in one native tool-calling turn. The guard checks tool names and arguments, lets no database write through
+without the customer's yes to that operation, and falls back to the listed default when a model's output is
+unusable. The step is written to the step table with the state type, who took it, the probability, the action
+and later the episode's reward.
 
-**Runtime path.** The execution layer is the compiler, the paths and the guard; the routing layer is the Jev
-router between them. The compiler turns tool schemas and state into the legal action set, flags it closed
-when every argument of every option can be filled from state and the customer's message maps to something
-in it, and writes every question for one Jev request: the route pick, the action pick, a reordered paraphrase
-of it, whether any option fits, whether the customer confirmed, and the candidate questions (which item, which
-variant, which payment method, which order). The router applies the signals in order: compiler flag, Jev's
-route pick, the learned path preference for the cluster, the cluster's confidence threshold on the action pick
-(the per-step signal has the last word), trajectory-level escalation when an action repeats. The thresholds and
-preferences travel with the harness as one JSON policy (`examples/tau2/policy.json`) and hash with the spec. The closed path executes; the escalate path hands the step to the LLM. The narrow
-path, an LLM-written menu that Jev picks from, exists in the code and is off by default: on retail it cost
-more than escalating and produced most of the loops. The guard checks the action, gates writes, and writes
-the step record.
+**Offline, after every run, the only place domain information enters.** Two products. The option-listing
+code is written once by a language model from the tool schema, the policy and the patterns in the records,
+then frozen and run as ordinary code; in the current version it is hand-written for retail. The table is
+recomputed from the step table and the recorded LLM-only trajectories by three rules: a state type goes to
+code when the LLM's action there is the same at least 90% of the time; to Jev, with threshold τ, when Jev's
+picks at or above τ agree with the LLM's at least 90% of the time; to the LLM when no τ reaches that. Traffic
+only moves toward the cheaper end, and the guard and the thresholds hold accuracy while it moves.
 
-**The same step on the two paths.** The customer writes: "I'm Yusuf Rossi, zip 19122, I want to exchange the
-keyboard in order #W2378156." The compiler finds a name, a zip code and an order id and lists the actions
-that are legal right now, all fillable, so the step is closed. Jev picks the lookup with confidence 1.0, the
-guard accepts the call, and `find_user_id_by_name_zip(Yusuf, Rossi, 19122)` executes. One Jev call. Three
-turns later the customer asks which keyboard variants have clicky switches and what they cost. No template
-composes that answer, Jev's confidence on the listed options is 0.6, and the step escalates: the LLM answers
-in one tool-calling turn. The step record says the escalation happened after a product lookup, in a cluster
-where Jev is unreliable, on a request the labeller calls open. Enough such records are the seed for a
-compiler that has a "list variants with prices" template, and the step stops escalating.
+**Why Jev shapes the design.** Jev returns typed outputs only, so code or an LLM fills free text. Its
+probability is calibrated: on 1,002 recorded closed steps it agreed with the LLM on 98% of picks at 0.99 or
+above, 82% between 0.90 and 0.99, and 35% below 0.90, so the probability is the abstain signal. Asked instead
+whether it could take a step, it was right 60% of the time; the table never asks that. It picks well when the
+options are a judgment and poorly when the next step depends on a plan the conversation implies (44% in the
+clusters right after a lookup), so those state types sit with the LLM until the records show otherwise.
 
-## The loops
+## The table on retail
 
-![Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast); both deploy a new harness version](docs/media/fig_evolution_loops.svg)
+The current table has about thirty rows, all computed from 1,389 recorded LLM-only turns and 114 routed
+episodes. A sample:
 
-**Loop A, the compiler is generated, not written.** The input is the step table and the LLM-only traces of
-the task. Two miners read them: a labeller that marks each LLM step closed or open by what the LLM did (a
-tool call whose arguments were all in the state, or a reply a template covers), and a sequence miner that
-finds the tool-call runs the LLM repeats. Their output is the seed: which steps code should take over, in
-what order, with what arguments. A language model then writes the compiler from the tool schemas, the policy
-and that seed, and GEPA refines it on traces with strict improvement. The hand-written retail compiler is the
-target this generator has to match; the test of the framework is a second domain with no hand-written code.
+| state type | who | τ | basis |
+|---|---|---|---|
+| no customer message yet | code: greet | | LLM did the same on 114 of 114 |
+| not authenticated, one name and a zip code | code: look the customer up | | 77 of 79 |
+| not authenticated, otherwise | Jev | 0.6 | agreement 98%, n=168 |
+| authenticated, customer names an order not yet loaded | code: load it | | 8 of 9 |
+| authenticated, order loaded, return intent | Jev | 0.6 | agreement 100%, n=19 |
+| authenticated, a lookup just returned, no order in focus | LLM | never | Jev at ≥ 0.9 agrees 52% to 71% |
+| everything else | Jev | 0.9 | 92% at ≥ 0.9 |
 
-**Loop B, the router is calibrated, not designed.** Two fits, both in `scripts/fit_policy.py`. The threshold
-per cluster comes from the recorded LLM-only turns: Jev is replayed on each one and the smallest threshold at
-which its picks agree with the LLM's on at least 90% of accepted turns is kept. On retail that gives 0.6 for the
-identity clusters (Jev is right there at any confidence), 0.99 or never for the clusters right after a tool
-result (Jev is guessing which lookup comes next). The path preference per cluster comes from routed step tables
-joined to episode rewards, with reward success minus λ·cost and an ε share of shadow runs so a path the router
-distrusts still gets measured. Recalibration runs after every compiler change, because a new compiler changes
-what Jev is asked.
-
-**What JevHarness has and what this adds.** The execution layer follows
-[JevHarness](https://github.com/TianyuCodings/JevHarness): a harness as a graph of sandboxed code and Jev
-calls, one run per decision with memory across decisions, evolved with GEPA over complete traces. JevHarness
-has no language model at runtime, so a step the harness does not cover is a wrong step, and its harness is
-authored once, offline. Mixed Harness adds the runtime LLM path and the router, the guard, the step table,
-and the loop that turns the LLM's steps into the next compiler. On τ²-bench retail the same compiler scores
-0.158 without the LLM path and 0.807 with it.
+Rules that read as natural but the records contradict were tried and removed: "report a result as soon as
+it arrives" (the LLM does that 67% of the time), "load the profile after authentication" (23%: it asks which
+order instead), "ask which order when several are known" (11%: it loads them). A row enters the table only
+when the records agree with it.
 
 ## Measuring it
 
 ![The tau2-bench test: four arms on the same benchmark, one table](docs/media/fig_measurement.svg)
 
-The claim is about the router and the loop, so the test scores each path alone and the router across them on
-the same terms. On τ²-bench retail (114 tasks, 16 tools, reward computed from the database state) every arm
-runs every task against the same simulated user with the same seeds: LLM only (the benchmark's own agent),
-Jev only (every step on the closed path), routed, and routed after a loop. One table is generated from the
-artifacts: pass^1, dollars per task, turns per task, calls per turn, Jev traffic share, and the step table's
-routing metrics. Before any routed run, the labeller replays Jev on the recorded LLM-only turns, so the
-closed fraction and Jev's reliability per cluster are measured first. The decision rules, predictions and
-every result so far are in `docs/design/tau2-four-arms.md`; `docs/guides/tau2.md` covers setup.
+On τ²-bench retail (114 tasks, 16 tools, reward from the database state), the arms run every task against the
+same simulated customer with the same seeds: LLM only (the benchmark's own agent), Jev only (every step on
+the Jev path, nothing to the LLM), and the routed harness with the table. One table is generated from the
+artifacts: pass^1, dollars per task, turns per task, and the share of steps taken by code, Jev and the LLM.
+The decision rules, predictions and every result are in `docs/design/tau2-four-arms.md`.
 
-Measured so far, on all 114 retail tasks (noise ±7.3 points on pass^1):
+| version | pass^1 | $ per task | turns | code | Jev | LLM |
+|---|---|---|---|---|---|---|
+| LLM only | 0.842 | 0.224 | 12.2 | 0 | 0 | 100% |
+| Jev only | 0.158 | 0.003 | 15.4 | 0 | 100% | 0 |
+| routed, one global threshold, a route question | 0.807 | 0.208 | 17.9 | 0 | 37% | 63% |
+| routed, eight hand-written code rows | 0.658 | 0.144 | 19.3 | 39% | 25% | 36% |
+| routed, the five code rows the records support (94 of 114 tasks) | 0.83 | | | | | |
 
-| arm | pass^1 | $ per task | turns per task | Jev share of steps |
-|---|---|---|---|---|
-| LLM only | 0.842 | 0.224 | 12.2 | 0 |
-| Jev only | 0.158 | 0.003 | 15.4 | 1.00 |
-| routed, first version | 0.439 | 0.271 | 21.7 | 0.26 |
-| routed, third version | 0.807 | 0.208 | 17.9 | 0.37 |
-
-The first routed version looped: a quarter of its episodes repeated the same reply three or more times. The
-fixes came from its step table (a looked-up order becomes the focus, a repeated lookup is answered from memory,
-the write gate matches the operation rather than its exact arguments, a repeated action escalates, the narrow
-path is off, the route question is two-way) and brought accuracy within noise of the LLM at 0.93× its cost.
-The cost half of the claim is open: Jev still takes only 37% of steps, because 40% of steps escalate on
-confidence below 0.9 and the data says those escalations are right. Those steps are the "which lookup next"
-decisions after a tool result, which are a plan, not a judgment; on the 1,389 recorded LLM-only turns Jev
-agrees with the LLM on 98% of identity-phase picks and on 43% to 56% in the clusters after a tool result.
-That is the gap the generated compiler has to close, by carrying the workflow so that Jev's pick is a judgment
-again.
+Noise on pass^1 is ±7.3 points. The hand-written rows cost 15 points, the record-supported rows gave them
+back; the last row's run stopped at task 94 when the account's credit ran out and finishes with the remaining
+twenty. The cost half of the claim is open: the version within noise of the LLM costs 0.84× to 0.93× of it,
+because the state types after a lookup still go to the LLM. The learning curve, run → recompute → run, has
+not been drawn yet; it is the next experiment.
 
 ## Status
 
 | Part | State |
 |---|---|
-| Runtime, sandbox, expression language, spec format; nodes skip on null input; soft failure for malformed LLM replies | done, tested on mock providers |
-| Compiler for τ²-bench retail: catalog, argument fill, closed flag, cluster, questions | done, hand-written (`examples/tau2/seeds.py`) |
-| Compiler generator: LLM writes the compiler from schemas, policy and mined seeds | designed, not built |
-| One Jev request per step with route pick, action pick, paraphrase, fits, candidates | done |
-| Router: compiler flag → Jev pick → learned path preference → per-cluster confidence threshold → trajectory escalation | done; thresholds and preferences fitted from 1,389 replayed turns and 114 routed episodes, embedded as `examples/tau2/policy.json` |
-| Closed and escalate paths; narrow path (off by default) | done |
-| Guard: tool and argument checks, write gate on every path (a yes after the LLM's own confirmation question counts), fallback | done |
-| Step table with routing record and episode reward; merge of partial runs | done (`mixedharness/trace.py`, `scripts/tau2_merge.py`) |
-| Loop A, labeller and sequence miner | done (`scripts/stage0_label_replay.py`, `mixedharness/mining.py`) |
-| Loop A, GEPA over the whole spec | done, tested with a mock reflection model |
-| Loop B, threshold and path preference per cluster, fitted and embedded | done (`mixedharness/router.py`, `scripts/fit_policy.py`) |
-| Four-arm benchmark runner, replay user for credit-free plumbing | done; results above |
-| Second domain with no hand-written compiler | not started; the test of generality |
+| Runtime, sandbox, spec format; nodes skip on null input; malformed LLM replies are soft failures | done |
+| Option listing for retail | done, hand-written (`examples/tau2/seeds.py`) |
+| Option listing written by an LLM from schema and policy | not started |
+| The table: code rows, Jev thresholds per state type, LLM rows | done, fitted from records (`scripts/fit_policy.py`, `examples/tau2/policy.json`); code rows validated by replay but applied by hand |
+| One script that recomputes all three columns after a run | partial: thresholds and preferences, not yet the code rows |
+| Runtime path: code → Jev by probability → LLM → guard | done (`mixedharness/`, routed seed) |
+| Guard: tool and argument checks, write gate on every path, fallback | done |
+| Step table and merge of partial runs | done (`mixedharness/trace.py`, `scripts/tau2_merge.py`) |
+| Labeller and replay of Jev on recorded LLM-only turns | done (`scripts/stage0_label_replay.py`) |
+| Learning curve over several rounds | not run |
+| Second domain | not started |
 
 ## Quick start
 
@@ -157,19 +113,21 @@ Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` for Je
 the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandbox-exec` on macOS.
 
     ~/tau2-bench/.venv/bin/python scripts/stage0_label_replay.py                       # labels and Jev replay on recorded LLM-only traces
-    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5
-    uv run python scripts/live_run.py --task classify --rounds 2 --train 6 --validation 6
+    ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --replay runs/stage0/<stamp>/replay.jsonl --steps runs/tau2/<run>/routed/steps.jsonl
+    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --arms routed --policy examples/tau2/policy.json
 
 ## Layout
 
 | Path | What it holds |
 |---|---|
-| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router, trace, mining, seeds, evolution, freeze |
-| `examples/classify`, `examples/constrained_text` | a settled and an open-ended task that run end-to-end on mock providers |
-| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, the routed seed and its two controls, a replay user |
-| `scripts/` | `stage0_label_replay.py` (labels and Jev replay), `tau2_compare.py` (the four-arm benchmark), `tau2_merge.py`, `live_run.py` |
+| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router (table fitting), trace, mining, seeds, evolution, freeze |
+| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, the routed seed and its two controls, the fitted table, a replay user |
+| `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `tau2_compare.py`, `tau2_merge.py`, `live_run.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
-| `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
+| `docs/media/` | figures: `fig_general.svg`, `fig_measurement.svg` |
 
-GEPA is the optimizer of Agrawal et al., arXiv:2507.19457. τ²-bench is Barres et al., arXiv:2506.07982.
+The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness), a harness as a graph of
+sandboxed code and Jev calls evolved with GEPA, implemented independently here; JevHarness has no LLM at
+runtime and authors its harness once, offline. GEPA is Agrawal et al., arXiv:2507.19457. τ²-bench is Barres
+et al., arXiv:2506.07982.
