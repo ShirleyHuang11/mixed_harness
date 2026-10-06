@@ -25,7 +25,8 @@ from .schema import SchemaError, check_schema, minimal_instance, validate as val
 KINDS = ('mock', 'anthropic', 'openai', 'codex')
 DEFAULT_KEY_ENV = {'anthropic': 'ANTHROPIC_API_KEY', 'openai': 'OPENAI_API_KEY'}
 # USD per million tokens (input, output), matched by prefix on the model id the provider echoes. Others count as unpriced.
-PRICES = {'claude-sonnet-5': (2.0, 10.0), 'claude-sonnet-4-5': (3.0, 15.0), 'claude-opus-5': (15.0, 75.0), 'claude-haiku-4-5': (1.0, 5.0)}
+PRICES = {'claude-sonnet-5': (2.0, 10.0), 'claude-sonnet-4-5': (3.0, 15.0), 'claude-opus-5': (15.0, 75.0), 'claude-haiku-4-5': (1.0, 5.0),
+          'gpt-5.5': (5.0, 30.0)}   # gpt-5.5 at litellm's list price, so subscription calls are imputed at the same rate tau2 bills the LLM-only arm
 
 
 class LLMError(RuntimeError):
@@ -358,8 +359,9 @@ class LLMClient:
     @staticmethod
     def _price(model, usage):
         if str(model).startswith('codex:'):
-            prices = PRICES['claude-sonnet-5']   # imputed: subscription calls cost nothing; priced as the API model they replace
-            return (usage.get('input_tokens', 0) * prices[0] + usage.get('output_tokens', 0) * prices[1]) / 1_000_000
+            name = str(model)[len('codex:'):]
+            prices = PRICES.get(name) or next((v for k, v in PRICES.items() if name.startswith(k)), PRICES['gpt-5.5'])
+            return (usage.get('input_tokens', 0) * prices[0] + usage.get('output_tokens', 0) * prices[1]) / 1_000_000   # imputed: the subscription bills nothing
         prices = PRICES.get(model)
         if not prices:
             for prefix, value in sorted(PRICES.items(), key=lambda kv: -len(kv[0])):
