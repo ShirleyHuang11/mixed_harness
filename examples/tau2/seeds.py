@@ -434,33 +434,16 @@ def run(obs, nodes, memory):
     closed = len(options) > 0 and len(needs) == 0 and bool(request_covered)
     facts["request_covered"] = bool(request_covered)
     cluster = ("auth" if auth else "anon") + "|" + str(incoming.get("role") or "none") + "|" + str((order or {}).get("status") or "no_order") + "|" + top_intent(intents)
-    # --- structural default: when exactly one workflow rule applies, code acts and Jev is not asked ------------
-    # The rules are the hot paths of the recorded LLM-only trajectories: after a lookup the LLM loads the one order it
-    # knows about, asks which order when it knows several, or reports the result it just received.
+    # --- structural default: when one workflow rule applies, code acts and Jev is not asked --------------------
     default = None
     unloaded_mentioned = [oid for oid in order_ids if oid not in known_orders and "tool:get_order_details:" + oid in options]
-    unloaded_user = [oid for oid in user_orders if oid not in known_orders and "tool:get_order_details:" + oid in options]
-    if auth and incoming.get("role") == "tool" and pending is None and not incoming.get("error"):
-        if incoming.get("tool") in ("find_user_id_by_name_zip", "find_user_id_by_email") and "tool:get_user_details" in options:
-            default = "tool:get_user_details"
-        elif incoming.get("tool") == "get_user_details":
-            if len(unloaded_mentioned) >= 1:
-                default = "tool:get_order_details:" + unloaded_mentioned[0]
-            elif len(user_orders) == 1 and unloaded_user:
-                default = "tool:get_order_details:" + unloaded_user[0]
-            elif len(user_orders) > 1 and not order_ids and "reply:ask_order" in options:
-                default = "reply:ask_order"
-        elif incoming.get("tool") == "get_order_details" and len(unloaded_mentioned) >= 1:
-            default = "tool:get_order_details:" + unloaded_mentioned[0]
-        elif incoming.get("tool") in ("get_order_details", "get_product_details") and "reply:report_result" in options:
-            product_loads = [o for o in options if o.startswith("tool:get_product_details:")]
-            wants_products = intents["exchange"] or intents["modify_items"]
-            if wants_products and product_loads and incoming.get("tool") == "get_order_details":
-                default = product_loads[0]
-            elif not wants_products or not product_loads:
-                default = "reply:report_result"
-        elif incoming.get("tool") in write_tools and "reply:report_result" in options:
-            default = "reply:report_result"
+    # Only rules the recorded LLM-only turns agree with at >= 97% (stage-0 replay of 2026-10-06, 1,389 turns):
+    #   greeting 114/114, single name+zip 77/79, single email 15/15, transfer notice 7/7, load a mentioned unloaded order 8/9.
+    # Rules that looked natural but the LLM does not follow were tried and removed: "report a result" (67%), "load the
+    # profile after authentication" (23%: the LLM asks which order instead), "ask which order when several" (11%: the
+    # LLM loads them), "load the product after the order" (30%). Those steps go to Jev, and below its threshold to the LLM.
+    if auth and incoming.get("role") == "tool" and pending is None and not incoming.get("error") and unloaded_mentioned:
+        default = "tool:get_order_details:" + unloaded_mentioned[0]
     if not auth and incoming.get("role") == "user":
         if len(names) == 1 and zips and "tool:find_user_id_by_name_zip" in options:
             default = "tool:find_user_id_by_name_zip"

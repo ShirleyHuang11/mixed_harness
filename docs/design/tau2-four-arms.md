@@ -156,6 +156,27 @@ listing them; a result just arrived → report it). Version 4 puts those rules i
 when exactly one applies, asks Jev only when more than one does, and reverts the relaxed 0.6 thresholds to 0.9 until
 the routed step tables, not the LLM-only replay, support them.
 
+Routed version 4 (2026-10-06, `runs/tau2/20261006-stage2-v4-merged/table.md`): the structure settled in the grilling,
+code first, then Jev's probability on its own pick, then the LLM, then the guard. The route and paraphrase questions
+and the menu path are gone. Eight structural rules were written from the after-lookup analysis above and executed
+without any model call when exactly one applied.
+
+| arm | pass^1 (114) | $/task | turns/task | steps with no model call | Jev-decided | LLM steps |
+|---|---|---|---|---|---|---|
+| routed v3a | 0.807 | 0.208 | 17.9 | 0 | 37% | 63% |
+| routed v4 | 0.658 | 0.144 | 19.3 | 39% | 25% | 36% |
+
+Cost reached 0.64× and accuracy fell 15 points: FAILS. Replaying the eight rules on the 1,389 recorded LLM-only turns
+gave each rule's agreement with the LLM: greeting 100%, single name and zip 97%, single email 100%, transfer notice
+100%, load a mentioned unloaded order 8 of 9; but "report the result" 67%, "load the profile after authentication" 23%
+(the LLM asks which order instead), "ask which order when several are known" 11% (the LLM loads them), "load the
+product after the order" 30%. The four low-agreement rules fired on 757 of the 809 structural steps. The rule-writing
+mistake was to read the after-lookup clusters as "mostly structural" when the LLM's action there splits three ways;
+a rule is structural only when the traces agree with it, and the acceptance test for a rule is exactly that replay.
+Jev-decided steps behaved as before: at confidence ≥ 0.9 they agree with the LLM on 99% (286 turns), below it 55%.
+
+Version 4b keeps the five rules at ≥ 97% and returns the rest to Jev and the LLM.
+
 **Stage 3, only if stage 2 holds: a second domain.** Airline (50 tasks, 14 tools), compiler written fresh and
 timed; and τ³ `banking_knowledge` for the first genuinely open tasks, where the narrow path is tested on something
 a template cannot cover.
