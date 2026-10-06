@@ -13,6 +13,8 @@ Without one, `value` is the text. Two error classes keep infrastructure apart fr
 import hashlib
 import json
 import os
+import subprocess
+import tempfile
 import threading
 import time
 import uuid
@@ -20,7 +22,7 @@ from pathlib import Path
 
 from .schema import SchemaError, check_schema, minimal_instance, validate as validate_json
 
-KINDS = ('mock', 'anthropic', 'openai')
+KINDS = ('mock', 'anthropic', 'openai', 'codex')
 DEFAULT_KEY_ENV = {'anthropic': 'ANTHROPIC_API_KEY', 'openai': 'OPENAI_API_KEY'}
 # USD per million tokens (input, output), matched by prefix on the model id the provider echoes. Others count as unpriced.
 PRICES = {'claude-sonnet-5': (2.0, 10.0), 'claude-sonnet-4-5': (3.0, 15.0), 'claude-opus-5': (15.0, 75.0), 'claude-haiku-4-5': (1.0, 5.0)}
@@ -69,6 +71,32 @@ def extract_json(text):
     raise LLMOutputError('unterminated JSON document')
 
 
+CODEX_WORKDIR = None
+CODEX_TOOL_INSTRUCTION = (
+    "\n\nYou may call exactly one tool or send one message. Reply with exactly one JSON object and nothing else: "
+    'either {"tool": "<tool name>", "arguments": {...}} with every required argument, or {"message": "<text to the customer>"}. '
+    "Available tools (JSON Schema):\n")
+
+
+def codex_exec(prompt, model, timeout=180.0):
+    """One `codex exec` call on the user's ChatGPT subscription: prompt text in, the agent's last message out."""
+    global CODEX_WORKDIR
+    if CODEX_WORKDIR is None:
+        CODEX_WORKDIR = Path(tempfile.mkdtemp(prefix='mixedharness-codex-'))
+    out = CODEX_WORKDIR / (uuid.uuid4().hex + '.txt')
+    cmd = ['codex', 'exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', str(CODEX_WORKDIR), '-m', model, '-o', str(out), '-']
+    try:
+        proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise LLMError('codex exec timed out') from None
+    text = out.read_text().strip() if out.exists() else ''
+    if out.exists():
+        out.unlink()
+    if not text:
+        raise LLMError(f'codex exec returned nothing: {proc.stderr[-300:]}')
+    return text
+
+
 class LLMClient:
     def __init__(self, kind='mock', model='mock-llm', *, api_key_env=None, cache_dir=None, cache_namespace=None,
                  cache_only=False, timeout=60.0, max_tokens=1024, mock_responder=None, base_url=None):
@@ -91,7 +119,7 @@ class LLMClient:
 
     @property
     def metadata(self):
-        return {'transport': self.kind, 'requested_model': self.model, 'api_key_env': self.key_env,
+        return {'transport': self.kind, 'requested_model': self.model, 'api_key_env': self.key_env, 'cost_imputed': self.kind == 'codex',
                 'cache_namespace': self.cache_namespace, 'cache_dir': str(self.cache_dir) if self.cache_dir else None,
                 'actual_models': sorted(self.actual_models)}
 
@@ -212,6 +240,22 @@ class LLMClient:
         return {'kind': 'message', 'name': None, 'arguments': None, 'text': 'mock agent reply'}
 
     def _turn_call(self, system, messages, tools, model, max_tokens):
+        if self.kind == 'codex':
+            prompt = '<system>\n' + system + '\n</system>\n' + '\n'.join(f"<{m['role']}>\n{m['content']}\n</{m['role']}>" for m in messages)
+            if tools:
+                prompt += CODEX_TOOL_INSTRUCTION + json.dumps(tools, ensure_ascii=False)
+            else:
+                prompt += '\n\nReply with exactly one JSON object: {"message": "<text to the customer>"}.'
+            text = codex_exec(prompt, model, timeout=max(self.timeout, 180.0))
+            usage = {'input_tokens': len(prompt) // 4, 'output_tokens': len(text) // 4, 'estimated': True}
+            try:
+                obj = json.loads(extract_json(text))
+            except (LLMOutputError, ValueError):
+                obj = {'message': text}
+            if isinstance(obj, dict) and obj.get('tool'):
+                return {'kind': 'tool', 'name': str(obj['tool']), 'arguments': dict(obj.get('arguments') or {}), 'text': None}, 'codex:' + model, usage
+            message = obj.get('message', text) if isinstance(obj, dict) else text
+            return {'kind': 'message', 'name': None, 'arguments': None, 'text': str(message).strip()}, 'codex:' + model, usage
         key = os.getenv(self.key_env or '')
         if not key:
             raise LLMError(f'{self.key_env} is not set')
@@ -280,6 +324,9 @@ class LLMClient:
             else:
                 text = instruction.strip().splitlines()[-1]
             return text, 'mock-llm', {'input_tokens': len(instruction) // 4, 'output_tokens': len(text) // 4}
+        if self.kind == 'codex':
+            text = codex_exec(instruction + '\n\nReply with the answer only; no preamble, no analysis.', model, timeout=max(self.timeout, 180.0))
+            return text, 'codex:' + model, {'input_tokens': len(instruction) // 4, 'output_tokens': len(text) // 4, 'estimated': True}
         key = os.getenv(self.key_env or '')
         if not key:
             raise LLMError(f'{self.key_env} is not set')
@@ -310,6 +357,9 @@ class LLMClient:
 
     @staticmethod
     def _price(model, usage):
+        if str(model).startswith('codex:'):
+            prices = PRICES['claude-sonnet-5']   # imputed: subscription calls cost nothing; priced as the API model they replace
+            return (usage.get('input_tokens', 0) * prices[0] + usage.get('output_tokens', 0) * prices[1]) / 1_000_000
         prices = PRICES.get(model)
         if not prices:
             for prefix, value in sorted(PRICES.items(), key=lambda kv: -len(kv[0])):

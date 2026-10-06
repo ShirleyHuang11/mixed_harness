@@ -453,6 +453,9 @@ def run(obs, nodes, memory):
             default = "reply:greeting"
     if mem["transferred"]:
         default = "reply:transfer_notice"
+    learned = (__POLICY__.get("defaults") or {}).get(cluster)   # a code row learned from this harness's own step tables
+    if default is None and learned in options and learned not in needs and pending is None:
+        default = learned
     if default is not None and default not in options:
         default = None
     # --- the Jev request: the action pick, the confirmation read, and the candidate questions -----------------
@@ -879,7 +882,7 @@ def _fill(source, *, allow_llm, policy=None, tau=TAU):
 
 def _core_nodes(*, allow_llm, policy=None, tau=TAU):
     return [
-        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm), 'inputs': []},
+        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm, policy=policy), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['compile']['state']", 'questions_expression': "nodes['compile']['questions']"},
         {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau), 'inputs': ['compile', 'judge']},
         {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm=allow_llm), 'inputs': ['compile', 'judge']},

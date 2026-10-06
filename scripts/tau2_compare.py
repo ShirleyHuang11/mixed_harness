@@ -63,10 +63,13 @@ NO_TEMPERATURE_MODELS = ('claude-sonnet-5', 'claude-opus-5', 'claude-fable')
 
 
 def llm_args_for(model):
-    """temperature=0 wherever the provider still accepts it; the Claude 5 family rejects the parameter."""
-    if any(tag in (model or '') for tag in NO_TEMPERATURE_MODELS):
-        return {}
-    return {'temperature': 0.0}
+    """temperature=0 wherever the provider still accepts it; the Claude 5 family rejects the parameter. Through the local
+    subscription proxy (OPENAI_API_BASE set) the base URL and a placeholder key travel in the args as well."""
+    args = {} if any(tag in (model or '') for tag in NO_TEMPERATURE_MODELS) else {'temperature': 0.0}
+    if (model or '').startswith('openai/') and os.environ.get('OPENAI_API_BASE'):
+        args.update({'api_base': os.environ['OPENAI_API_BASE'], 'api_key': os.environ.get('OPENAI_API_KEY', 'subscription')})
+        args.pop('temperature', None)
+    return args
 
 
 class _LenientJson:
@@ -389,9 +392,21 @@ def main(argv=None):
     p.add_argument('--policy-steps', default=None, help='steps.jsonl of an earlier run; fits a loop-B policy for routed_evolved when no --evolved-spec is given')
     p.add_argument('--policy', default=None, help='compact policy JSON (scripts/fit_policy.py) embedded in the routed arm: tau per cluster, preferred paths')
     p.add_argument('--mock', action='store_true', help='mock Jev and LLM for the pipeline arms (plumbing only; scores are meaningless)')
+    p.add_argument('--llm-backend', choices=['api', 'codex'], default='api',
+                   help='codex: every LLM role (agent, user simulator, judge, harness llm nodes) goes through the ChatGPT subscription; '
+                        'tau2 roles via the local proxy at --proxy-base (start scripts/cli_proxy.py first), harness nodes via codex exec directly')
+    p.add_argument('--proxy-base', default='http://127.0.0.1:8765/v1')
+    p.add_argument('--codex-model', default='gpt-5.5')
     p.add_argument('--out', default='runs/tau2')
     args = p.parse_args(argv)
     load_dotenv(ROOT / '.env', override=False)
+    if args.llm_backend == 'codex':
+        args.agent_llm = f'openai/{args.codex_model}'
+        args.user_llm = f'openai/{args.codex_model}'
+        args.nl_judge_llm = f'openai/{args.codex_model}'
+        args.llm_model = args.codex_model
+        os.environ['OPENAI_API_BASE'] = args.proxy_base
+        os.environ.setdefault('OPENAI_API_KEY', 'subscription')
     arms = [a for a in args.arms.split(',') if a]
     unknown = [a for a in arms if a not in ARMS]
     if unknown:
@@ -427,7 +442,8 @@ def main(argv=None):
         if needs_jev and not os.getenv('TYPESAFE_API_KEY'):
             p.error('TYPESAFE_API_KEY is not set; the jev_only, routed and routed_evolved arms need it')
         jev = JevClient(model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace)
-        llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir=str(ROOT / '.cache/llm'), cache_namespace=namespace, max_tokens=1024)
+        llm = LLMClient(kind='codex' if args.llm_backend == 'codex' else 'anthropic', model=args.llm_model,
+                        cache_dir=str(ROOT / '.cache/llm'), cache_namespace=namespace, max_tokens=1024, timeout=180.0)
     evolved_spec, evolved_source = None, None
     if 'routed_evolved' in arms:
         if args.evolved_spec:
@@ -447,6 +463,7 @@ def main(argv=None):
                 'llm_args_agent': llm_args_for(args.agent_llm), 'llm_args_user': llm_args_for(args.user_llm),
                 'jev_model': args.jev_model, 'jev_transport': jev.transport, 'mock': args.mock, 'routed_evolved_source': evolved_source,
                 'user': args.user, 'replay_results': args.replay_results, 'policy': args.policy,
+                'llm_backend': args.llm_backend, 'proxy_base': args.proxy_base if args.llm_backend == 'codex' else None, 'cost_imputed': args.llm_backend == 'codex',
                 'seed': args.seed, 'max_steps': args.max_steps, 'concurrency': args.concurrency, 'namespace': namespace,
                 'git': {'mixed_harness': git_head(ROOT), 'tau2_bench': git_head(Path(os.environ.get('TAU2_HOME') or Path.home() / 'tau2-bench'))},
                 'credentials_present': {k: bool(os.getenv(k)) for k in ('TYPESAFE_API_KEY', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY')},

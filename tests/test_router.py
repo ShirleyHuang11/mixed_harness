@@ -43,9 +43,9 @@ def test_fit_policy_prefers_the_best_scored_path_only_with_enough_samples():
     assert policy['clusters']['c2']['prefer'] == 'escalate'          # closed fails there
     assert policy['clusters']['c3']['prefer'] is None
     compact = compact_policy(policy)
-    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}, 'tau': {}}
+    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}, 'tau': {}, 'defaults': {}}
     assert json.loads(policy_source_literal(policy)) == compact
-    assert json.loads(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}, 'tau': {}}
+    assert json.loads(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {}}
 
 
 def test_route_metrics_and_mining_on_step_rows():
@@ -317,7 +317,7 @@ def test_fit_tau_picks_the_smallest_reliable_threshold_per_cluster():
     assert c['easy']['tau'] == 0.6 and c['hard']['tau'] == 0.99 and c['hopeless']['tau'] == NEVER and 'thin' not in c
     policy = merge_policy(None, fitted)
     compact = compact_policy(policy)
-    assert compact['tau'] == {'easy': 0.6, 'hard': 0.99, 'hopeless': NEVER}
+    assert compact['tau'] == {'easy': 0.6, 'hard': 0.99, 'hopeless': NEVER} and compact['defaults'] == {}
     assert json.loads(policy_source_literal(policy))['tau']['hard'] == 0.99
 
 
@@ -345,3 +345,15 @@ def test_write_gate_accepts_a_yes_after_the_llm_asked_in_prose():
                  {'role': 'assistant', 'text': 'Your order contains a keyboard and a thermostat.', 'tool': None, 'arguments': None, 'result': None, 'error': False}]
     result = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(agent=write), _obs('Yes.', unrelated, turn=3), {})
     assert result['nodes']['guard']['guard'] == 'write_gate'
+
+
+def test_fit_from_steps_learns_code_rows_and_tightenings():
+    from mixedharness.router import fit_from_steps
+    def st(cluster, chosen, reward, source='jev'):
+        return {'cluster': cluster, 'path': 'closed', 'path_source': source, 'chosen': chosen, 'reward': reward}
+    steps = [st('a', 'tool:x', 1.0) for _ in range(12)]                                # always the same pick, winning
+    steps += [st('b', 'tool:y', 0.0) for _ in range(8)] + [st('b', 'tool:y', 1.0) for _ in range(4)]   # same pick but losing
+    steps += [st('c', 'tool:p', 1.0) for _ in range(6)] + [st('c', 'tool:q', 1.0) for _ in range(6)]   # split picks
+    steps += [{'cluster': 'd', 'path': 'escalate', 'path_source': 'low_confidence', 'chosen': None, 'reward': 1.0} for _ in range(20)]
+    learned = fit_from_steps(steps, min_n=10)
+    assert learned['defaults'] == {'a': 'tool:x'} and learned['tighten'] == ['b']

@@ -110,27 +110,67 @@ def fit_tau(replay_rows, *, target=0.9, min_n=10, grid=TAU_GRID, default=0.9):
     return {'target': target, 'min_n': min_n, 'default': default, 'clusters': out}
 
 
+def fit_from_steps(steps, *, min_n=10, same_action=0.95, lost_ratio=1.5):
+    """Loop B on routed step tables: which state types can move to code, which must tighten.
+
+    A cluster moves to code (a `default` action) when Jev's accepted picks there were the same option at least
+    `same_action` of the time over at least `min_n` steps and those steps' episodes were won at least as often as
+    the overall rate. A cluster tightens to NEVER when its accepted Jev steps sit in lost episodes at more than
+    `lost_ratio` times the overall lost share (over at least `min_n` steps). Returns {'defaults': {cluster: option},
+    'tighten': [cluster], 'stats': {cluster: {...}}}."""
+    scored = [s for s in steps if s.get('reward') is not None and s.get('cluster')]
+    if not scored:
+        return {'defaults': {}, 'tighten': [], 'stats': {}}
+    lost_overall = sum(1 for s in scored if s['reward'] == 0.0) / len(scored)
+    won_overall = 1.0 - lost_overall
+    by = {}
+    for s in scored:
+        if s.get('path') == 'closed' and s.get('path_source') in ('jev', 'structural', 'policy'):
+            by.setdefault(s['cluster'], []).append(s)
+    defaults, tighten, stats = {}, [], {}
+    for cluster, rows in sorted(by.items()):
+        if len(rows) < min_n:
+            continue
+        picks = {}
+        for r in rows:
+            picks[r.get('chosen')] = picks.get(r.get('chosen'), 0) + 1
+        top, n_top = max(picks.items(), key=lambda kv: kv[1])
+        lost = sum(1 for r in rows if r['reward'] == 0.0) / len(rows)
+        stats[cluster] = {'n': len(rows), 'top': top, 'top_share': n_top / len(rows), 'lost_share': lost}
+        if top and n_top / len(rows) >= same_action and (1 - lost) >= won_overall - 0.05 and not str(top).startswith('menu:') and not str(top).startswith('agent:'):
+            defaults[cluster] = top
+        jev_rows = [r for r in rows if r.get('path_source') == 'jev']
+        if len(jev_rows) >= min_n and lost_overall > 0 and (sum(1 for r in jev_rows if r['reward'] == 0.0) / len(jev_rows)) > lost_ratio * lost_overall:
+            tighten.append(cluster)
+    return {'defaults': defaults, 'tighten': tighten, 'stats': stats}
+
+
 def compact_policy(policy):
     """The part of a fitted policy a harness needs at runtime: preferred path per cluster, tau per cluster, epsilon."""
+    tau = {c: float(v['tau']) for c, v in (policy.get('tau_by_cluster') or {}).items() if isinstance(v, dict) and v.get('tau') is not None}
+    for c in policy.get('tighten') or []:
+        tau[c] = NEVER
     return {'epsilon': float(policy.get('epsilon', DEFAULT_EPSILON)),
             'prefer': {c: v['prefer'] for c, v in (policy.get('clusters') or {}).items() if isinstance(v, dict) and v.get('prefer')},
-            'tau': {c: float(v['tau']) for c, v in (policy.get('tau_by_cluster') or {}).items() if isinstance(v, dict) and v.get('tau') is not None}}
+            'tau': tau, 'defaults': dict(policy.get('defaults') or {})}
 
 
-def merge_policy(path_policy=None, tau_policy=None, *, epsilon=DEFAULT_EPSILON):
-    """One policy from a fit_policy result (paths) and a fit_tau result (thresholds)."""
+def merge_policy(path_policy=None, tau_policy=None, *, epsilon=DEFAULT_EPSILON, learned=None):
+    """One policy from a fit_policy result (paths), a fit_tau result (thresholds) and a fit_from_steps result (code rows)."""
     return {'epsilon': epsilon, 'clusters': (path_policy or {}).get('clusters') or {},
-            'tau_by_cluster': (tau_policy or {}).get('clusters') or {}}
+            'tau_by_cluster': (tau_policy or {}).get('clusters') or {},
+            'defaults': (learned or {}).get('defaults') or {}, 'tighten': (learned or {}).get('tighten') or []}
 
 
 def policy_source_literal(policy):
     """JSON literal for embedding in a python node's source (the seed replaces a placeholder with it).
     Accepts a full fitted policy or an already compact one ({'epsilon', 'prefer', 'tau'})."""
     if not policy:
-        return json.dumps({'epsilon': 0.0, 'prefer': {}, 'tau': {}}, sort_keys=True)
-    if 'clusters' in policy or 'tau_by_cluster' in policy:
+        return json.dumps({'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {}}, sort_keys=True)
+    if 'clusters' in policy or 'tau_by_cluster' in policy or 'tighten' in policy:
         policy = compact_policy(policy)
-    return json.dumps({'epsilon': float(policy.get('epsilon', 0.0)), 'prefer': dict(policy.get('prefer') or {}), 'tau': dict(policy.get('tau') or {})}, sort_keys=True)
+    return json.dumps({'epsilon': float(policy.get('epsilon', 0.0)), 'prefer': dict(policy.get('prefer') or {}), 'tau': dict(policy.get('tau') or {}),
+                       'defaults': dict(policy.get('defaults') or {})}, sort_keys=True)
 
 
 def route_metrics(steps):

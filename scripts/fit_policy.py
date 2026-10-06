@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from mixedharness.router import compact_policy, fit_policy, fit_tau, merge_policy  # noqa: E402
+from mixedharness.router import compact_policy, fit_from_steps, fit_policy, fit_tau, merge_policy  # noqa: E402
 from mixedharness.store import read_jsonl  # noqa: E402
 
 
@@ -34,13 +34,15 @@ def main(argv=None):
     steps = [r for f in args.steps for r in read_jsonl(f)]
     tau = fit_tau(replay, target=args.target, min_n=args.min_n) if replay else None
     paths = fit_policy(steps, min_samples=args.min_samples, epsilon=args.epsilon) if steps else None
-    full = merge_policy(paths, tau, epsilon=args.epsilon)
+    learned = fit_from_steps(steps, min_n=args.min_n) if steps else None
+    full = merge_policy(paths, tau, epsilon=args.epsilon, learned=learned)
     compact = compact_policy(full)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({**compact, 'provenance': {'replay': args.replay, 'steps': args.steps, 'target': args.target, 'min_n': args.min_n,
                                                         'min_samples': args.min_samples, 'replay_rows': len(replay), 'step_rows': len(steps)},
-                               'tau_detail': (tau or {}).get('clusters', {}), 'path_detail': {c: v.get('stats') for c, v in ((paths or {}).get('clusters') or {}).items()}},
+                               'tau_detail': (tau or {}).get('clusters', {}), 'path_detail': {c: v.get('stats') for c, v in ((paths or {}).get('clusters') or {}).items()},
+                               'learned_detail': (learned or {}).get('stats', {})},
                               indent=1, sort_keys=True))
     print('| cluster | closed turns | tau | accepted | agreement at tau | preferred path |')
     print('|---|---|---|---|---|---|')
@@ -48,6 +50,9 @@ def main(argv=None):
     for c in clusters:
         t = (tau or {}).get('clusters', {}).get(c, {})
         print(f"| {c} | {t.get('n', '—')} | {t.get('tau', 'default')} | {t.get('accepted', '—')} | {('%.2f' % t['agreement']) if t.get('agreement') is not None else '—'} | {compact['prefer'].get(c, '—')} |")
+    if learned:
+        print('code rows learned from steps:', compact['defaults'])
+        print('tightened to never:', learned['tighten'])
     print(f'written: {out}')
 
 
