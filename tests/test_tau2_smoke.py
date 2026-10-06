@@ -31,7 +31,7 @@ def test_seeds_validate_and_the_controls_are_the_routed_graph_minus_the_llm_path
     from examples.tau2 import seeds
     jev_only, routed, llm_only = seeds.jev_only_seed(), seeds.routed_seed(), seeds.llm_only_seed()
     assert [n['id'] for n in jev_only['nodes']] == ['compile', 'judge', 'route', 'decision', 'guard']
-    assert [n['id'] for n in routed['nodes']] == ['compile', 'judge', 'route', 'decision', 'menu', 'menu_q', 'menu_pick', 'agent', 'guard']
+    assert [n['id'] for n in routed['nodes']] == ['compile', 'judge', 'route', 'decision', 'agent', 'guard']
     assert [n['kind'] for n in llm_only['nodes']] == ['python', 'agent']
     assert 'llm_model' not in jev_only and routed['llm_model'] == 'claude-sonnet-5'
     assert jev_only['nodes'][0]['source'] == routed['nodes'][0]['source']   # the same compiler

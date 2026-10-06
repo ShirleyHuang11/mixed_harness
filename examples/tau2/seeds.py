@@ -5,12 +5,12 @@ Routed graph (one turn), in dependency order:
     compile (python)   parse the conversation, keep fetched entities, build the legal-action catalog A(s), fill what
                        code can fill, list what it cannot (`needs`), flag the step closed or open, name its cluster,
                        and write every question Jev is asked this turn
-    judge (jev)        one request: route pick (closed / narrow / escalate), action pick, a reordered paraphrase of
-                       the action pick (agreement signal), "does any option fit", "did the user confirm", and the
-                       candidate questions (which item, which variant, which payment method, which name)
-    route (python)     the routing layer: compiler flag first (open -> narrow), then Jev's pick, then the confidence
-                       threshold tau on the action pick (below it -> escalate), then agreement fall-through (-> narrow),
-                       then the per-cluster policy and its epsilon shadow share, then trajectory-level escalation
+    judge (jev)        one request, skipped when a structural default applies: the action pick, "did the user
+                       confirm", and the candidate questions (which item, which variant, which payment method,
+                       which order, which name)
+    route (python)     code first: a structural default decides the step with no model call; else an open step
+                       escalates; else Jev's pick is accepted when its probability clears the cluster's threshold;
+                       else the LLM takes the step; an epsilon share of shadow steps and trajectory-level escalation
     decision (python)  the closed path: Jev's answers -> a tool call with code-filled arguments, or a template reply
     menu (llm)         the narrow path, step 1: the LLM writes 2-4 candidate actions (skipped unless routed narrow)
     menu_q (python)    turns the menu into a choice question (null when there is no menu)
@@ -434,24 +434,49 @@ def run(obs, nodes, memory):
     closed = len(options) > 0 and len(needs) == 0 and bool(request_covered)
     facts["request_covered"] = bool(request_covered)
     cluster = ("auth" if auth else "anon") + "|" + str(incoming.get("role") or "none") + "|" + str((order or {}).get("status") or "no_order") + "|" + top_intent(intents)
-    # --- every question Jev is asked this turn, in one request ----------------------------------------
+    # --- structural default: when exactly one workflow rule applies, code acts and Jev is not asked ------------
+    # The rules are the hot paths of the recorded LLM-only trajectories: after a lookup the LLM loads the one order it
+    # knows about, asks which order when it knows several, or reports the result it just received.
+    default = None
+    unloaded_mentioned = [oid for oid in order_ids if oid not in known_orders and "tool:get_order_details:" + oid in options]
+    unloaded_user = [oid for oid in user_orders if oid not in known_orders and "tool:get_order_details:" + oid in options]
+    if auth and incoming.get("role") == "tool" and pending is None and not incoming.get("error"):
+        if incoming.get("tool") in ("find_user_id_by_name_zip", "find_user_id_by_email") and "tool:get_user_details" in options:
+            default = "tool:get_user_details"
+        elif incoming.get("tool") == "get_user_details":
+            if len(unloaded_mentioned) >= 1:
+                default = "tool:get_order_details:" + unloaded_mentioned[0]
+            elif len(user_orders) == 1 and unloaded_user:
+                default = "tool:get_order_details:" + unloaded_user[0]
+            elif len(user_orders) > 1 and not order_ids and "reply:ask_order" in options:
+                default = "reply:ask_order"
+        elif incoming.get("tool") == "get_order_details" and len(unloaded_mentioned) >= 1:
+            default = "tool:get_order_details:" + unloaded_mentioned[0]
+        elif incoming.get("tool") in ("get_order_details", "get_product_details") and "reply:report_result" in options:
+            product_loads = [o for o in options if o.startswith("tool:get_product_details:")]
+            wants_products = intents["exchange"] or intents["modify_items"]
+            if wants_products and product_loads and incoming.get("tool") == "get_order_details":
+                default = product_loads[0]
+            elif not wants_products or not product_loads:
+                default = "reply:report_result"
+        elif incoming.get("tool") in write_tools and "reply:report_result" in options:
+            default = "reply:report_result"
+    if not auth and incoming.get("role") == "user":
+        if len(names) == 1 and zips and "tool:find_user_id_by_name_zip" in options:
+            default = "tool:find_user_id_by_name_zip"
+        elif len(emails) == 1 and not names and "tool:find_user_id_by_email" in options:
+            default = "tool:find_user_id_by_email"
+        elif len(user_texts) == 0 or not last_user.strip():
+            default = "reply:greeting"
+    if mem["transferred"]:
+        default = "reply:transfer_notice"
+    if default is not None and default not in options:
+        default = None
+    # --- the Jev request: the action pick, the confirmation read, and the candidate questions -----------------
     questions = {}
-    route_criteria = {
-        "closed": "One of the listed options is the right next step and every value it needs is already known from the facts. Choose this whenever a listed option fits the customer's latest message, including reporting a tool result or asking a listed question, even if a language model could phrase it better.",
-        "escalate": "No listed option does what this turn needs: the customer asked for an explanation, a comparison or a value that is not in the facts, or the next step requires reasoning no option covers. Hand the whole turn to the language-model agent, at the cost of a full model call."}
-    if __ALLOW_NARROW__:
-        route_criteria["narrow"] = "The request is understood but no listed option fits exactly, or a listed option needs a value that must be composed; a short menu of candidate actions written by a language model, then a pick from it, would settle the turn."
-    questions["route"] = {"type": "choice", "instructions": ("You are the routing step of a retail customer-service agent. The facts list what code already knows and "
-        "the options list the actions code can execute right now. Judge which path this turn should take; prefer the listed options when one fits."), "criteria": route_criteria}
     questions["action"] = {"type": "choice", "instructions": ("You are the decision step of a retail customer-service agent that must follow the policy in the state. "
         "Choose exactly one next action id. Prefer a tool call when its arguments are already known; before any database write the user must have "
         "explicitly confirmed the listed details; never respond and call a tool in the same turn."), "criteria": options}
-    reversed_options = {}
-    for oid in reversed(list(options.keys())):
-        reversed_options[oid] = options[oid]
-    questions["action_alt"] = {"type": "choice", "instructions": ("Independently of any other answer: given the policy, the conversation and the facts, which single option id is the correct "
-        "next action for this state? A database write requires an explicit prior confirmation from the user; a tool call must have its arguments known."), "criteria": reversed_options}
-    questions["fits"] = {"type": "noul", "instructions": "Does at least one of the listed options fit what the customer's latest message asks for, without needing anything the facts do not contain?"}
     questions["user_confirms"] = {"type": "noul", "instructions": "Does the user's latest message give an explicit yes to proceed with the action the agent just listed? Answer near 0 if the agent has not listed an action yet or the user changed the request."}
     candidates = {}
     if focus is None and len(known_orders) > 1:
@@ -494,8 +519,10 @@ def run(obs, nodes, memory):
         questions["payment_method"] = {"type": "choice", "instructions": "Which of the user's payment methods should receive the refund or be charged, per what the user said? If unspecified, choose the original payment method of the order.", "criteria": crit}
     state = {"policy": obs.get("policy"), "conversation": conv[-12:], "facts": facts,
              "focused_order": order, "payment_methods": pm if pm else None, "options": options, "needs": needs}
+    if default is not None:
+        questions = None   # code has decided this step; the judge node is skipped and no model is called
     return {"facts": facts, "memory": mem, "options": options, "needs": needs, "closed": closed, "cluster": cluster,
-            "questions": questions, "candidates": candidates, "state": state}
+            "default": default, "questions": questions, "candidates": candidates, "state": state}
 '''
 
 # ---------------------------------------------------------------------------------------------------------
@@ -504,89 +531,41 @@ def run(obs, nodes, memory):
 ROUTE_SOURCE = '''
 def run(obs, nodes, memory):
     cx = nodes["compile"]
-    sel = nodes["judge"]
+    sel = nodes["judge"] or {}
     f = cx["facts"]
     mem = cx["memory"]
     allow_llm = __ALLOW_LLM__
-    allow_narrow = __ALLOW_NARROW__
     policy = __POLICY__
-    paths = ["closed", "narrow", "escalate"]
-    route_answer = sel.get("route") or {}
-    path_jev = route_answer.get("choice") if route_answer.get("choice") in paths else "closed"
-    route_confidence = (route_answer.get("probabilities") or {}).get(path_jev)
     action_answer = sel.get("action") or {}
-    chosen = action_answer.get("choice")
-    confidence = (action_answer.get("probabilities") or {}).get(chosen)
-    alt = (sel.get("action_alt") or {}).get("choice")
-    agreement = None if (chosen is None or alt is None) else (chosen == alt)
-    fits = (sel.get("fits") or {}).get("noul")
-    path = path_jev
-    source = "jev"
-    escalate_confidence = (route_answer.get("probabilities") or {}).get("escalate")
-    if path == "escalate" and cx["closed"] and (escalate_confidence is None or escalate_confidence < __ESCALATE_TAU__):
-        path, source = "closed", "escalate_below_tau"   # symmetric threshold: an unsure escalate stays on the listed options
-    if cx["closed"] and f["incoming_role"] == "tool" and f["pending"] is None and path != "closed":
-        path, source = "closed", "tool_result"          # a tool result with listed options is reported by code, not by the LLM
-    if not cx["closed"] and path == "closed":
-        path, source = "narrow", "code_override"
-    prefer = (policy.get("prefer") or {}).get(cx["cluster"])
-    if prefer in paths and prefer != path and (prefer != "closed" or cx["closed"]):
-        path, source = prefer, "policy"   # outcome-based preference, applied before the per-step threshold below
-    tau_here = float((policy.get("tau") or {}).get(cx["cluster"], __TAU__))
-    if path == "closed" and (confidence is None or confidence < tau_here):
-        path, source = "escalate", "low_confidence"   # the per-step reliability signal has the last word
-    if path == "closed" and agreement is False:
-        path, source = "narrow", "fallthrough"
+    chosen = cx.get("default") or action_answer.get("choice")
+    confidence = None if cx.get("default") else (action_answer.get("probabilities") or {}).get(chosen)
+    tau_here = max(__TAU__, float((policy.get("tau") or {}).get(cx["cluster"], __TAU__)))   # a cluster may be stricter than the global tau, never laxer
+    if cx.get("default"):
+        path, source = "closed", "structural"                        # 1. code decided
+    elif not cx["closed"]:
+        path, source = "escalate", "code_override"                   # 2. no fillable option covers the request
+    elif confidence is not None and confidence >= tau_here:
+        path, source = "closed", "jev"                               # 3. Jev's own probability on its pick clears the bar
+    else:
+        path, source = "escalate", "low_confidence"                  # 4. otherwise the LLM takes the step
     epsilon = float(policy.get("epsilon") or 0.0)
     shadow_of = None
-    if epsilon > 0.0 and unit_hash(str(f["turn"]) + "|" + f["last_user_text"] + "|" + cx["cluster"]) < epsilon:
+    if epsilon > 0.0 and source in ("jev", "low_confidence") and unit_hash(str(f["turn"]) + "|" + f["last_user_text"] + "|" + cx["cluster"]) < epsilon:
         shadow_of = path
-        path = paths[(paths.index(path) + 1) % len(paths)]
+        path = "escalate" if path == "closed" else "closed"
         source = "shadow"
-    if not cx["closed"] and path == "closed":
-        path = "narrow"   # neither the policy nor a shadow draw may put an open step on the closed path
-    if mem.get("low_agreement_streak", 0) >= __LOW_AGREEMENT_STREAK__ or mem.get("same_reply_streak", 0) >= __STUCK_REPLIES__:
-        if path != "escalate" and allow_llm:
-            path, source = "escalate", "trajectory"
-    if not allow_narrow and path == "narrow":
-        path = "escalate"   # the narrow path is off: the LLM takes the step itself (source unchanged)
+    if mem.get("same_reply_streak", 0) >= __STUCK_REPLIES__ and path != "escalate" and allow_llm:
+        path, source = "escalate", "trajectory"
     if not allow_llm and path != "closed":
         path, source = "closed", "forced"
     if mem.get("transferred") and path != "closed":
         path, source = "closed", "forced"
-    menu_prompt = None
     agent_context = None
     if path == "escalate":
         agent_context = {"policy": obs.get("policy"), "tools": tools_for_agent(obs.get("tools") or {}), "conversation": conversation_with_incoming(obs)}
-    if path == "narrow":
-        tools = obs.get("tools") or {}
-        tool_lines = []
-        for name, spec in tools.items():
-            params = ", ".join(p + " (" + str(v.get("type", "string")) + ")" for p, v in (spec.get("params") or {}).items())
-            tool_lines.append("- " + name + "(" + params + "): " + str(spec.get("description", ""))[:200])
-        conv_lines = []
-        for m in conversation_with_incoming(obs)[-12:]:
-            if m.get("role") == "tool":
-                conv_lines.append("tool " + str(m.get("tool")) + " -> " + str(m.get("result"))[:600])
-            elif m.get("tool"):
-                conv_lines.append("assistant called " + str(m.get("tool")) + " " + str(m.get("arguments")))
-            else:
-                conv_lines.append(str(m.get("role")) + ": " + str(m.get("text"))[:600])
-        known = {"user_id": f["user_id"], "focus_order": f["focus_order"], "focus_order_status": f["focus_order_status"],
-                 "orders_loaded": f["orders_loaded"], "products_loaded": f["products_loaded"], "pending_write": f["pending"],
-                 "completed_writes": f["completed"], "options_code_can_execute": list(cx["options"].keys()),
-                 "note": "orders_loaded and products_loaded are already in memory: never propose fetching them again; use their contents"}
-        menu_prompt = ("You are a retail customer-service agent. Follow this policy exactly:\\n" + str(obs.get("policy") or "") +
-                       "\\n\\nTools:\\n" + "\\n".join(tool_lines) +
-                       "\\n\\nWhat the system already knows: " + str(known) +
-                       "\\n\\nConversation (oldest first):\\n" + "\\n".join(conv_lines) +
-                       "\\n\\nWrite a short menu of 2 to 4 candidate next actions for the agent, each different, each allowed by the policy. "
-                       "A candidate is either one tool call with complete arguments, or one message to the customer of at most 80 words. "
-                       "Never propose a database write unless the customer has explicitly confirmed its exact details; propose asking for confirmation instead. "
-                       "Give each candidate a short id (a, b, c, d) and one line saying when it is the right choice.")
-    return {"path": path, "path_jev": path_jev, "path_source": source, "shadow_of": shadow_of, "route_confidence": route_confidence, "tau": tau_here,
-            "agreement": agreement, "confidence": confidence, "fits": fits, "cluster": cx["cluster"], "closed": cx["closed"],
-            "needs": cx["needs"], "menu_prompt": menu_prompt, "agent_context": agent_context}
+    return {"path": path, "path_jev": "structural" if cx.get("default") else ("jev" if sel else None), "path_source": source, "shadow_of": shadow_of,
+            "tau": tau_here, "confidence": confidence, "chosen": chosen, "cluster": cx["cluster"], "closed": cx["closed"], "needs": cx["needs"],
+            "agent_context": agent_context, "menu_prompt": None, "agreement": None, "fits": None, "route_confidence": None}
 '''
 
 # ---------------------------------------------------------------------------------------------------------
@@ -597,14 +576,14 @@ def run(obs, nodes, memory):
     cx = nodes["compile"]
     f = cx["facts"]
     mem = dict(cx["memory"])
-    sel = nodes["judge"]
+    sel = nodes["judge"] or {}
     tools = obs.get("tools") or {}
     write_tools = __WRITE_TOOLS__
     allow_llm = __ALLOW_LLM__
     focus = f["focus_order"]
     order = (mem.get("orders") or {}).get(focus) if focus else None
     pm = f.get("payment_methods") or {}
-    chosen = (sel.get("action") or {}).get("choice")
+    chosen = cx.get("default") or (sel.get("action") or {}).get("choice")
     confirms = float((sel.get("user_confirms") or {}).get("noul") or 0.0)
     which = (sel.get("which_order") or {}).get("choice")
     if which and which in (mem.get("orders") or {}):
@@ -870,10 +849,7 @@ def run(obs, nodes, memory):
             action = {"kind": "message", "text": summarise_user(mem["user"])}
             guard = "memory_answer"
     # --- trajectory counters --------------------------------------------------------------------------
-    if rt["path_jev"] == "closed" and rt["agreement"] is False:
-        mem["low_agreement_streak"] = mem.get("low_agreement_streak", 0) + 1
-    else:
-        mem["low_agreement_streak"] = 0
+    mem["low_agreement_streak"] = 0
     signature = action_signature(action)
     if signature and signature == mem.get("last_signature"):
         mem["same_reply_streak"] = mem.get("same_reply_streak", 0) + 1   # the same tool call or the same text, twice in a row
@@ -907,9 +883,8 @@ MENU_SCHEMA = {'type': 'object', 'required': ['options'], 'additionalProperties'
                                   'when': {'type': 'string'}}}}}}
 
 
-def _fill(source, *, allow_llm, policy=None, tau=TAU, narrow=False):
+def _fill(source, *, allow_llm, policy=None, tau=TAU):
     return (COMMON_SOURCE + source).replace('__ALLOW_LLM__', 'True' if allow_llm else 'False') \
-        .replace('__ALLOW_NARROW__', 'True' if narrow else 'False') \
         .replace('__TAU__', repr(float(tau))) \
         .replace('__ESCALATE_TAU__', repr(float(ESCALATE_TAU))) \
         .replace('__WRITE_TOOLS__', json.dumps(list(WRITE_TOOLS))) \
@@ -919,11 +894,11 @@ def _fill(source, *, allow_llm, policy=None, tau=TAU, narrow=False):
         .replace('__STUCK_REPLIES__', str(STUCK_REPLIES))
 
 
-def _core_nodes(*, allow_llm, policy=None, tau=TAU, narrow=False):
+def _core_nodes(*, allow_llm, policy=None, tau=TAU):
     return [
-        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm, narrow=narrow), 'inputs': []},
+        {'id': 'compile', 'kind': 'python', 'source': _fill(COMPILE_SOURCE, allow_llm=allow_llm), 'inputs': []},
         {'id': 'judge', 'kind': 'jev', 'state': "nodes['compile']['state']", 'questions_expression': "nodes['compile']['questions']"},
-        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau, narrow=narrow), 'inputs': ['compile', 'judge']},
+        {'id': 'route', 'kind': 'python', 'source': _fill(ROUTE_SOURCE, allow_llm=allow_llm, policy=policy, tau=tau), 'inputs': ['compile', 'judge']},
         {'id': 'decision', 'kind': 'python', 'source': _fill(DECISION_SOURCE, allow_llm=allow_llm), 'inputs': ['compile', 'judge']},
     ]
 
@@ -937,17 +912,12 @@ def jev_only_seed():
     return validate_spec(spec)
 
 
-def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU, narrow=False):
-    """The routed harness: compiler, one Jev request, the paths, guard. `policy` is a fitted loop-B policy or None;
-    `tau` the action-confidence threshold below which a closed pick escalates; `narrow` turns the menu path on
-    (off by default since stage 2: it cost more than escalate and produced the loops)."""
-    nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau, narrow=narrow) + [
-        {'id': 'menu', 'kind': 'llm', 'prompt': "nodes['route']['menu_prompt']", 'schema': MENU_SCHEMA, 'max_tokens': 2000, 'on_error': 'null'},
-        {'id': 'menu_q', 'kind': 'python', 'source': _fill(MENU_Q_SOURCE, allow_llm=True), 'inputs': ['compile', 'menu']},
-        {'id': 'menu_pick', 'kind': 'jev', 'state': "nodes['menu_q']['state']", 'questions_expression': "nodes['menu_q']['questions']"},
-        {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['route']['agent_context']", 'max_tokens': 1024},
-        {'id': 'guard', 'kind': 'python', 'source': _fill(GUARD_SOURCE, allow_llm=True),
-         'inputs': ['compile', 'route', 'decision', 'menu_q', 'menu_pick', 'agent']}]
+def routed_seed(llm_model='claude-sonnet-5', *, policy=None, tau=TAU):
+    """The routed harness: code first, then Jev's probability on its pick, then the LLM, then the guard. `policy` carries
+    per-cluster thresholds (never laxer than `tau`) and an epsilon share of shadow steps."""
+    nodes = _core_nodes(allow_llm=True, policy=policy, tau=tau) + [
+        {'id': 'agent', 'kind': 'agent', 'instructions': AGENT_INSTRUCTIONS, 'context': "nodes['route']['agent_context']", 'max_tokens': 1024, 'on_error': 'null'},
+        {'id': 'guard', 'kind': 'python', 'source': _fill(GUARD_SOURCE, allow_llm=True), 'inputs': ['compile', 'route', 'decision', 'agent']}]
     spec = {'format': FORMAT, 'name': 'tau2 retail · routed', 'jev_model': JEV_MODEL, 'llm_model': llm_model, 'nodes': nodes,
             'output': "nodes['guard']['action']", 'memory': "nodes['guard']['memory']"}
     return validate_spec(spec)

@@ -102,8 +102,15 @@ TOOLS = {
     'get_order_details': {'description': 'Order.', 'required': ['order_id'], 'params': {'order_id': {'type': 'string', 'description': ''}}},
     'cancel_pending_order': {'description': 'Cancel.', 'required': ['order_id', 'reason'], 'params': {'order_id': {'type': 'string', 'description': ''}, 'reason': {'type': 'string', 'description': ''}}},
     'transfer_to_human_agents': {'description': 'Transfer.', 'required': ['summary'], 'params': {'summary': {'type': 'string', 'description': ''}}},
+    'return_delivered_order_items': {'description': 'Return.', 'required': ['order_id', 'item_ids', 'payment_method_id'],
+                                     'params': {'order_id': {'type': 'string', 'description': ''}, 'item_ids': {'type': 'array', 'description': ''}, 'payment_method_id': {'type': 'string', 'description': ''}}},
+    'exchange_delivered_order_items': {'description': 'Exchange.', 'required': ['order_id', 'item_ids', 'new_item_ids', 'payment_method_id'],
+                                       'params': {'order_id': {'type': 'string', 'description': ''}, 'item_ids': {'type': 'array', 'description': ''}, 'new_item_ids': {'type': 'array', 'description': ''}, 'payment_method_id': {'type': 'string', 'description': ''}}},
 }
 HELLO = 'Hi, I am Yusuf Rossi, zip 19122, I want to cancel order #W2378156.'
+ORDER = {'order_id': '#W2378156', 'status': 'delivered', 'items': [{'name': 'Keyboard', 'item_id': '1', 'price': 100, 'product_id': 'p1', 'options': {}}],
+         'address': {'city': 'Philadelphia'}, 'payment_history': [{'payment_method_id': 'credit_card_9513926'}]}
+AUTH = {'user_id': 'yusuf_rossi_9620', 'user': {'user_id': 'yusuf_rossi_9620', 'orders': ['#W2378156', '#W0000001'], 'payment_methods': {}}, 'orders': {'#W2378156': ORDER}}
 
 
 def _obs(text, conversation=(), incoming=None, turn=1):
@@ -152,45 +159,42 @@ def _statuses(result):
 
 
 @needs_sandbox
-def test_closed_path_runs_one_jev_request_and_no_llm():
+def test_structural_step_runs_no_model_at_all():
     llm = _llm()
     result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip'), llm, _obs(HELLO))
     guard = result['nodes']['guard']
     assert result['output'] == {'kind': 'tool', 'name': 'find_user_id_by_name_zip', 'arguments': {'first_name': 'Yusuf', 'last_name': 'Rossi', 'zip': '19122'}}
-    assert guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'jev' and guard['routing']['agreement'] is True
+    assert guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'structural'   # one name pair and a zip: code decides
     assert guard['routing']['closed'] is True and guard['guard'] == 'ok'
     s = _statuses(result)
-    assert s['menu'] == 'skipped' and s['menu_pick'] == 'skipped' and s['agent'] == 'skipped' and llm.stats['calls'] == 0
+    assert s['judge'] == 'skipped' and s['agent'] == 'skipped' and llm.stats['calls'] == 0
     assert result['nodes']['compile']['cluster'] == 'anon|user|no_order|cancel'
 
 
+RETURN = 'I want to return the keyboard from order #W2378156.'
+
+
 @needs_sandbox
-def test_disagreement_falls_through_to_the_narrow_path():
-    menu = {'options': [{'id': 'a', 'kind': 'tool', 'tool': 'find_user_id_by_name_zip', 'arguments': {'first_name': 'Yusuf', 'last_name': 'Rossi', 'zip': '19122'}, 'when': 'identity given'},
-                        {'id': 'b', 'kind': 'message', 'text': 'Could you give me your email?', 'when': 'no name'}]}
-    llm = _llm(menu=menu)
-    jev = _jev('closed', 'tool:find_user_id_by_name_zip', alt='reply:ask_identity')
-    result = _run(seeds.routed_seed('mock-llm', narrow=True), jev, llm, _obs(HELLO))
+def test_jev_pick_is_accepted_by_its_own_probability():
+    llm = _llm()
+    jev = _jev('closed', 'tool:return_delivered_order_items', confidence=0.97)
+    result = _run(seeds.routed_seed('mock-llm'), jev, llm, _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'narrow' and routing['path_source'] == 'fallthrough' and routing['agreement'] is False
-    assert result['output']['kind'] == 'tool' and result['output']['name'] == 'find_user_id_by_name_zip'
-    assert result['nodes']['guard']['chosen'] == 'menu:a'
-    s = _statuses(result)
-    assert s['menu'] == 'ok' and s['menu_pick'] == 'ok' and s['agent'] == 'skipped'
-    assert llm.stats['calls'] == 1 and jev.stats['calls'] == 2   # one routing request, one menu pick
+    assert routing['path'] == 'closed' and routing['path_source'] == 'jev' and routing['confidence'] == 0.97 and jev.stats['calls'] == 1
+    assert llm.stats['calls'] == 0
 
 
 @needs_sandbox
 def test_escalate_path_write_gate_then_confirmed_write():
     write = {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': {'order_id': '#W2378156', 'reason': 'no longer needed'}, 'text': None}
     spec = seeds.routed_seed('mock-llm')
-    first = _run(spec, _jev('escalate'), _llm(agent=write), _obs(HELLO))
+    first = _run(spec, _jev('closed', confidence=0.3), _llm(agent=write), _obs(RETURN, turn=5), AUTH)
     guard = first['nodes']['guard']
     assert guard['routing']['path'] == 'escalate' and guard['guard'] == 'write_gate'
     assert first['output']['kind'] == 'message' and 'confirm' in first['output']['text'].lower()
     assert first['memory']['pending'] == {'tool': 'cancel_pending_order', 'arguments': write['arguments']}
-    conversation = [_obs(HELLO)['incoming'], {'role': 'assistant', 'text': first['output']['text'], 'tool': None, 'arguments': None, 'result': None, 'error': False}]
-    second = _run(spec, _jev('escalate'), _llm(agent=write), _obs('Yes, please go ahead.', conversation, turn=2), first['memory'])
+    conversation = [_obs(RETURN)['incoming'], {'role': 'assistant', 'text': first['output']['text'], 'tool': None, 'arguments': None, 'result': None, 'error': False}]
+    second = _run(spec, _jev('closed', confidence=0.3), _llm(agent=write), _obs('Yes, please go ahead.', conversation, turn=6), first['memory'])
     assert second['output'] == {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': write['arguments']}
     assert second['nodes']['guard']['guard'] == 'ok'
 
@@ -198,41 +202,37 @@ def test_escalate_path_write_gate_then_confirmed_write():
 @needs_sandbox
 def test_invalid_agent_action_falls_back_to_the_closed_decision():
     bad = {'kind': 'tool', 'name': 'no_such_tool', 'arguments': {}, 'text': None}
-    result = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=bad), _obs(HELLO))
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(agent=bad), _obs(RETURN, turn=5), AUTH)
     guard = result['nodes']['guard']
     assert guard['guard'] == 'unknown_tool' and guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'guard'
     assert result['output']['kind'] == 'message'
 
 
 @needs_sandbox
-def test_trajectory_escalation_after_repeated_disagreement():
+def test_trajectory_escalation_after_a_repeated_action():
     spec = seeds.routed_seed('mock-llm')
-    memory = {'low_agreement_streak': seeds.LOW_AGREEMENT_STREAK}
+    memory = {'same_reply_streak': seeds.STUCK_REPLIES}
     result = _run(spec, _jev('closed', 'tool:find_user_id_by_name_zip'), _llm(), _obs(HELLO), memory)
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'escalate' and routing['path_source'] == 'trajectory' and result['memory']['low_agreement_streak'] == 0
+    assert routing['path'] == 'escalate' and routing['path_source'] == 'trajectory'
 
 
 @needs_sandbox
-def test_policy_and_shadow_are_embedded_in_the_spec():
-    policy = {'epsilon': 0.0, 'clusters': {'anon|user|no_order|cancel': {'prefer': 'escalate', 'stats': {}}}}
-    spec = seeds.routed_seed('mock-llm', policy=policy)
-    assert '"anon|user|no_order|cancel": "escalate"' in spec['nodes'][2]['source']
-    result = _run(spec, _jev('closed', 'tool:find_user_id_by_name_zip'), _llm(), _obs(HELLO))
+def test_shadow_share_flips_a_jev_decided_step():
+    shadow = seeds.routed_seed('mock-llm', policy={'epsilon': 1.0, 'clusters': {}})
+    result = _run(shadow, _jev('closed', 'tool:return_delivered_order_items', confidence=0.97), _llm(), _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'escalate' and routing['path_source'] == 'policy'
-    shadow = seeds.routed_seed('mock-llm', policy={'epsilon': 1.0, 'clusters': {}}, narrow=True)
-    result = _run(shadow, _jev('closed', 'tool:find_user_id_by_name_zip'), _llm(), _obs(HELLO))
-    routing = result['nodes']['guard']['routing']
-    assert routing['path_source'] == 'shadow' and routing['shadow_of'] == 'closed' and routing['path'] == 'narrow'
+    assert routing['path_source'] == 'shadow' and routing['shadow_of'] == 'closed' and routing['path'] == 'escalate'
+    structural = _run(shadow, _jev('closed'), _llm(), _obs(HELLO))
+    assert structural['nodes']['guard']['routing']['path_source'] == 'structural'   # code-decided steps are never shadowed
 
 
 @needs_sandbox
-def test_jev_only_seed_records_the_route_pick_but_stays_closed():
-    result = _run(seeds.jev_only_seed(), _jev('escalate', 'tool:find_user_id_by_name_zip'), None, _obs(HELLO))
+def test_jev_only_seed_stays_closed_whatever_the_confidence():
+    result = _run(seeds.jev_only_seed(), _jev('closed', 'tool:return_delivered_order_items', confidence=0.3), None, _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'closed' and routing['path_jev'] == 'escalate' and routing['path_source'] == 'forced'
-    assert result['output']['kind'] == 'tool' and [n['kind'] for n in seeds.jev_only_seed()['nodes']] == ['python', 'jev', 'python', 'python', 'python']
+    assert routing['path'] == 'closed' and routing['path_source'] == 'forced' and routing['confidence'] == 0.3
+    assert [n['kind'] for n in seeds.jev_only_seed()['nodes']] == ['python', 'jev', 'python', 'python', 'python']
 
 
 @needs_sandbox
@@ -265,27 +265,11 @@ def test_refusal_clears_the_pending_write_and_cancel_that_is_a_yes():
 @needs_sandbox
 def test_low_confidence_closed_pick_escalates():
     llm = _llm()
-    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:return_delivered_order_items', confidence=0.5), llm, _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
     assert routing['path'] == 'escalate' and routing['path_source'] == 'low_confidence' and routing['confidence'] == 0.5
-    lenient = _run(seeds.routed_seed('mock-llm', tau=0.4), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.5), llm, _obs(HELLO))
+    lenient = _run(seeds.routed_seed('mock-llm', tau=0.4), _jev('closed', 'tool:return_delivered_order_items', confidence=0.5), llm, _obs(RETURN, turn=5), AUTH)
     assert lenient['nodes']['guard']['routing']['path'] == 'closed'
-
-
-@needs_sandbox
-def test_menu_output_error_is_soft_and_the_guard_falls_back():
-    bad = LLMClient(kind='mock', model='mock-llm', mock_responder=lambda first, second: 'not json at all' if isinstance(first, str) else {'kind': 'message', 'name': None, 'arguments': None, 'text': 'x'})
-    result = _run(seeds.routed_seed('mock-llm', narrow=True), _jev('narrow'), bad, _obs(HELLO))
-    menu = next(r for r in result['trace'] if r['id'] == 'menu')
-    assert menu['status'] == 'error' and menu.get('soft') is True and result['status'] == 'ok'
-    guard = result['nodes']['guard']
-    assert guard['guard'] == 'menu_invalid' and guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'guard'
-    assert result['output']['kind'] in ('tool', 'message')
-
-
-ORDER = {'order_id': '#W2378156', 'status': 'delivered', 'items': [{'name': 'Keyboard', 'item_id': '1', 'price': 100, 'product_id': 'p1', 'options': {}}],
-         'address': {'city': 'Philadelphia'}, 'payment_history': [{'payment_method_id': 'credit_card_9513926'}]}
-AUTH = {'user_id': 'yusuf_rossi_9620', 'user': {'user_id': 'yusuf_rossi_9620', 'orders': ['#W2378156', '#W0000001'], 'payment_methods': {}}, 'orders': {'#W2378156': ORDER}}
 
 
 @needs_sandbox
@@ -294,7 +278,7 @@ def test_a_loaded_order_becomes_the_focus_and_is_not_fetched_again():
     cx = result['nodes']['compile']
     assert cx['facts']['focus_order'] == '#W2378156' and 'tool:get_order_details:#W2378156' not in cx['options']
     refetch = {'kind': 'tool', 'name': 'get_order_details', 'arguments': {'order_id': '#W2378156'}, 'text': None}
-    again = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=refetch), _obs('What is in that order?', turn=6), AUTH)
+    again = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(agent=refetch), _obs('What is in that order?', turn=6), AUTH)
     guard = again['nodes']['guard']
     assert guard['guard'] == 'memory_answer' and again['output']['kind'] == 'message' and 'Keyboard' in again['output']['text']
 
@@ -303,11 +287,11 @@ def test_a_loaded_order_becomes_the_focus_and_is_not_fetched_again():
 def test_write_gate_matches_tool_and_order_not_exact_arguments():
     first = {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': {'order_id': '#W2378156', 'reason': 'no longer needed'}, 'text': None}
     spec = seeds.routed_seed('mock-llm')
-    one = _run(spec, _jev('escalate'), _llm(agent=first), _obs('Please cancel order #W2378156.'), {})
+    one = _run(spec, _jev('closed', confidence=0.3), _llm(agent=first), _obs('Please cancel order #W2378156.'), {})
     assert one['nodes']['guard']['guard'] == 'write_gate'
     reworded = {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': {'order_id': '#W2378156', 'reason': 'ordered by mistake'}, 'text': None}
     conv = [_obs('Please cancel order #W2378156.')['incoming'], {'role': 'assistant', 'text': one['output']['text'], 'tool': None, 'arguments': None, 'result': None, 'error': False}]
-    two = _run(spec, _jev('escalate'), _llm(agent=reworded), _obs('Yes, go ahead.', conv, turn=2), one['memory'])
+    two = _run(spec, _jev('closed', confidence=0.3), _llm(agent=reworded), _obs('Yes, go ahead.', conv, turn=2), one['memory'])
     assert two['output']['kind'] == 'tool' and two['nodes']['guard']['guard'] == 'ok'
 
 
@@ -340,12 +324,13 @@ def test_fit_tau_picks_the_smallest_reliable_threshold_per_cluster():
 @needs_sandbox
 def test_route_uses_the_cluster_threshold_over_the_global_one():
     llm = _llm()
-    policy = {'epsilon': 0.0, 'prefer': {}, 'tau': {'anon|user|no_order|cancel': 0.6}}
-    result = _run(seeds.routed_seed('mock-llm', policy=policy), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=0.7), llm, _obs(HELLO))
+    cluster = 'auth|user|delivered|return'
+    lax = {'epsilon': 0.0, 'prefer': {}, 'tau': {cluster: 0.6}}
+    result = _run(seeds.routed_seed('mock-llm', policy=lax), _jev('closed', 'tool:return_delivered_order_items', confidence=0.7), llm, _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
-    assert routing['path'] == 'closed' and routing['tau'] == 0.6
-    strict = {'epsilon': 0.0, 'prefer': {}, 'tau': {'anon|user|no_order|cancel': NEVER}}
-    result = _run(seeds.routed_seed('mock-llm', policy=strict), _jev('closed', 'tool:find_user_id_by_name_zip', confidence=1.0), llm, _obs(HELLO))
+    assert routing['cluster'] == cluster and routing['tau'] == 0.9 and routing['path'] == 'escalate'   # never laxer than the global tau
+    strict = {'epsilon': 0.0, 'prefer': {}, 'tau': {cluster: NEVER}}
+    result = _run(seeds.routed_seed('mock-llm', policy=strict), _jev('closed', 'tool:return_delivered_order_items', confidence=1.0), llm, _obs(RETURN, turn=5), AUTH)
     assert result['nodes']['guard']['routing']['path'] == 'escalate'
 
 
@@ -354,9 +339,9 @@ def test_write_gate_accepts_a_yes_after_the_llm_asked_in_prose():
     write = {'kind': 'tool', 'name': 'cancel_pending_order', 'arguments': {'order_id': '#W2378156', 'reason': 'no longer needed'}, 'text': None}
     conv = [_obs('Please cancel order #W2378156.')['incoming'],
             {'role': 'assistant', 'text': 'I can cancel order #W2378156 (reason: no longer needed). Shall I proceed?', 'tool': None, 'arguments': None, 'result': None, 'error': False}]
-    result = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=write), _obs('Yes please.', conv, turn=3), {})
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(agent=write), _obs('Yes please.', conv, turn=3), {})
     assert result['output']['kind'] == 'tool' and result['nodes']['guard']['guard'] == 'ok'
     unrelated = [_obs('Please cancel order #W2378156.')['incoming'],
                  {'role': 'assistant', 'text': 'Your order contains a keyboard and a thermostat.', 'tool': None, 'arguments': None, 'result': None, 'error': False}]
-    result = _run(seeds.routed_seed('mock-llm'), _jev('escalate'), _llm(agent=write), _obs('Yes.', unrelated, turn=3), {})
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(agent=write), _obs('Yes.', unrelated, turn=3), {})
     assert result['nodes']['guard']['guard'] == 'write_gate'

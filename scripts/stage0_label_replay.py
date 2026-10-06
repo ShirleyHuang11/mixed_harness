@@ -150,10 +150,13 @@ def walk(sim, tool_schemas, policy, jev, runtime, max_conversation=40):
                 reason = None if closed else ('template_not_legal:' + template if template else 'open_text')
                 target = ('reply:' + template) if template else None
                 needs_review = True
-            answers = jev.judge(cx['state'], cx['questions'], model=seeds.JEV_MODEL)['answers']
-            act = answers.get('action') or {}
-            alt = answers.get('action_alt') or {}
-            route = answers.get('route') or {}
+            if cx.get('questions') is None:      # a structural default: code decided, no Jev call
+                answers, act, alt, route = {}, {'choice': cx['default'], 'probabilities': {cx['default']: 1.0}}, {}, {'choice': 'structural'}
+            else:
+                answers = jev.judge(cx['state'], cx['questions'], model=seeds.JEV_MODEL)['answers']
+                act = answers.get('action') or {}
+                alt = answers.get('action_alt') or {}
+                route = answers.get('route') or {}
             pick = act.get('choice')
             rows.append({'task_id': str(sim.task_id), 'reward': float(sim.reward_info.reward) if sim.reward_info is not None and sim.reward_info.reward is not None else None,
                          'turn': turn, 'incoming_role': incoming.get('role'), 'cluster': cx['cluster'], 'compiler_closed': cx['closed'],
