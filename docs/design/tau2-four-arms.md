@@ -220,3 +220,36 @@ the manifest records both. Numbers from different simulators are not comparable.
 
 LLM-only ≈ $0.21 per task for the agent (measured on 2 tasks: 8,457 input tokens per turn, 11 turns) plus about
 $0.03 for the simulator. Jev ≈ $0.004 per task. A full four-arm stage 2 is about $80; stage 1 about $30.
+
+## Learning curve under the Codex subscription (2026-10-06/07)
+
+Every LLM role (user simulator, NL-assertion judge, the harness's fallback, the LLM-only agent) ran on gpt-5.5
+through a ChatGPT subscription (`scripts/cli_proxy.py` for tau2's roles, `LLMClient(kind='codex')` for the
+harness). Cost is imputed at gpt-5.5 list price ($5/$30 per MTok) for both arms, so the ratio is comparable;
+the absolute numbers are not comparable with the Sonnet-simulator tables above. Run directories:
+`runs/curve/20261006-180031` (tables and curve.jsonl), `runs/tau2/20261006-180046` (round 0),
+`runs/tau2/20261006-curve-r1-merged` (round 1, 105 + 9 redone), `runs/tau2/20261006-231458` (round 2, partial),
+`runs/tau2/20261006-231650` (jev_only, partial), `runs/tau2/20261006-235933` (llm_only).
+
+| arm | table | tasks | pass^1 | $/task (imputed) | turns | code | Jev | LLM |
+|---|---|---|---|---|---|---|---|---|
+| llm_only | — | 114 | 0.807 | 0.351 | 12.2 | — | — | 100% |
+| jev_only | — | 81 | 0.185 | — | — | — | 100% | — |
+| routed, round 0 | seed (replay + v4b steps) | 114 | 0.763 | 0.255 (0.73×) | 13.5 | 9% | 23% | 67% |
+| routed, round 1 | + round-0 steps | 114 | 0.728 | 0.249 (0.71×) | 13.3 | 11% | 23% | 66% |
+| routed, round 2 | = round 1 (table unchanged) | 77 | 0.831 | 0.232 (0.66×) | 11.9 | 11% | 24% | 62% |
+
+On the 77 tasks all three rounds scored: llm_only 0.792, round 0 0.740, round 1 0.740, round 2 0.831. Rounds 1
+and 2 used the same table, so their gap is the noise of one 114-task pass under this simulator: 13 of 77 episodes
+flipped, 9 points. On the 81 tasks jev_only scored: llm_only 0.802, jev_only 0.185.
+
+What the table learned. After round 0, one code row (`auth|tool|exchange requested|exchange` → report the result,
+Jev's accepted pick there 100% of the time and the replay's LLM action 97%) and three tightenings to never. After
+round 1, nothing new: with 114 episodes a round, almost no state type reaches the n ≥ 10, ≥ 95% same-action bar.
+The learning signal has to include the LLM fallback's own steps, or the state types have to be coarser, for the
+table to move at this scale. Round 2 and jev_only stopped at 77/114 and 81/114 when TypeSafe credit ran out
+(HTTP 402, 2026-10-07 01:30); `runs/curve/20261006-180031/RESUME.sh` finishes both.
+
+Two instrument fixes came out of the run: a cluster now moves to code or tightens to never only when the stage-0
+replay corroborates it (episode reward alone marked an identity cluster never after one lost episode), and the
+Codex CLI occasionally fails to start under concurrency, so both the client and the proxy retry four times.
