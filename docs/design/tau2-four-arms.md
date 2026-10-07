@@ -234,10 +234,11 @@ the absolute numbers are not comparable with the Sonnet-simulator tables above. 
 | arm | table | tasks | pass^1 | $/task (imputed) | turns | code | Jev | LLM |
 |---|---|---|---|---|---|---|---|---|
 | llm_only | — | 114 | 0.807 | 0.351 | 12.2 | — | — | 100% |
-| jev_only | — | 81 | 0.185 | — | — | — | 100% | — |
+| jev_only | — | 114 | 0.167 | 0.003 | 13.9 | — | 100% | — |
 | routed, round 0 | seed (replay + v4b steps) | 114 | 0.763 | 0.255 (0.73×) | 13.5 | 9% | 23% | 67% |
 | routed, round 1 | + round-0 steps | 114 | 0.728 | 0.249 (0.71×) | 13.3 | 11% | 23% | 66% |
-| routed, round 2 | = round 1 (code rows and thresholds unchanged; only the unused `prefer` column differed) | 77 | 0.831 | 0.232 (0.66×) | 11.9 | 11% | 24% | 62% |
+| routed, round 2 | = round 1 (code rows and thresholds unchanged; only the unused `prefer` column differed) | 114 | 0.798 | 0.227 (0.65×) | 14.0 | 10% | 24% | 66% |
+| routed, round 3 | + 42 split rows (policy_3) | 114 | 0.763 | 0.200 (0.57×) | 14.1 | 29% (19% learned) | 23% | 49% |
 
 On the 77 tasks all three rounds scored: llm_only 0.792, round 0 0.740, round 1 0.740, round 2 0.831. Rounds 1
 and 2 used the same table, so their gap is the noise of one 114-task pass under this simulator: 13 of 77 episodes
@@ -272,3 +273,24 @@ ledgers to the next fit. Prediction for round 3 (table `policy_3.json`, 42 rows 
 1,056 of 2,884 LLM steps): LLM share 0.62 to 0.67 → about 0.45, cost 0.66× → about 0.5× of llm_only, pass^1 within
 the 9-point noise. The risk is on the "report the result" rows: the code path's templated report replaces the
 LLM's prose, and 40 tasks are judged on the text.
+
+### Round 3: the split rows moved the traffic
+
+Round 3 ran the table with 42 split rows on all 114 tasks (2026-10-07). Prediction written before the run: LLM
+share 0.62-0.67 → ~0.45, cost 0.66× → ~0.5×, pass^1 within the 9-point noise. Measured: LLM share 0.49, cost
+0.57× ($0.200 against llm_only's $0.351), pass^1 0.763 (rounds 0-2: 0.728, 0.763, 0.798; llm_only 0.807). The
+learned rows took 19.1% of all steps, two actions above all: report the tool result (104 steps) and load the
+profile after authentication (78); the order-loading rows fired 20 times. Episodes with at least one learned step
+passed at 0.827 (98 episodes), the 16 without at 0.625, so the rows are firing on the ordinary workflow, not on
+the hard episodes. Jev's share did not change (0.23 in every round): the split rows take steps the LLM used to
+take, which is the point.
+
+Round 2 completed to 114 tasks (77 before the Jev outage + 37 after, same table): 0.798, $0.227 (0.65×). The
+jev_only control completed to 114: 0.167.
+
+One instrument incident: the round-2 resume and round 3 were launched in the same second and tau2_compare named
+run directories by the second, so both wrote into `runs/tau2/20261007-133601-retail-base`. Round 3's summary,
+steps and ledgers are its own in-memory state written at the end and are clean; round 2's 37 resumed results were
+merged before being overwritten (verified by start stamps); round 2's step-level shares come from the 77-task run.
+`results.json` in that directory mixes the two (tau2 keeps the first entry per task) and says so in a README.
+Directories are now created exclusively.
