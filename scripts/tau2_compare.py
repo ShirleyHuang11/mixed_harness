@@ -433,7 +433,12 @@ def main(argv=None):
         ReplayUser.bind(tasks)
     stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     out_dir = ROOT / args.out / f'{stamp}-{args.domain}-{args.split}'
-    out_dir.mkdir(parents=True, exist_ok=True)
+    for k in range(1, 100):   # two runs launched in the same second must not share a directory: their flushes would overwrite each other
+        try:
+            out_dir.mkdir(parents=True, exist_ok=False)
+            break
+        except FileExistsError:
+            out_dir = ROOT / args.out / f'{stamp}-{k}-{args.domain}-{args.split}'
     namespace = args.namespace or f'tau2-{stamp}'
     if args.mock:
         jev, llm = JevClient(mock=True), LLMClient(kind='mock', model='mock-llm')
