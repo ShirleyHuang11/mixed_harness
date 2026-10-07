@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from mixedharness.router import compact_policy, fit_from_steps, fit_policy, fit_tau, merge_policy  # noqa: E402
+from scripts.learn_splits import fit_splits, load_steps  # noqa: E402
 from mixedharness.store import read_jsonl  # noqa: E402
 
 
@@ -24,6 +25,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--replay', nargs='*', default=[], help='stage-0 replay.jsonl files')
     p.add_argument('--steps', nargs='*', default=[], help='routed steps.jsonl files with episode rewards')
+    p.add_argument('--ledgers', nargs='*', default=[], help='routed ledgers.json files: split rows (cluster + state features -> action) are learned from the LLM steps in them')
     p.add_argument('--target', type=float, default=0.9)
     p.add_argument('--min-n', type=int, default=10)
     p.add_argument('--min-samples', type=int, default=8)
@@ -35,7 +37,8 @@ def main(argv=None):
     tau = fit_tau(replay, target=args.target, min_n=args.min_n) if replay else None
     paths = fit_policy(steps, min_samples=args.min_samples, epsilon=args.epsilon) if steps else None
     learned = fit_from_steps(steps, min_n=args.min_n, replay=replay) if steps else None
-    full = merge_policy(paths, tau, epsilon=args.epsilon, learned=learned)
+    splits = fit_splits(load_steps(args.ledgers), min_n=args.min_n) if args.ledgers else None
+    full = merge_policy(paths, tau, epsilon=args.epsilon, learned=learned, splits=splits)
     compact = compact_policy(full)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -50,6 +53,8 @@ def main(argv=None):
     for c in clusters:
         t = (tau or {}).get('clusters', {}).get(c, {})
         print(f"| {c} | {t.get('n', '—')} | {t.get('tau', 'default')} | {t.get('accepted', '—')} | {('%.2f' % t['agreement']) if t.get('agreement') is not None else '—'} | {compact['prefer'].get(c, '—')} |")
+    if splits:
+        print(f"split rows learned from ledgers: {len(splits['rows'])}, covering {splits['covered']} of {splits['n_steps']} LLM steps")
     if learned:
         print('code rows learned from steps:', compact['defaults'])
         print('tightened to never:', learned['tighten'])

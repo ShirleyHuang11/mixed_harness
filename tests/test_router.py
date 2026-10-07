@@ -43,9 +43,10 @@ def test_fit_policy_prefers_the_best_scored_path_only_with_enough_samples():
     assert policy['clusters']['c2']['prefer'] == 'escalate'          # closed fails there
     assert policy['clusters']['c3']['prefer'] is None
     compact = compact_policy(policy)
-    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}, 'tau': {}, 'defaults': {}}
-    assert json.loads(policy_source_literal(policy)) == compact
-    assert json.loads(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {}}
+    assert compact == {'epsilon': 0.1, 'prefer': {'c1': 'closed', 'c2': 'escalate'}, 'tau': {}, 'defaults': {}, 'splits': []}
+    import ast
+    assert ast.literal_eval(policy_source_literal(policy)) == compact
+    assert ast.literal_eval(policy_source_literal(None)) == {'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {}, 'splits': []}
 
 
 def test_route_metrics_and_mining_on_step_rows():
@@ -318,7 +319,8 @@ def test_fit_tau_picks_the_smallest_reliable_threshold_per_cluster():
     policy = merge_policy(None, fitted)
     compact = compact_policy(policy)
     assert compact['tau'] == {'easy': 0.6, 'hard': 0.99, 'hopeless': NEVER} and compact['defaults'] == {}
-    assert json.loads(policy_source_literal(policy))['tau']['hard'] == 0.99
+    import ast
+    assert ast.literal_eval(policy_source_literal(policy))['tau']['hard'] == 0.99
 
 
 @needs_sandbox
@@ -357,3 +359,38 @@ def test_fit_from_steps_learns_code_rows_and_tightenings():
     steps += [{'cluster': 'd', 'path': 'escalate', 'path_source': 'low_confidence', 'chosen': None, 'reward': 1.0} for _ in range(20)]
     learned = fit_from_steps(steps, min_n=10)
     assert learned['defaults'] == {'a': 'tool:x'} and learned['tighten'] == ['b']
+
+
+CANCEL_NO_ID = 'Hi, I want to cancel an order I placed last week.'
+
+
+@needs_sandbox
+def test_learned_split_row_lets_code_take_the_step():
+    """A split row (cluster + state features -> action class) fitted offline fires in the compiler: no model is called."""
+    policy = {'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {},
+              'splits': [{'cluster': 'anon|user|no_order|cancel', 'split': {'user_loaded': False, 'n_mentioned': 0}, 'action': 'reply:ask_identity'}]}
+    llm = _llm()
+    result = _run(seeds.routed_seed('mock-llm', policy=policy), _jev('closed', 'reply:ask_identity', confidence=0.2), llm, _obs(CANCEL_NO_ID))
+    routing = result['nodes']['guard']['routing']
+    assert routing['path'] == 'closed' and routing['path_source'] == 'learned' and result['output']['kind'] == 'message'
+    assert _statuses(result)['judge'] == 'skipped' and llm.stats['calls'] == 0
+    assert routing['features']['user_loaded'] is False and routing['features']['n_mentioned'] == 0 and routing['features']['last'] == 'user'
+    # without the row the same step is open to Jev / the LLM
+    plain = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'reply:ask_identity', confidence=0.2), _llm(), _obs(CANCEL_NO_ID))
+    assert plain['nodes']['guard']['routing']['path_source'] in ('low_confidence', 'code_override')
+
+
+@needs_sandbox
+def test_offline_features_match_runtime_features():
+    """The learner recomputes state_features from a ledger entry; it must equal what the compiler recorded."""
+    from scripts.learn_splits import features_of
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:return_delivered_order_items', confidence=0.97), _llm(), _obs(RETURN, turn=5), AUTH)
+    routing = result['nodes']['guard']['routing']
+    entry = {'observation': _obs(RETURN, turn=5), 'decision': {'memory': result['memory']}, 'routing': {k: v for k, v in routing.items() if k != 'features'}}
+    f, leaky = features_of(entry)
+    assert leaky
+    for k, v in routing['features'].items():
+        if k not in ('pending', 'n_completed'):
+            assert f[k] == v, (k, f[k], v)
+    f2, leaky2 = features_of({'routing': routing})
+    assert not leaky2 and f2 == routing['features']

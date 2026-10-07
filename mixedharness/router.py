@@ -25,7 +25,8 @@ import json
 import statistics
 
 PATHS = ('closed', 'narrow', 'escalate')
-PATH_SOURCES = ('jev', 'code_override', 'low_confidence', 'escalate_below_tau', 'tool_result', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
+PATH_SOURCES = ('jev', 'structural', 'learned', 'code_override', 'low_confidence', 'escalate_below_tau', 'tool_result', 'fallthrough', 'policy', 'shadow', 'trajectory', 'forced', 'guard')
+CODE_SOURCES = ('structural', 'learned')   # steps code took without any model: a hand rule, or a split row learned from ledgers
 DEFAULT_LAMBDA = 0.5          # success units per dollar of agent cost per step, scaled by COST_SCALE
 COST_SCALE = 100.0            # reward = success - lambda * cost_usd * COST_SCALE  (one cent of LLM cost = 0.005 success)
 MIN_SAMPLES = 8               # a path needs this many scored steps in a cluster before the policy will prefer it
@@ -140,7 +141,7 @@ def fit_from_steps(steps, *, min_n=10, same_action=0.95, lost_ratio=1.5, replay=
     won_overall = 1.0 - lost_overall
     by = {}
     for s in scored:
-        if s.get('path') == 'closed' and s.get('path_source') in ('jev', 'structural', 'policy'):
+        if s.get('path') == 'closed' and s.get('path_source') in ('jev', 'structural', 'learned', 'policy'):
             by.setdefault(s['cluster'], []).append(s)
     defaults, tighten, stats = {}, [], {}
     for cluster, rows in sorted(by.items()):
@@ -171,25 +172,27 @@ def compact_policy(policy):
         tau[c] = NEVER
     return {'epsilon': float(policy.get('epsilon', DEFAULT_EPSILON)),
             'prefer': {c: v['prefer'] for c, v in (policy.get('clusters') or {}).items() if isinstance(v, dict) and v.get('prefer')},
-            'tau': tau, 'defaults': dict(policy.get('defaults') or {})}
+            'tau': tau, 'defaults': dict(policy.get('defaults') or {}), 'splits': list(policy.get('splits') or [])}
 
 
-def merge_policy(path_policy=None, tau_policy=None, *, epsilon=DEFAULT_EPSILON, learned=None):
+def merge_policy(path_policy=None, tau_policy=None, *, epsilon=DEFAULT_EPSILON, learned=None, splits=None):
     """One policy from a fit_policy result (paths), a fit_tau result (thresholds) and a fit_from_steps result (code rows)."""
     return {'epsilon': epsilon, 'clusters': (path_policy or {}).get('clusters') or {},
             'tau_by_cluster': (tau_policy or {}).get('clusters') or {},
-            'defaults': (learned or {}).get('defaults') or {}, 'tighten': (learned or {}).get('tighten') or []}
+            'defaults': (learned or {}).get('defaults') or {}, 'tighten': (learned or {}).get('tighten') or [],
+            'splits': list((splits or {}).get('rows') or [])}
 
 
 def policy_source_literal(policy):
-    """JSON literal for embedding in a python node's source (the seed replaces a placeholder with it).
+    """Python literal for embedding in a python node's source (the seed replaces a placeholder with it).
     Accepts a full fitted policy or an already compact one ({'epsilon', 'prefer', 'tau'})."""
     if not policy:
-        return json.dumps({'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {}}, sort_keys=True)
+        return repr({'defaults': {}, 'epsilon': 0.0, 'prefer': {}, 'splits': [], 'tau': {}})
     if 'clusters' in policy or 'tau_by_cluster' in policy or 'tighten' in policy:
         policy = compact_policy(policy)
-    return json.dumps({'epsilon': float(policy.get('epsilon', 0.0)), 'prefer': dict(policy.get('prefer') or {}), 'tau': dict(policy.get('tau') or {}),
-                       'defaults': dict(policy.get('defaults') or {})}, sort_keys=True)
+    compact = {'epsilon': float(policy.get('epsilon', 0.0)), 'prefer': dict(policy.get('prefer') or {}), 'tau': dict(policy.get('tau') or {}),
+               'defaults': dict(policy.get('defaults') or {}), 'splits': list(policy.get('splits') or [])}
+    return repr(json.loads(json.dumps(compact, sort_keys=True)))   # a Python literal: split values include True/False/None, which JSON would spell false/null
 
 
 def route_metrics(steps):

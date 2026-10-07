@@ -80,6 +80,28 @@ def norm_order(token):
     return token if token.startswith("#") else "#" + token
 
 
+def state_features(incoming, user_texts, last_user, mem, user_orders, known_orders):
+    """A few cheap state features next to the cluster. Learned split rows (policy["splits"]) key on these, so the
+    offline learner (scripts/learn_splits.py) runs this same function on recorded ledgers; keep the two in step."""
+    mentioned = []
+    for t in tokens_of(" ".join(user_texts)):
+        if is_order_id(t) and norm_order(t) not in mentioned:
+            mentioned.append(norm_order(t))
+    known = [norm_order(str(o)) for o in known_orders]
+    yes_words = set(["yes", "yeah", "yep", "sure", "ok", "okay", "confirm", "confirmed", "correct", "proceed", "go"])
+    first = tokens_of(last_user)[:1]
+    pending = mem.get("pending")
+    return {"last": ("tool:" + str(incoming.get("tool"))) if incoming.get("role") == "tool" else "user",
+            "tool_error": bool(incoming.get("error")) if incoming.get("role") == "tool" else False,
+            "user_loaded": mem.get("user") is not None,
+            "n_user_orders": min(len(user_orders), 4), "n_loaded": min(len(known_orders), 3),
+            "n_mentioned": min(len(mentioned), 3), "n_mentioned_unloaded": min(len([o for o in mentioned if o not in known]), 3),
+            "pending": pending.get("tool") if isinstance(pending, dict) else None,
+            "last_user_yes": len(first) > 0 and first[0].lower() in yes_words,
+            "last_user_q": last_user.strip().endswith("?"),
+            "n_completed": min(len(mem.get("completed") or []), 2), "products_loaded": min(len(mem.get("products") or {}), 2)}
+
+
 def is_long_id(token):
     return len(token) == 10 and token.isdigit()
 
@@ -458,6 +480,34 @@ def run(obs, nodes, memory):
         default = learned
     if default is not None and default not in options:
         default = None
+    default_source = "structural" if default is not None else None
+    # --- learned split rows: cluster + a few state features -> one action class, fit offline from this harness's own
+    # ledgers where the LLM did the same thing >= 90% of the time (scripts/learn_splits.py). Code takes the step. ----
+    feats = state_features(incoming, user_texts, last_user, mem, user_orders, known_orders)
+    if default is None:
+        for row in (__POLICY__.get("splits") or []):
+            if row.get("cluster") != cluster:
+                continue
+            if any(feats.get(k) != v for k, v in (row.get("split") or {}).items()):
+                continue
+            act = str(row.get("action") or "")
+            pick = None
+            if act == "tool:get_order_details":
+                for oid in user_orders:
+                    if norm_order(str(oid)) not in [norm_order(str(k)) for k in known_orders] and "tool:get_order_details:" + str(oid) in options:
+                        pick = "tool:get_order_details:" + str(oid)
+                        break
+            elif act == "tool:get_product_details":
+                pick = next((o for o in options if o.startswith("tool:get_product_details:")), None)
+            elif act == "message:report":
+                pick = "reply:report_result"
+            elif act == "message:confirm":
+                pick = "reply:confirm_action"
+            elif act.startswith("tool:") or act.startswith("reply:"):
+                pick = act
+            if pick in options and pick not in needs and (pending is None or pick == "reply:confirm_action"):
+                default, default_source = pick, "learned"
+                break
     # --- the Jev request: the action pick, the confirmation read, and the candidate questions -----------------
     questions = {}
     questions["action"] = {"type": "choice", "instructions": ("You are the decision step of a retail customer-service agent that must follow the policy in the state. "
@@ -508,7 +558,7 @@ def run(obs, nodes, memory):
     if default is not None:
         questions = None   # code has decided this step; the judge node is skipped and no model is called
     return {"facts": facts, "memory": mem, "options": options, "needs": needs, "closed": closed, "cluster": cluster,
-            "default": default, "questions": questions, "candidates": candidates, "state": state}
+            "default": default, "default_source": default_source, "features": feats, "questions": questions, "candidates": candidates, "state": state}
 '''
 
 # ---------------------------------------------------------------------------------------------------------
@@ -527,7 +577,7 @@ def run(obs, nodes, memory):
     confidence = None if cx.get("default") else (action_answer.get("probabilities") or {}).get(chosen)
     tau_here = max(__TAU__, float((policy.get("tau") or {}).get(cx["cluster"], __TAU__)))   # a cluster may be stricter than the global tau, never laxer
     if cx.get("default"):
-        path, source = "closed", "structural"                        # 1. code decided
+        path, source = "closed", (cx.get("default_source") or "structural")   # 1. code decided (a hand rule or a learned split row)
     elif not cx["closed"]:
         path, source = "escalate", "code_override"                   # 2. no fillable option covers the request
     elif confidence is not None and confidence >= tau_here:
@@ -549,7 +599,7 @@ def run(obs, nodes, memory):
     agent_context = None
     if path == "escalate":
         agent_context = {"policy": obs.get("policy"), "tools": tools_for_agent(obs.get("tools") or {}), "conversation": conversation_with_incoming(obs)}
-    return {"path": path, "path_jev": "structural" if cx.get("default") else ("jev" if sel else None), "path_source": source, "shadow_of": shadow_of,
+    return {"path": path, "path_jev": "structural" if cx.get("default") else ("jev" if sel else None), "path_source": source, "features": cx.get("features"), "shadow_of": shadow_of,
             "tau": tau_here, "confidence": confidence, "chosen": chosen, "cluster": cx["cluster"], "closed": cx["closed"], "needs": cx["needs"],
             "agent_context": agent_context, "menu_prompt": None, "agreement": None, "fits": None, "route_confidence": None}
 '''
@@ -848,7 +898,7 @@ def run(obs, nodes, memory):
     mem["last_path"] = path
     routing = {"cluster": rt["cluster"], "closed": rt["closed"], "needs": rt["needs"], "path_jev": rt["path_jev"], "path": path,
                "path_source": source, "shadow_of": rt.get("shadow_of"), "agreement": rt["agreement"], "confidence": rt["confidence"],
-               "route_confidence": rt.get("route_confidence"), "tau": rt.get("tau"), "fits": rt["fits"]}
+               "route_confidence": rt.get("route_confidence"), "tau": rt.get("tau"), "fits": rt["fits"], "features": rt.get("features")}
     return {"action": action, "memory": mem, "chosen": chosen, "guard": guard, "routing": routing}
 '''
 

@@ -55,11 +55,14 @@ def main(argv=None):
     log = out / 'curve.log'
     python = sys.executable
     steps_files = list(args.seed_steps)
+    ledger_files = [str(Path(f).with_name('ledgers.json')) for f in steps_files if Path(f).with_name('ledgers.json').exists()]
     for r in range(args.rounds):
         policy = out / f'policy_{r}.json'
         cmd = [python, 'scripts/fit_policy.py', '--replay', args.replay, '--out', str(policy)]
         if steps_files:
             cmd += ['--steps'] + steps_files
+        if ledger_files:
+            cmd += ['--ledgers'] + ledger_files
         if run(cmd, log)[0]:
             raise SystemExit(f'fit failed in round {r}; see {log}')
         pol = json.loads(policy.read_text())
@@ -79,18 +82,19 @@ def main(argv=None):
                'failed': summary.get('failed'), 'agent_cost_per_task_usd': summary.get('agent_cost_per_task_usd'),
                'turns_per_task': summary.get('turns_per_task'), 'llm_calls_per_turn': summary.get('llm_calls_per_turn'),
                'jev_calls_per_turn': summary.get('jev_calls_per_turn'),
-               'share_code': sources.get('structural', 0.0), 'share_jev': sources.get('jev', 0.0),
+               'share_code': sources.get('structural', 0.0) + sources.get('learned', 0.0), 'share_jev': sources.get('jev', 0.0),
                'escalate_share': (routing.get('path_mix') or {}).get('escalate'),
-               'code_rows': len(pol.get('defaults') or {}), 'never_rows': sum(1 for v in (pol.get('tau') or {}).values() if v > 1.0),
+               'code_rows': len(pol.get('defaults') or {}), 'split_rows': len(pol.get('splits') or []), 'never_rows': sum(1 for v in (pol.get('tau') or {}).values() if v > 1.0),
                'at': dt.datetime.now().isoformat()}
         append_jsonl(out / 'curve.jsonl', row)
         print(json.dumps(row), flush=True)
         steps_files.append(str(run_dir / 'routed' / 'steps.jsonl'))
+        ledger_files.append(str(run_dir / 'routed' / 'ledgers.json'))
     rows = read_jsonl(out / 'curve.jsonl')
-    print('| round | pass^1 | $/task | turns | code | Jev | escalate | code rows | never rows |')
-    print('|---|---|---|---|---|---|---|---|---|')
+    print('| round | pass^1 | $/task | turns | code | Jev | escalate | code rows | split rows | never rows |')
+    print('|---|---|---|---|---|---|---|---|---|---|')
     for x in rows:
-        print(f"| {x['round']} | {x['pass1']:.3f} | {x['agent_cost_per_task_usd'] or 0:.3f} | {x['turns_per_task']:.1f} | {x['share_code']:.2f} | {x['share_jev']:.2f} | {x['escalate_share']:.2f} | {x['code_rows']} | {x['never_rows']} |")
+        print(f"| {x['round']} | {x['pass1']:.3f} | {x['agent_cost_per_task_usd'] or 0:.3f} | {x['turns_per_task']:.1f} | {x['share_code']:.2f} | {x['share_jev']:.2f} | {x['escalate_share']:.2f} | {x['code_rows']} | {x.get('split_rows', 0)} | {x['never_rows']} |")
     print(f'artifacts: {out}')
 
 
