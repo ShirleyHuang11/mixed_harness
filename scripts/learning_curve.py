@@ -29,16 +29,14 @@ from mixedharness.store import append_jsonl, read_jsonl  # noqa: E402
 
 
 def run(cmd, log):
+    """Run a command, append its output to the log, and return (returncode, the `artifacts:` directory it printed or None)."""
     with open(log, 'a') as f:
         f.write('\n$ ' + ' '.join(cmd) + '\n')
         f.flush()
-        proc = subprocess.run(cmd, stdout=f, stderr=subprocess.STDOUT, text=True)
-    return proc.returncode
-
-
-def latest_run_dir(since):
-    dirs = sorted(p for p in (ROOT / 'runs/tau2').glob('*-retail-base') if p.stat().st_mtime >= since)
-    return dirs[-1] if dirs else None
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        f.write(proc.stdout)
+    art = [line.split(':', 1)[1].strip() for line in proc.stdout.splitlines() if line.startswith('artifacts:')]
+    return proc.returncode, (Path(art[-1]) if art else None)
 
 
 def main(argv=None):
@@ -62,18 +60,16 @@ def main(argv=None):
         cmd = [python, 'scripts/fit_policy.py', '--replay', args.replay, '--out', str(policy)]
         if steps_files:
             cmd += ['--steps'] + steps_files
-        if run(cmd, log):
+        if run(cmd, log)[0]:
             raise SystemExit(f'fit failed in round {r}; see {log}')
         pol = json.loads(policy.read_text())
-        since = dt.datetime.now().timestamp()
         cmd = [python, 'scripts/tau2_compare.py', '--domain', 'retail', '--split', 'base', '--arms', 'routed', '--policy', str(policy),
                '--concurrency', str(args.concurrency), '--llm-backend', args.llm_backend]
         if args.num_tasks:
             cmd += ['--num-tasks', str(args.num_tasks)]
         if args.task_ids:
             cmd += ['--task-ids', args.task_ids]
-        rc = run(cmd, log)
-        run_dir = latest_run_dir(since)
+        rc, run_dir = run(cmd, log)   # the run's own `artifacts:` line, not the newest directory: other runs may share the clock
         if rc or run_dir is None:
             raise SystemExit(f'run failed in round {r}; see {log}')
         summary = json.loads((run_dir / 'summary.json').read_text())['summaries'][0]

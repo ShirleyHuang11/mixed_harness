@@ -316,9 +316,9 @@ def decide(summaries, h):
     lines = []
     if 'llm_only' in s and s['llm_only']['pass1'] is not None and s['llm_only']['pass1'] < 0.60:
         lines.append('STOP: positive control (llm_only) below 0.60; inspect user simulator and environment before reading anything else.')
-    if 'jev_only' in s and s['jev_only'].get('llm_calls_per_turn', 0) > 0:
+    if 'jev_only' in s and (s['jev_only'].get('llm_calls_per_turn') or 0) > 0:
         lines.append('STOP: instrument broken; jev_only made LLM calls.')
-    if 'llm_only' in s and s['llm_only'].get('jev_calls_per_turn', 0) > 0:
+    if 'llm_only' in s and (s['llm_only'].get('jev_calls_per_turn') or 0) > 0:
         lines.append('STOP: instrument broken; llm_only made Jev calls.')
     if 'routed' in s and 'llm_only' in s and s['routed']['pass1'] is not None and s['llm_only']['pass1'] is not None and h is not None:
         gap = (s['llm_only']['pass1'] - s['routed']['pass1']) * 100
