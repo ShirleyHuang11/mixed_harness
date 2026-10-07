@@ -237,7 +237,7 @@ the absolute numbers are not comparable with the Sonnet-simulator tables above. 
 | jev_only | — | 81 | 0.185 | — | — | — | 100% | — |
 | routed, round 0 | seed (replay + v4b steps) | 114 | 0.763 | 0.255 (0.73×) | 13.5 | 9% | 23% | 67% |
 | routed, round 1 | + round-0 steps | 114 | 0.728 | 0.249 (0.71×) | 13.3 | 11% | 23% | 66% |
-| routed, round 2 | = round 1 (table unchanged) | 77 | 0.831 | 0.232 (0.66×) | 11.9 | 11% | 24% | 62% |
+| routed, round 2 | = round 1 (code rows and thresholds unchanged; only the unused `prefer` column differed) | 77 | 0.831 | 0.232 (0.66×) | 11.9 | 11% | 24% | 62% |
 
 On the 77 tasks all three rounds scored: llm_only 0.792, round 0 0.740, round 1 0.740, round 2 0.831. Rounds 1
 and 2 used the same table, so their gap is the noise of one 114-task pass under this simulator: 13 of 77 episodes
