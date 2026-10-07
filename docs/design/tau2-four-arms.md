@@ -253,3 +253,22 @@ table to move at this scale. Round 2 and jev_only stopped at 77/114 and 81/114 w
 Two instrument fixes came out of the run: a cluster now moves to code or tightens to never only when the stage-0
 replay corroborates it (episode reward alone marked an identity cluster never after one lost episode), and the
 Codex CLI occasionally fails to start under concurrency, so both the client and the proxy retry four times.
+
+### Why the table did not move, and the fix: split rows
+
+Across the four routed runs 2,884 steps went to the LLM. In none of the 40 state types did the LLM do the same
+thing 90% of the time (top-action share 0.26 to 0.71), so no rule keyed on the state type alone can take those
+steps, however many episodes are recorded. The state type is too coarse, not the sample too small. Adding one or
+two cheap state features changes that: with `n_user_orders`, `n_loaded`, `last` (the tool whose result just
+arrived), `products_loaded`, `last_user_yes` and `n_mentioned`, 30 subsets of at least 10 steps have one action at
+>= 90% (`scripts/learn_splits.py`). Fitted on rounds 0 and 1 and tested on round 2's 590 LLM steps, those rows cover
+30.5% of them and name the LLM's own action 91.7% of the time. The actions are three: load the profile after
+authentication, load the next order from the profile, report the tool result that just arrived.
+
+The compiler now computes those features (`state_features`, in the seed's common source, so the learner runs the
+same function on ledgers) and consults `policy["splits"]` after its hand rules; a step a split row takes is
+recorded with path source `learned`. `fit_policy.py --ledgers` learns the rows, and the curve passes each round's
+ledgers to the next fit. Prediction for round 3 (table `policy_3.json`, 42 rows from all four ledgers covering
+1,056 of 2,884 LLM steps): LLM share 0.62 to 0.67 → about 0.45, cost 0.66× → about 0.5× of llm_only, pass^1 within
+the 9-point noise. The risk is on the "report the result" rows: the code path's templated report replaces the
+LLM's prose, and 40 tasks are judged on the text.
