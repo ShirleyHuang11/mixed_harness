@@ -122,7 +122,7 @@ class JevClient:
         self.mock_responder = mock_responder   # mock only: (state, questions) -> partial answers, normalised like a real reply
         self.timeout = timeout
         self.endpoint = endpoint
-        self.key = api_key or os.getenv('TYPESAFE_API_KEY')
+        self.key = api_key or os.getenv('TYPESAFE_API_KEY_PERSONAL') or os.getenv('TYPESAFE_API_KEY')   # a personal key, when set, wins over the org key
         self.cache_only = cache_only
         self.cache_namespace = cache_namespace or uuid.uuid4().hex
         if not self.cache_namespace.replace('-', '').replace('_', '').isalnum():
