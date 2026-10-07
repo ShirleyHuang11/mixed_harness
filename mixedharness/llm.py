@@ -84,18 +84,24 @@ def codex_exec(prompt, model, timeout=180.0):
     global CODEX_WORKDIR
     if CODEX_WORKDIR is None:
         CODEX_WORKDIR = Path(tempfile.mkdtemp(prefix='mixedharness-codex-'))
-    out = CODEX_WORKDIR / (uuid.uuid4().hex + '.txt')
-    cmd = ['codex', 'exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', str(CODEX_WORKDIR), '-m', model, '-o', str(out), '-']
-    try:
-        proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise LLMError('codex exec timed out') from None
-    text = out.read_text().strip() if out.exists() else ''
-    if out.exists():
-        out.unlink()
-    if not text:
-        raise LLMError(f'codex exec returned nothing: {proc.stderr[-300:]}')
-    return text
+    last_error = ''
+    for attempt in range(4):   # the CLI occasionally fails to start under concurrency ("failed to initialize in-process"); retry with backoff
+        out = CODEX_WORKDIR / (uuid.uuid4().hex + '.txt')
+        cmd = ['codex', 'exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', str(CODEX_WORKDIR), '-m', model, '-o', str(out), '-']
+        try:
+            proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            last_error = 'timed out'
+            time.sleep(2 + 3 * attempt)
+            continue
+        text = out.read_text().strip() if out.exists() else ''
+        if out.exists():
+            out.unlink()
+        if text:
+            return text
+        last_error = proc.stderr[-300:]
+        time.sleep(2 + 3 * attempt)
+    raise LLMError(f'codex exec returned nothing after 4 attempts: {last_error}')
 
 
 class LLMClient:

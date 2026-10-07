@@ -72,17 +72,20 @@ class CLIBackend:
     def complete(self, prompt):
         with self.lock:
             if self.backend == 'codex':
-                out = self.workdir / (uuid.uuid4().hex + '.txt')
-                cmd = ['codex', 'exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', str(self.workdir),
-                       '-m', self.model, '-o', str(out), '-']
-                proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=self.timeout)
-                text = out.read_text().strip() if out.exists() else ''
-                if out.exists():
-                    out.unlink()
-                if not text:
-                    err = proc.stderr[-400:]
-                    raise RuntimeError(f'codex exec returned nothing: {err}')
-                return text
+                last = ''
+                for attempt in range(4):   # the CLI sometimes fails to start under concurrency; retry with backoff
+                    out = self.workdir / (uuid.uuid4().hex + '.txt')
+                    cmd = ['codex', 'exec', '--skip-git-repo-check', '--ephemeral', '-s', 'read-only', '-C', str(self.workdir),
+                           '-m', self.model, '-o', str(out), '-']
+                    proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=self.timeout)
+                    text = out.read_text().strip() if out.exists() else ''
+                    if out.exists():
+                        out.unlink()
+                    if text:
+                        return text
+                    last = proc.stderr[-400:]
+                    time.sleep(2 + 3 * attempt)
+                raise RuntimeError(f'codex exec returned nothing after 4 attempts: {last}')
             cmd = ['claude', '-p', '--model', self.model, '--output-format', 'text', '--tools', '', '--no-session-persistence']
             proc = subprocess.run(cmd, input=prompt, text=True, capture_output=True, timeout=self.timeout, cwd=self.workdir)
             if proc.returncode or not proc.stdout.strip():
