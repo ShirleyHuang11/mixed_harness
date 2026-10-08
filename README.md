@@ -16,7 +16,7 @@ there, to Jev when Jev's picks match the LLM's at some probability, and stays wi
 
 ## Architecture
 
-![Runtime: code lists the options; a route step decides who takes the step: an open step goes to the LLM, a closed step goes to code when the table has a row for it, otherwise Jev picks and is kept when its probability clears the threshold for that state type; the guard checks. Evolution: an LLM writes the option-listing code once from the tool schema and policy; after every batch of conversations the records recompute the table.](docs/media/fig_general.svg)
+![Runtime: code lists the options, the table says who takes the step, code executes or Jev picks by probability or the LLM takes a turn, the guard checks. Offline: an LLM writes the option-listing code once from the tool schema and policy; the records recompute the table.](docs/media/fig_general.svg)
 
 **Runtime, every step, no domain code in the picture.** Code lists the options the state allows: the tools
 whose arguments can be filled, the known entities (orders, items, payment methods), the templates, and
