@@ -11,8 +11,11 @@ Mixed Harness splits a tool-using task along that line with one table, and learn
 records. **For every type of state the table says who takes the step: code, Jev (TypeSafe's judgment model,
 400 ms, typed output, a probability with every answer), or an LLM. Jev takes a step only when its
 probability on its own pick clears the threshold the table holds for that state. Every step is recorded, and
-after each run the table is recomputed: a state type moves to code when the LLM always did the same thing
-there, to Jev when Jev's picks match the LLM's at some probability, and stays with the LLM otherwise.**
+after every batch of conversations the table is recomputed: a state type moves to code when the LLM always
+did the same thing there, to Jev when Jev's picks match the LLM's at some probability, and stays with the
+LLM otherwise.** On τ²-bench retail the harness runs at 0.57× the cost of the LLM-only agent with accuracy
+within noise of it, and on conversations it has never seen its cost falls from 0.75× to 0.60× of the LLM's
+over the first 304 conversations it serves.
 
 ## Architecture
 
@@ -28,13 +31,16 @@ without the customer's yes to that operation, and falls back to the listed defau
 unusable. The step is written to the step table with the state type, who took it, the probability, the action
 and later the episode's reward.
 
-**Offline, after every run, the only place domain information enters.** Two products. The option-listing
-code is written once by a language model from the tool schema, the policy and the patterns in the records,
-then frozen and run as ordinary code; in the current version it is hand-written for retail. The table is
-recomputed from the step table and the recorded LLM-only trajectories by three rules: a state type goes to
-code when the LLM's action there is the same at least 90% of the time; to Jev, with threshold τ, when Jev's
-picks at or above τ agree with the LLM's at least 90% of the time; to the LLM when no τ reaches that. Traffic
-only moves toward the cheaper end, and the guard and the thresholds hold accuracy while it moves.
+**Offline, after every batch of conversations, the only place domain information enters.** Two products.
+The option-listing code is written once by a language model from the tool schema, the policy and the
+patterns in the records, then frozen and run as ordinary code; in the current version it is hand-written
+for retail. The table is recomputed from the records by four rules. A state type goes to code when the
+LLM's action there was the same at least 90% of the time. A state type too coarse for that is split by one
+or two cheap state features (is the profile loaded, how many orders are loaded, which tool just returned,
+did the customer just say yes) until a subset of at least ten steps has one action at 90%, and that subset
+becomes a code row. A state type goes to Jev with threshold τ when Jev's picks at or above τ agree with the
+LLM's at least 90% of the time. A state type goes to the LLM when no τ reaches that. Traffic only moves
+toward the cheaper end, and the guard and the thresholds hold accuracy while it moves.
 
 ![Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast); both deploy a new harness version](docs/media/fig_evolution_loops.svg)
 
@@ -48,47 +54,71 @@ clusters right after a lookup), so those state types sit with the LLM until the 
 
 ## The table on retail
 
-The current table has about thirty rows, all computed from 1,389 recorded LLM-only turns and 114 routed
-episodes. A sample:
+The table has three kinds of rows, all computed from records: 1,389 LLM-only turns for the thresholds, and
+the routed conversations served so far for the code rows. After 304 conversations the learned part has 30
+rows. A sample, with the number of recorded steps each row was learned from and the share of them on which
+the LLM took that action:
 
-| state type | who | τ | basis |
-|---|---|---|---|
-| no customer message yet | code: greet | | LLM did the same on 114 of 114 |
-| not authenticated, one name and a zip code | code: look the customer up | | 77 of 79 |
-| not authenticated, otherwise | Jev | 0.6 | agreement 98%, n=168 |
-| authenticated, customer names an order not yet loaded | code: load it | | 8 of 9 |
-| authenticated, order loaded, return intent | Jev | 0.6 | agreement 100%, n=19 |
-| authenticated, a lookup just returned, no order in focus | LLM | never | Jev at ≥ 0.9 agrees 52% to 71% |
-| everything else | Jev | 0.9 | 92% at ≥ 0.9 |
+| state type | plus | → | n | share |
+|---|---|---|---|---|
+| authenticated, a tool just returned, order cancelled, cancel intent | the tool was cancel_pending_order | report the result | 22 | 95% |
+| authenticated, a tool just returned, no order in focus, exchange intent | profile not loaded yet | load the profile | 19 | 100% |
+| authenticated, a tool just returned, no order in focus, exchange intent | the tool was get_user_details | load the next order | 19 | 95% |
+| authenticated, customer spoke, order pending, cancel intent | not a question, not a yes | report the state | 18 | 100% |
+| not authenticated, one name and a zip code | | look the customer up | 79 | 97% |
+| authenticated, a lookup just returned, no order in focus (otherwise) | | LLM, never Jev | | Jev agrees 52% to 71% |
+| everything else | | Jev at τ = 0.9 | | 92% agreement at ≥ 0.9 |
 
-Rules that read as natural but the records contradict were tried and removed: "report a result as soon as
-it arrives" (the LLM does that 67% of the time), "load the profile after authentication" (23%: it asks which
-order instead), "ask which order when several are known" (11%: it loads them). A row enters the table only
-when the records agree with it.
+Of the 30 learned rows, 16 report a tool result or the current state, 8 load an order, 3 load the profile
+and 3 perform a return, exchange or modification. Rules that read as natural but the records contradicted
+were tried and removed: "report a result as soon as it arrives" (the LLM did that 67% of the time under one
+simulator), "load the profile after authentication" (23%), "ask which order when several are known" (11%).
+A row enters the table only when the records agree with it, and leaves when they stop agreeing.
+
+**What Jev is for.** Jev decides the steps where the options are listed and the arguments are known but a
+judgment remains: which record to load next, which variant the customer means, which payment method, whether
+the reply is a yes. It takes 23% of all steps in every version measured, and that share does not change as
+the table learns: the learned rows take steps from the LLM, not from Jev. Jev is not asked whether it can
+take a step. It is asked to pick, and the pick is used when its probability clears the threshold.
 
 ## Measuring it
 
 ![The tau2-bench test: four arms on the same benchmark, one table](docs/media/fig_measurement.svg)
 
-On τ²-bench retail (114 tasks, 16 tools, reward from the database state), the arms run every task against the
-same simulated customer with the same seeds: LLM only (the benchmark's own agent), Jev only (every step on
-the Jev path, nothing to the LLM), and the routed harness with the table. One table is generated from the
-artifacts: pass^1, dollars per task, turns per task, and the share of steps taken by code, Jev and the LLM.
-The decision rules, predictions and every result are in `docs/design/tau2-four-arms.md`.
+On τ²-bench retail (114 tasks, 16 tools, reward from the database state and the benchmark's own
+natural-language checks), three arms run every task against the same simulated customer (gpt-5.5) with the
+same seed: LLM only (the benchmark's own agent on gpt-5.5), Jev only (every step on the Jev path, nothing to
+the LLM), and the harness with its table. Cost is the agent's tokens at list price, relative to the LLM-only
+arm. The decision rules, predictions and every result are in `docs/design/tau2-four-arms.md`.
 
-| version | pass^1 | $ per task | turns | code | Jev | LLM |
-|---|---|---|---|---|---|---|
-| LLM only | 0.842 | 0.224 | 12.2 | 0 | 0 | 100% |
-| Jev only | 0.158 | 0.003 | 15.4 | 0 | 100% | 0 |
-| routed, one global threshold, a route question | 0.807 | 0.208 | 17.9 | 0 | 37% | 63% |
-| routed, eight hand-written code rows | 0.658 | 0.144 | 19.3 | 39% | 25% | 36% |
-| routed, the five code rows the records support (94 of 114 tasks) | 0.83 | | | | | |
+| arm | pass^1 | cost | code / Jev / LLM share of steps |
+|---|---|---|---|
+| LLM only | 0.807 | 1.00× | 0 / 0 / 100% |
+| Jev only | 0.167 | 0.01× | 0 / 100% / 0 |
+| the harness, table with thresholds only | 0.76 | 0.73× | 9% / 23% / 67% |
+| the harness, table with 42 learned rows | 0.746 | 0.57× | 29% / 23% / 49% |
 
-Noise on pass^1 is ±7.3 points. The hand-written rows cost 15 points, the record-supported rows gave them
-back; the last row's run stopped at task 94 when the account's credit ran out and finishes with the remaining
-twenty. The cost half of the claim is open: the version within noise of the LLM costs 0.84× to 0.93× of it,
-because the state types after a lookup still go to the LLM. The learning curve, run → recompute → run, has
-not been drawn yet; it is the next experiment.
+One pass over the 114 tasks has a noise of 9 points on pass^1 (the same table run twice), so the accuracy
+column reads "within noise of the LLM"; the cost column and the share columns move by less than 2 points
+between repeats. The rows in the last line were learned from these same 114 tasks, so that line is an
+in-sample number. The next experiment removes that.
+
+**On conversations it has never seen.** The 114 tasks are split once into a stream of 76 tasks the table
+learns from and 38 held-out tasks it never sees. Each pass serves the 76 stream tasks with a new simulated
+customer, recomputes the table from everything served so far, and scores the held-out 38 with that table.
+The LLM-only agent scores 0.921 on the held-out 38.
+
+| conversations served | held-out pass^1 | held-out cost | held-out LLM share | learned rows |
+|---|---|---|---|---|
+| 76 | 0.842 | 0.75× | 69% | 0 |
+| 152 | 0.842 | 0.66× | 57% | 7 |
+| 228 | 0.868 | 0.62× | 54% | 18 |
+| 304 | 0.816 | 0.60× | 50% | 30 |
+
+Cost on unseen conversations falls at every pass; the LLM's share of steps falls from 69% to 50%; held-out
+pass^1 stays within noise of the LLM's (the held-out set is 38 tasks, so its noise is wider than 9 points).
+Two more passes are running; the flattening point of the curve is the open number. `scripts/long_run.py`
+runs the whole protocol.
 
 ## Status
 
@@ -97,13 +127,13 @@ not been drawn yet; it is the next experiment.
 | Runtime, sandbox, spec format; nodes skip on null input; malformed LLM replies are soft failures | done |
 | Option listing for retail | done, hand-written (`examples/tau2/seeds.py`) |
 | Option listing written by an LLM from schema and policy | not started |
-| The table: code rows, Jev thresholds per state type, LLM rows | done, fitted from records (`scripts/fit_policy.py`, `examples/tau2/policy.json`); code rows validated by replay but applied by hand |
-| One script that recomputes all three columns after a run | partial: thresholds and preferences, not yet the code rows |
+| The table: code rows, split rows, Jev thresholds per state type, never rows | done, one script recomputes all of it from records (`scripts/fit_policy.py` with `--replay`, `--steps`, `--ledgers`) |
 | Runtime path: code → Jev by probability → LLM → guard | done (`mixedharness/`, routed seed) |
 | Guard: tool and argument checks, write gate on every path, fallback | done |
-| Step table and merge of partial runs | done (`mixedharness/trace.py`, `scripts/tau2_merge.py`) |
+| Step table, ledgers, merge of partial runs | done (`mixedharness/trace.py`, `scripts/tau2_merge.py`) |
 | Labeller and replay of Jev on recorded LLM-only turns | done (`scripts/stage0_label_replay.py`) |
-| Learning curve over several rounds | not run |
+| Learning curve on unseen conversations | running, 4 of 6 passes (`scripts/long_run.py`) |
+| LLM roles on a ChatGPT subscription instead of an API | done (`scripts/cli_proxy.py`, `--llm-backend codex`) |
 | Second domain | not started |
 
 ## Quick start
@@ -112,12 +142,15 @@ not been drawn yet; it is the next experiment.
     uv run pytest                                   # mock providers, no keys needed
     uv run mixedharness doctor                      # sandbox and credentials present
 
-Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` for Jev, `ANTHROPIC_API_KEY` for
-the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandbox-exec` on macOS.
+Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` for Jev (a `TYPESAFE_API_KEY_PERSONAL`
+is used first when set), `ANTHROPIC_API_KEY` for the language model, or `--llm-backend codex` to run every
+LLM role through a Codex CLI subscription behind `scripts/cli_proxy.py`. Sandboxed Python nodes run under
+`bwrap` on Linux and `sandbox-exec` on macOS.
 
     ~/tau2-bench/.venv/bin/python scripts/stage0_label_replay.py                       # labels and Jev replay on recorded LLM-only traces
     ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --replay runs/stage0/<stamp>/replay.jsonl --steps runs/tau2/<run>/routed/steps.jsonl
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --arms routed --policy examples/tau2/policy.json
+    ~/tau2-bench/.venv/bin/python scripts/long_run.py --passes 6 --replay runs/stage0/<stamp>/replay.jsonl --llm-only-run runs/tau2/<llm_only run>
 
 ## Layout
 
@@ -125,7 +158,7 @@ the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandb
 |---|---|
 | `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router (table fitting), trace, mining, seeds, evolution, freeze |
 | `examples/tau2/` | the τ²-bench adapter, the agent wrapper, the routed seed and its two controls, the fitted table, a replay user |
-| `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `tau2_compare.py`, `tau2_merge.py`, `live_run.py` |
+| `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
 | `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
