@@ -1,100 +1,77 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" font-family="DejaVu Sans, Helvetica, Arial, sans-serif" role="img" aria-label="Runtime, every step: the current state goes to code that lists the options; a route step decides who takes the step: an open step (no listed option covers the request) goes to the LLM, a closed step goes to code when the table has a learned row for its state type, otherwise Jev picks among the options and the pick is accepted when its probability clears the threshold the table holds for that state type, else the LLM takes the step; everything passes the guard, executes and is recorded. Evolution, after every batch of conversations: an LLM writes the option-listing code once from the tool schema and policy; the records recompute the table by four rules: a state type where the LLM always did the same thing becomes a code row, a type too coarse for that is split by one or two state features, a type where Jev agrees at or above a probability gets that threshold, a type where no threshold is accurate enough is marked never. Dashed arrows carry the generated code and the new table back into the runtime.">
-        <rect width="960" height="560" fill="#ffffff"/><defs>
-          <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L8 5L1 9" fill="none" stroke="#23231f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
-          <marker id="al" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L8 5L1 9" fill="none" stroke="#534ab7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
-        </defs>
-
-        <!-- RUNTIME region -->
-        <rect fill="none" stroke="#6b6a63" stroke-width="1" stroke-dasharray="3 3" x="20" y="36" width="920" height="300" rx="10"/>
-        <text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="32" y="56">RUNTIME · every step · no domain code</text>
-
-        <rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="40" y="80" width="130" height="48" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="105" y="100" text-anchor="middle">Current state</text>
-        <text font-size="11" fill="#6b6a63" x="105" y="117" text-anchor="middle">conversation · tool results · memory</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="170" y1="104" x2="206" y2="104" marker-end="url(#a)"/>
-
-        <rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="208" y="80" width="170" height="48" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="293" y="100" text-anchor="middle">Code: list the options</text>
-        <text font-size="11" fill="#6b6a63" x="293" y="117" text-anchor="middle">callable tools · known entities · templates</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="378" y1="104" x2="414" y2="104" marker-end="url(#a)"/>
-
-        <rect fill="#eeedfe" stroke="#534ab7" stroke-width="1.2" x="406" y="68" width="210" height="82" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="511" y="88" text-anchor="middle">Route: who takes this step</text>
-        <text font-size="11" fill="#6b6a63" x="511" y="105" text-anchor="middle">open · no listed option covers it → LLM</text>
-        <text font-size="11" fill="#6b6a63" x="511" y="119" text-anchor="middle">closed · the table has a code row → code</text>
-        <text font-size="11" fill="#6b6a63" x="511" y="133" text-anchor="middle">closed · else Jev picks, kept if p ≥ τ(type)</text>
-        <text font-size="11" fill="#534ab7" x="511" y="146" text-anchor="middle">rows and τ come from the table, recomputed each batch</text>
-
-        <!-- three branches -->
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="460" y1="150" x2="460" y2="178" marker-end="url(#a)"/>
-        <text font-size="12" fill="#23231f" x="398" y="170">code</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="511" y1="150" x2="511" y2="178" marker-end="url(#a)"/>
-        <text font-size="12" fill="#23231f" x="520" y="170">Jev</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="616" y1="104" x2="760" y2="104"/>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="760" y1="104" x2="760" y2="178" marker-end="url(#a)"/>
-        <text font-size="11" fill="#23231f" x="628" y="96">open · or a type marked never</text>
-
-        <rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="380" y="180" width="110" height="48" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="435" y="200" text-anchor="middle">Execute directly</text>
-        <text font-size="11" fill="#6b6a63" x="435" y="217" text-anchor="middle">no model call</text>
-
-        <rect fill="#e1f5ee" stroke="#0f6e56" stroke-width="1" x="500" y="180" width="170" height="48" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="585" y="200" text-anchor="middle">Jev: probability over options</text>
-        <text font-size="11" fill="#6b6a63" x="585" y="217" text-anchor="middle">picks one listed option · one request · ~400 ms</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="670" y1="204" x2="704" y2="204" marker-end="url(#a)"/>
-        <text font-size="12" fill="#23231f" x="676" y="196">p &lt; τ</text>
-
-        <rect fill="#faece7" stroke="#993c1d" stroke-width="1" x="706" y="180" width="110" height="48" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="761" y="200" text-anchor="middle">LLM takes the step</text>
-        <text font-size="11" fill="#6b6a63" x="761" y="217" text-anchor="middle">one tool-calling turn</text>
-
-        <!-- to guard -->
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="435" y1="228" x2="435" y2="262"/>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="585" y1="228" x2="585" y2="262" marker-end="url(#a)"/>
-        <text font-size="12" fill="#23231f" x="592" y="248">p ≥ τ</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="761" y1="228" x2="761" y2="262"/>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="435" y1="262" x2="761" y2="262"/>
-
-        <rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="470" y="264" width="230" height="44" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="585" y="283" text-anchor="middle">guard</text>
-        <text font-size="11" fill="#6b6a63" x="585" y="299" text-anchor="middle">argument checks · write gate · fallback to listed default</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="700" y1="286" x2="800" y2="286" marker-end="url(#a)"/>
-        <rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="802" y="266" width="120" height="40" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="862" y="284" text-anchor="middle">Execute</text>
-        <text font-size="11" fill="#6b6a63" x="862" y="299" text-anchor="middle">step table += 1 row</text>
-
-        <!-- OFFLINE region -->
-        <rect fill="none" stroke="#6b6a63" stroke-width="1" stroke-dasharray="3 3" x="20" y="372" width="920" height="172" rx="10"/>
-        <text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="32" y="392">EVOLUTION · after every batch of conversations · the only domain inputs</text>
-
-        <rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="40" y="416" width="140" height="56" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="110" y="436" text-anchor="middle">Tool schema</text>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="110" y="453" text-anchor="middle">Policy document</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="180" y1="444" x2="236" y2="444" marker-end="url(#a)"/>
-
-        <rect fill="#faece7" stroke="#993c1d" stroke-width="1" x="238" y="410" width="200" height="68" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="338" y="432" text-anchor="middle">LLM writes the option-listing code</text>
-        <text font-size="11" fill="#6b6a63" x="338" y="449" text-anchor="middle">written once, then frozen</text>
-        <text font-size="11" fill="#6b6a63" x="338" y="465" text-anchor="middle">seeded by patterns in the records</text>
-
-        <rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="520" y="416" width="130" height="56" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="585" y="436" text-anchor="middle">Step table</text>
-        <text font-size="11" fill="#6b6a63" x="585" y="453" text-anchor="middle">+ ledgers · + LLM-only records</text>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="650" y1="444" x2="696" y2="444" marker-end="url(#a)"/>
-        <line stroke="#23231f" stroke-width="1.2" fill="none" x1="520" y1="444" x2="438" y2="444" marker-end="url(#a)"/>
-
-        <rect fill="#eeedfe" stroke="#534ab7" stroke-width="1.2" x="698" y="398" width="232" height="96" rx="6"/>
-        <text font-size="13" font-weight="bold" fill="#23231f" x="814" y="417" text-anchor="middle">Recompute the table</text>
-        <text font-size="11" fill="#6b6a63" x="814" y="434" text-anchor="middle">LLM always did the same ≥90% → code row</text>
-        <text font-size="11" fill="#6b6a63" x="814" y="449" text-anchor="middle">type too coarse → split it by 1–2 state features</text>
-        <text font-size="11" fill="#6b6a63" x="814" y="464" text-anchor="middle">Jev agrees ≥90% at p ≥ τ → τ for the type</text>
-        <text font-size="11" fill="#6b6a63" x="814" y="479" text-anchor="middle">no τ is accurate enough → never (LLM)</text>
-
-        <!-- loops back up -->
-        <path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M862 306 L862 346 L585 346 L585 414" marker-end="url(#al)"/>
-        <text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="600" y="360">every step recorded · the LLM's steps too</text>
-        <path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M930 444 L946 444 L946 56 L511 56 L511 66" marker-end="url(#al)"/>
-        <text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="700" y="52">new table</text>
-        <path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M338 410 L338 356 L293 356 L293 130" marker-end="url(#al)"/>
-        <text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="200" y="350">generated code</text>
-      </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" role="img" aria-label="Runtime, every step: the current state goes to code that lists the options; a route step decides who takes the step: an open step (no listed option covers the request) goes to the LLM, a closed step goes to code when the table has a learned row for its state type, otherwise Jev picks among the options and the pick is kept when its probability clears the threshold the table holds for that state type, else the LLM takes the step; everything passes the guard, executes and is recorded. Evolution, after every batch of conversations: an LLM writes the option-listing code once from the tool schema and policy; the records recompute the table by four rules: a state type where the LLM always did the same thing becomes a code row, a type too coarse for that is split by one or two state features, a type where Jev is right at or above a probability gets that threshold, a type where no threshold is accurate enough is marked never. Dashed arrows carry the generated code and the new table back into the runtime.">
+<rect width="960" height="560" fill="#ffffff"/>
+<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L8 5L1 9" fill="none" stroke="#23231f" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker><marker id="al" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L8 5L1 9" fill="none" stroke="#534ab7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect fill="none" stroke="#6b6a63" stroke-width="1" stroke-dasharray="3 3" x="20" y="36" width="920" height="300" rx="10"/>
+<text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="32" y="56">RUNTIME · every step · no domain code</text>
+<rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="40" y="80" width="150" height="48" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="115" y="100" text-anchor="middle">Current state</text>
+<text font-size="11" fill="#6b6a63" x="115" y="117" text-anchor="middle">dialogue · tools · memory</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="190" y1="104" x2="206" y2="104" marker-end="url(#a)"/>
+<rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="208" y="80" width="190" height="48" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="303" y="100" text-anchor="middle">Code: list the options</text>
+<text font-size="11" fill="#6b6a63" x="303" y="117" text-anchor="middle">tools · entities · templates</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="398" y1="104" x2="408" y2="104" marker-end="url(#a)"/>
+<rect fill="#eeedfe" stroke="#534ab7" stroke-width="1.2" x="410" y="68" width="240" height="82" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="530" y="88" text-anchor="middle">Route: who takes this step</text>
+<text font-size="11" fill="#6b6a63" x="530" y="105" text-anchor="middle">open · no option covers it → LLM</text>
+<text font-size="11" fill="#6b6a63" x="530" y="119" text-anchor="middle">closed · a learned code row → code</text>
+<text font-size="11" fill="#6b6a63" x="530" y="133" text-anchor="middle">closed · else Jev picks, kept if p ≥ τ(type)</text>
+<text font-size="11" fill="#534ab7" x="530" y="146" text-anchor="middle">rows and τ: the table, recomputed per batch</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="440" y1="150" x2="440" y2="178" marker-end="url(#a)"/>
+<text font-size="12" fill="#23231f" x="446" y="170" text-anchor="start">code</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="595" y1="150" x2="595" y2="178" marker-end="url(#a)"/>
+<text font-size="12" fill="#23231f" x="601" y="170" text-anchor="start">Jev</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="650" y1="104" x2="815" y2="104"/>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="815" y1="104" x2="815" y2="178" marker-end="url(#a)"/>
+<text font-size="11" fill="#23231f" x="656" y="96" text-anchor="start">open · or a type marked never</text>
+<rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="380" y="180" width="120" height="48" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="440" y="200" text-anchor="middle">Execute directly</text>
+<text font-size="11" fill="#6b6a63" x="440" y="217" text-anchor="middle">no model call</text>
+<rect fill="#e1f5ee" stroke="#0f6e56" stroke-width="1" x="500" y="180" width="190" height="48" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="595" y="200" text-anchor="middle">Jev picks one option</text>
+<text font-size="11" fill="#6b6a63" x="595" y="217" text-anchor="middle">probability · one request · ~400 ms</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="690" y1="204" x2="738" y2="204" marker-end="url(#a)"/>
+<text font-size="12" fill="#23231f" x="696" y="196" text-anchor="start">p &lt; τ</text>
+<rect fill="#faece7" stroke="#993c1d" stroke-width="1" x="740" y="180" width="150" height="48" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="815" y="200" text-anchor="middle">LLM takes the step</text>
+<text font-size="11" fill="#6b6a63" x="815" y="217" text-anchor="middle">one tool-calling turn</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="440" y1="228" x2="440" y2="262"/>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="595" y1="228" x2="595" y2="262" marker-end="url(#a)"/>
+<text font-size="12" fill="#23231f" x="602" y="248" text-anchor="start">p ≥ τ</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="815" y1="228" x2="815" y2="262"/>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="440" y1="262" x2="815" y2="262"/>
+<rect fill="#ececfb" stroke="#4a4a9c" stroke-width="1" x="440" y="264" width="330" height="44" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="605" y="283" text-anchor="middle">guard</text>
+<text font-size="11" fill="#6b6a63" x="605" y="299" text-anchor="middle">argument checks · write gate · default fallback</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="770" y1="286" x2="800" y2="286" marker-end="url(#a)"/>
+<rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="802" y="266" width="120" height="40" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="862" y="284" text-anchor="middle">Execute</text>
+<text font-size="11" fill="#6b6a63" x="862" y="299" text-anchor="middle">step table += 1 row</text>
+<rect fill="none" stroke="#6b6a63" stroke-width="1" stroke-dasharray="3 3" x="20" y="372" width="920" height="172" rx="10"/>
+<text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="32" y="392">EVOLUTION · after every batch of conversations · the only domain inputs</text>
+<rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="40" y="416" width="140" height="56" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="110" y="436" text-anchor="middle">Tool schema</text>
+<text font-size="13" font-weight="bold" fill="#23231f" x="110" y="453" text-anchor="middle">Policy document</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="180" y1="444" x2="236" y2="444" marker-end="url(#a)"/>
+<rect fill="#faece7" stroke="#993c1d" stroke-width="1" x="238" y="410" width="210" height="68" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="343" y="432" text-anchor="middle">LLM writes the option lister</text>
+<text font-size="11" fill="#6b6a63" x="343" y="449" text-anchor="middle">written once, then frozen</text>
+<text font-size="11" fill="#6b6a63" x="343" y="465" text-anchor="middle">seeded by patterns in the records</text>
+<rect fill="#f1efe8" stroke="#dcdad2" stroke-width="1" x="520" y="416" width="140" height="56" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="590" y="436" text-anchor="middle">Step table</text>
+<text font-size="11" fill="#6b6a63" x="590" y="453" text-anchor="middle">ledgers · LLM-only records</text>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="660" y1="444" x2="686" y2="444" marker-end="url(#a)"/>
+<line stroke="#23231f" stroke-width="1.2" fill="none" x1="520" y1="444" x2="450" y2="444" marker-end="url(#a)"/>
+<rect fill="#eeedfe" stroke="#534ab7" stroke-width="1.2" x="688" y="398" width="250" height="96" rx="6"/>
+<text font-size="13" font-weight="bold" fill="#23231f" x="813" y="417" text-anchor="middle">Recompute the table</text>
+<text font-size="11" fill="#6b6a63" x="813" y="434" text-anchor="middle">LLM always same action ≥90% → code row</text>
+<text font-size="11" fill="#6b6a63" x="813" y="449" text-anchor="middle">type too coarse → split by 1–2 features</text>
+<text font-size="11" fill="#6b6a63" x="813" y="464" text-anchor="middle">Jev right ≥90% at p ≥ τ → τ for the type</text>
+<text font-size="11" fill="#6b6a63" x="813" y="479" text-anchor="middle">no τ accurate enough → never (LLM)</text>
+<path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M862 306 L862 346 L590 346 L590 414" marker-end="url(#al)"/>
+<text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="606" y="360">every step recorded · the LLM&apos;s steps too</text>
+<path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M938 446 L950 446 L950 54 L530 54 L530 66" marker-end="url(#al)"/>
+<text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="700" y="50">new table</text>
+<path stroke="#534ab7" stroke-width="1.3" fill="none" stroke-dasharray="5 4" d="M343 410 L343 356 L303 356 L303 130" marker-end="url(#al)"/>
+<text font-size="11" fill="#6b6a63" font-family="monospace" letter-spacing="0.04em" x="200" y="350">generated code</text>
+</svg>
