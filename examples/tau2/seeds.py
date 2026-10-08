@@ -394,9 +394,9 @@ def run(obs, nodes, memory):
                 options["tool:modify_pending_order_payment"] = "Change the payment method of pending order " + focus + " to one of the user's saved methods."
             if intents["modify_items"] and "modify_pending_order_items" in tools and mem["products"]:
                 options["tool:modify_pending_order_items"] = "Modify items of pending order " + focus + " to other variants of the same products (variants loaded)."
-        if intents["modify_address"] and "modify_user_address" in tools:
+        if "modify_address" in remaining and "modify_user_address" in tools:   # listed only while the request is open: its fields keep the step with the LLM
             options["tool:modify_user_address"] = "Change the user's default address to the new address they gave (address1, address2, city, state, country, zip)."
-        if intents["modify_address"] and order and order.get("status") == "pending" and "modify_pending_order_address" in tools:
+        if "modify_address" in remaining and order and order.get("status") == "pending" and "modify_pending_order_address" in tools:
             options["tool:modify_pending_order_address"] = "Change the shipping address of pending order " + focus + " to the new address the user gave."
         if order and order.get("status") == "delivered":
             if intents["return"] and "return_delivered_order_items" in tools and pm:
@@ -466,7 +466,9 @@ def run(obs, nodes, memory):
     request_covered = incoming.get("role") == "tool" or len(user_texts) == 0 or not last_user.strip() or not auth or action_signal
     closed = len(options) > 0 and len(needs) == 0 and bool(request_covered)
     # a request the catalog cannot move toward (no write option for it and no lookup left to make one) keeps the step open
-    uncovered = [k for k in remaining if not any(o.startswith("tool:") for o in options)]   # only replies are listed: nothing moves toward the request
+    # after a write has been done, a remaining request with only replies listed (nothing moves toward it) keeps the step open;
+    # before authentication or before any write, asking for identity or reporting a result is the right reply and the step stays as it is
+    uncovered = [k for k in remaining if auth and mem["completed"] and not any(o.startswith("tool:") for o in options)]
     if uncovered:
         closed = False
     facts["uncovered_requests"] = uncovered
