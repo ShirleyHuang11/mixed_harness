@@ -294,3 +294,7 @@ steps and ledgers are its own in-memory state written at the end and are clean; 
 merged before being overwritten (verified by start stamps); round 2's step-level shares come from the 77-task run.
 `results.json` in that directory mixes the two (tau2 keeps the first entry per task) and says so in a README.
 Directories are now created exclusively.
+
+Clean rerun of the round-3 table on all 114 tasks (2026-10-08, `runs/tau2/20261008-131620-retail-base`, its own
+directory): pass^1 0.746, $0.201 = 0.57× llm_only, 14.0 turns, code 29% (learned 19%) / Jev 23% / LLM 49%. Same
+cost and shares as the shared-directory run, pass within noise (0.763 there).
