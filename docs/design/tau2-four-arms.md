@@ -298,3 +298,23 @@ Directories are now created exclusively.
 Clean rerun of the round-3 table on all 114 tasks (2026-10-08, `runs/tau2/20261008-131620-retail-base`, its own
 directory): pass^1 0.746, $0.201 = 0.57× llm_only, 14.0 turns, code 29% (learned 19%) / Jev 23% / LLM 49%. Same
 cost and shares as the shared-directory run, pass within noise (0.763 there).
+
+### Where the accuracy gap comes from (2026-10-08)
+
+Across 290 routed episodes (the clean 114-task run and four held-out passes of the long run) 57 were lost; the
+LLM-only agent lost 14 of the same tasks. Of the losses, 40% never attempted a required write (the simulated
+customer ended the conversation while the LLM fallback was still asking or reporting) and 37% executed a write
+but not the required one. The required-but-never-executed writes were address changes 29 times out of 29:
+the hand-written option catalog never listed `modify_user_address` or `modify_pending_order_address`, so on a
+closed address step Jev picked the nearest listed reply ("your request has been taken care of") with high
+probability. A second cause: `reply:closing` was offered as soon as any write had completed, so a conversation
+with two requests could close after the first. Jev's own wrong picks or arguments account for about 5% of the
+losses, the templated report text for another 5%.
+
+Fix (commit a6180fa and the follow-up): the two address tools are listed while the request is open (their
+fields are not fillable by code, so the step goes to the LLM); the compiler keeps the customer's request list
+(action intents minus completed writes) and offers closing only when it is empty; after a write, a remaining
+request with only replies listed keeps the step open. First run of the fix on 114 tasks: pass^1 0.772 (from
+0.746), tasks lost that the LLM won 17 → 11, but cost 0.66× (from 0.57×) because the address option's
+unfillable fields and the coverage check sent 507 steps to the LLM, most of them identity and report steps
+before any write. Narrowed in the follow-up; rerun in progress.
