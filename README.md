@@ -16,7 +16,7 @@ there, to Jev when Jev's picks match the LLM's at some probability, and stays wi
 
 ## Architecture
 
-![Runtime: code lists the options, the table says who takes the step, code executes or Jev picks by probability or the LLM takes a turn, the guard checks. Offline: an LLM writes the option-listing code once from the tool schema and policy; the records recompute the table.](docs/media/fig_general.svg)
+![Runtime path: task state, compiler, Jev router, the paths, guard, trace store, and the loops feeding a new version back](docs/media/fig_runtime_path.svg)
 
 **Runtime, every step, no domain code in the picture.** Code lists the options the state allows: the tools
 whose arguments can be filled, the known entities (orders, items, payment methods), the templates, and
@@ -36,10 +36,13 @@ code when the LLM's action there is the same at least 90% of the time; to Jev, w
 picks at or above τ agree with the LLM's at least 90% of the time; to the LLM when no τ reaches that. Traffic
 only moves toward the cheaper end, and the guard and the thresholds hold accuracy while it moves.
 
+![Evolution loops: the trace store feeds the execution layer (slow) and the routing layer (fast); both deploy a new harness version](docs/media/fig_evolution_loops.svg)
+
 **Why Jev shapes the design.** Jev returns typed outputs only, so code or an LLM fills free text. Its
 probability is calibrated: on 1,002 recorded closed steps it agreed with the LLM on 98% of picks at 0.99 or
 above, 82% between 0.90 and 0.99, and 35% below 0.90, so the probability is the abstain signal. Asked instead
-whether it could take a step, it was right 60% of the time; the table never asks that. It picks well when the
+which path a step should take, it separated closed from open steps well enough (85% of its "closed" calls were
+closed) but its pick on those steps matched the LLM's action only 52% of the time, so the route question was dropped. It picks well when the
 options are a judgment and poorly when the next step depends on a plan the conversation implies (44% in the
 clusters right after a lookup), so those state types sit with the LLM until the records show otherwise.
 
@@ -125,7 +128,7 @@ the language model. Sandboxed Python nodes run under `bwrap` on Linux and `sandb
 | `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `tau2_compare.py`, `tau2_merge.py`, `live_run.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
-| `docs/media/` | figures: `fig_general.svg`, `fig_measurement.svg` |
+| `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
 
 The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness), a harness as a graph of
 sandboxed code and Jev calls evolved with GEPA, implemented independently here; JevHarness has no LLM at
