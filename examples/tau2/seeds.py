@@ -349,6 +349,13 @@ def run(obs, nodes, memory):
         "transferred": mem["transferred"], "turn": mem["turns"], "user_turns": len(user_texts), "tried": mem["tried"],
         "payment_methods": pm,
     }
+    # --- the customer's request list: every action intent in the conversation, minus the writes already done -----
+    intent_tools = {"cancel": ["cancel_pending_order"], "return": ["return_delivered_order_items"], "exchange": ["exchange_delivered_order_items"],
+                    "modify_address": ["modify_user_address", "modify_pending_order_address"], "modify_payment": ["modify_pending_order_payment"],
+                    "modify_items": ["modify_pending_order_items"]}
+    done_tools = [str(c.get("tool")) for c in mem["completed"]]
+    remaining = [k for k, ts in intent_tools.items() if intents.get(k) and not any(t in done_tools for t in ts)]
+    facts["remaining_requests"] = remaining
     # --- legal-action catalog A(s) ---------------------------------------------------------------------
     options = {}
     if mem["transferred"]:
@@ -387,6 +394,10 @@ def run(obs, nodes, memory):
                 options["tool:modify_pending_order_payment"] = "Change the payment method of pending order " + focus + " to one of the user's saved methods."
             if intents["modify_items"] and "modify_pending_order_items" in tools and mem["products"]:
                 options["tool:modify_pending_order_items"] = "Modify items of pending order " + focus + " to other variants of the same products (variants loaded)."
+        if intents["modify_address"] and "modify_user_address" in tools:
+            options["tool:modify_user_address"] = "Change the user's default address to the new address they gave (address1, address2, city, state, country, zip)."
+        if intents["modify_address"] and order and order.get("status") == "pending" and "modify_pending_order_address" in tools:
+            options["tool:modify_pending_order_address"] = "Change the shipping address of pending order " + focus + " to the new address the user gave."
         if order and order.get("status") == "delivered":
             if intents["return"] and "return_delivered_order_items" in tools and pm:
                 options["tool:return_delivered_order_items"] = "Return items of delivered order " + focus + " to one of the user's payment methods."
@@ -402,7 +413,7 @@ def run(obs, nodes, memory):
         options["reply:deny"] = "Politely decline: the request is outside policy (another user's data, non-pending cancellation, subjective advice, made-up information)."
         if (intents["human"] or (mem.get("last_error") and len(user_texts) > 8)) and "transfer_to_human_agents" in tools:
             options["tool:transfer_to_human_agents"] = "Transfer to a human agent because the request cannot be handled with the available tools."
-        if intents["goodbye"] or mem["completed"]:
+        if (intents["goodbye"] or mem["completed"]) and not remaining:
             options["reply:closing"] = "Close politely; the user's requests have been handled or they said goodbye."
     if not options:
         options["reply:ask_identity"] = "Ask the user for their email, or full name plus zip code."
@@ -454,6 +465,11 @@ def run(obs, nodes, memory):
                      or (pending is not None and facts["last_user_says"] != "unclear") or intents["goodbye"] or intents["human"])
     request_covered = incoming.get("role") == "tool" or len(user_texts) == 0 or not last_user.strip() or not auth or action_signal
     closed = len(options) > 0 and len(needs) == 0 and bool(request_covered)
+    # a request the catalog cannot move toward (no write option for it and no lookup left to make one) keeps the step open
+    uncovered = [k for k in remaining if not any(o.startswith("tool:") for o in options)]   # only replies are listed: nothing moves toward the request
+    if uncovered:
+        closed = False
+    facts["uncovered_requests"] = uncovered
     facts["request_covered"] = bool(request_covered)
     cluster = ("auth" if auth else "anon") + "|" + str(incoming.get("role") or "none") + "|" + str((order or {}).get("status") or "no_order") + "|" + top_intent(intents)
     # --- structural default: when one workflow rule applies, code acts and Jev is not asked --------------------

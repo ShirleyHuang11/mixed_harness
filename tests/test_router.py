@@ -99,6 +99,8 @@ TOOLS = {
     'find_user_id_by_name_zip': {'description': 'Find user id by name and zip.', 'required': ['first_name', 'last_name', 'zip'],
                                  'params': {'first_name': {'type': 'string', 'description': ''}, 'last_name': {'type': 'string', 'description': ''}, 'zip': {'type': 'string', 'description': ''}}},
     'find_user_id_by_email': {'description': 'Find user id by email.', 'required': ['email'], 'params': {'email': {'type': 'string', 'description': ''}}},
+    'modify_user_address': {'description': 'Change the default address.', 'required': ['user_id', 'address1', 'address2', 'city', 'state', 'country', 'zip'],
+                            'params': {k: {'type': 'string', 'description': ''} for k in ('user_id', 'address1', 'address2', 'city', 'state', 'country', 'zip')}},
     'get_user_details': {'description': 'User profile.', 'required': ['user_id'], 'params': {'user_id': {'type': 'string', 'description': ''}}},
     'get_order_details': {'description': 'Order.', 'required': ['order_id'], 'params': {'order_id': {'type': 'string', 'description': ''}}},
     'cancel_pending_order': {'description': 'Cancel.', 'required': ['order_id', 'reason'], 'params': {'order_id': {'type': 'string', 'description': ''}, 'reason': {'type': 'string', 'description': ''}}},
@@ -394,3 +396,28 @@ def test_offline_features_match_runtime_features():
             assert f[k] == v, (k, f[k], v)
     f2, leaky2 = features_of({'routing': routing})
     assert not leaky2 and f2 == routing['features']
+
+
+ADDRESS = 'Please update my default address to 123 Main St, Springfield, IL, USA, 62701.'
+
+
+@needs_sandbox
+def test_address_change_is_listed_and_left_to_the_llm():
+    """An address change is in the catalog (it was missing: Jev then picked the nearest listed reply and closed the
+    conversation); its fields are not fillable by code, so the step is open and the LLM takes it."""
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'reply:closing', confidence=0.99), _llm(), _obs(ADDRESS, turn=5), AUTH)
+    cx = result['nodes']['compile']
+    assert 'tool:modify_user_address' in cx['options'] and 'address1' in cx['needs']['tool:modify_user_address']
+    assert cx['closed'] is False and cx['facts']['remaining_requests'] == ['modify_address']
+    routing = result['nodes']['guard']['routing']
+    assert routing['path'] == 'escalate' and routing['path_source'] == 'code_override'
+
+
+@needs_sandbox
+def test_closing_is_not_offered_while_a_request_remains():
+    done = dict(AUTH, completed=[{'tool': 'cancel_pending_order', 'arguments': {'order_id': '#W0000001'}}])
+    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', confidence=0.3), _llm(), _obs('Thanks. I also want to exchange the keyboard for the black one.', turn=7), done)
+    cx = result['nodes']['compile']
+    assert cx['facts']['remaining_requests'] == ['exchange'] and 'reply:closing' not in cx['options']
+    bye = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'reply:closing', confidence=0.99), _llm(), _obs("That's all, thanks, bye!", turn=8), done)
+    assert 'reply:closing' in bye['nodes']['compile']['options'] and bye['nodes']['compile']['facts']['remaining_requests'] == []
