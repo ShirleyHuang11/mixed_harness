@@ -85,28 +85,38 @@ take a step. It is asked to pick, and the pick is used when its probability clea
 
 ![The tau2-bench test: four arms on the same benchmark, one table](docs/media/fig_measurement.svg)
 
-On τ²-bench retail (114 tasks, 16 tools, reward from the database state and the benchmark's own
-natural-language checks), three arms run every task against the same simulated customer (gpt-5.5) with the
-same seed: LLM only (the benchmark's own agent on gpt-5.5), Jev only (every step on the Jev path, nothing to
-the LLM), and the harness with its table. Cost is the agent's tokens at list price, relative to the LLM-only
-arm. The decision rules, predictions and every result are in `docs/design/tau2-four-arms.md`.
+The benchmark is τ²-bench retail: 114 customer-service conversations (returns, exchanges, cancellations,
+address changes) with 16 tools and a simulated customer. A task counts as solved when the database ends in
+the right state and the required things were said. Every system below runs the same 114 tasks against the
+same simulated customer (gpt-5.5) with the same seed. The decision rules, predictions and every result are in
+`docs/design/tau2-four-arms.md`.
 
-| arm | pass^1 | cost | code / Jev / LLM share of steps |
+How to read the table:
+
+- **tasks solved** is the fraction of the 114 tasks solved (pass^1). Running the same system twice moves
+  this number by up to 9 points, so differences smaller than that are noise.
+- **cost** is what the agent spent on model calls, relative to the LLM-only agent (1.00×). Jev is priced at
+  about one hundredth of an LLM call, so this column is almost entirely LLM calls.
+- **who took the steps** is the share of all conversation turns decided by code (no model call), by Jev, and
+  by the LLM.
+
+| system | tasks solved | cost | who took the steps: code / Jev / LLM |
 |---|---|---|---|
-| LLM only | 0.807 | 1.00× | 0 / 0 / 100% |
-| Jev only | 0.167 | 0.01× | 0 / 100% / 0 |
-| the harness, table with thresholds only | 0.76 | 0.73× | 9% / 23% / 67% |
-| the harness, table with 42 learned rows | 0.746 | 0.57× | 29% / 23% / 49% |
-| the same, after the option catalog was completed (address changes listed, closing only when no request remains) | 0.789 | 0.62× | 28% / 18% / 54% |
+| LLM only: the benchmark's standard agent, every turn is an LLM call | 0.807 | 1.00× | 0 / 0 / 100% |
+| Jev only: every turn is a Jev pick, no LLM at all | 0.167 | 0.01× | 0 / 100% / 0 |
+| Mixed Harness, before learning: the table holds only Jev's thresholds | 0.76 | 0.73× | 9% / 23% / 67% |
+| Mixed Harness, after learning 42 rows from its own records | 0.746 | 0.57× | 29% / 23% / 49% |
+| Mixed Harness, current: the same table, two gaps in the hand-written option list closed | 0.789 | 0.62× | 28% / 18% / 54% |
 
-One pass over the 114 tasks has a noise of 9 points on pass^1 (the same table run twice); the cost column
-and the share columns move by less than 2 points between repeats. Before the catalog fix the harness lost 17
-tasks the LLM won and won 10 the LLM lost; after it, 11 and 9. The losses were traced to the hand-written
-option catalog (two address-change tools were never listed, so Jev picked the nearest listed reply with high
-probability) and to a closing reply offered as soon as one of several requests was done; Jev's own picks
-account for about 5% of lost episodes. The 5 cost points the fix adds are the address steps, now open to the
-LLM. The rows in the last line were learned from these same 114 tasks, so that line is an
-in-sample number. The next experiment removes that.
+The current version solves 1.8 points fewer tasks than the LLM-only agent (within noise) at 0.62× its cost.
+Of the two earlier harness rows, the first is the starting point and the second shows what learning alone
+did: 10 points of cost at no change in tasks solved. Between the last two rows the code changed, not the
+table: the hand-written list of options had never included the two address-change tools, so on those turns
+Jev picked the nearest listed reply ("your request has been taken care of") with high probability, and a
+closing reply was offered as soon as one of several requests was done. Before that fix the harness lost 17
+tasks the LLM solved and solved 10 the LLM lost; after it, 11 and 9. Jev's own picks account for about 5% of
+lost conversations. The rows in the learned table were learned from these same 114 tasks, so the harness
+rows are in-sample numbers; the next experiment removes that.
 
 **On conversations it has never seen.** The 114 tasks are split once into a stream of 76 tasks the table
 learns from and 38 held-out tasks it never sees. Each pass serves the 76 stream tasks with a new simulated
