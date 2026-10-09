@@ -1,4 +1,4 @@
-# τ²-bench: four arms, one environment
+# τ²-bench: three arms, one environment
 
 Design, stages and decision table: `docs/design/tau2-four-arms.md`.
 
@@ -17,8 +17,9 @@ Credentials, read from `mixed_harness/.env`:
 
 | Variable | Used by |
 |---|---|
-| `TYPESAFE_API_KEY` | Jev, for the `jev_only`, `routed` and `routed_evolved` arms and for stage 0 |
-| `ANTHROPIC_API_KEY` | the `llm_only` arm, the harness llm and agent nodes, and (by default) the user simulator and the NL-assertion judge |
+| `TYPESAFE_API_KEY` | Jev, for the `jev_only` and `routed` arms and for stage 0; `TYPESAFE_API_KEY_PERSONAL` is used first when set |
+| `ANTHROPIC_API_KEY` | with the default API backend: the `llm_only` arm, the harness agent node, the user simulator and the NL-assertion judge |
+| none | with `--llm-backend codex`: every LLM role runs through a Codex CLI subscription; start `scripts/cli_proxy.py` first and pass `--proxy-base` |
 | `OPENAI_API_KEY` | only if you pass `--user-llm gpt-4.1-2025-04-14`, tau2's official default |
 
 ## Run
@@ -27,6 +28,10 @@ Credentials, read from `mixed_harness/.env`:
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --arms jev_only,routed --mock --num-tasks 1   # plumbing (needs a user simulator with credit)
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --num-tasks 5   # smoke
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base                 # stage 2
+    ~/tau2-bench/.venv/bin/python scripts/cli_proxy.py --backend codex --model gpt-5.5 --port 8765 &    # subscription instead of an API
+    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --arms routed --policy <policy.json> --llm-backend codex --proxy-base http://127.0.0.1:8765/v1
+    ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --replay runs/stage0/<stamp>/replay.jsonl --steps <routed steps.jsonl ...> --ledgers <routed ledgers.json ...> --out policy.json
+    ~/tau2-bench/.venv/bin/python scripts/long_run.py --passes 6 --replay runs/stage0/<stamp>/replay.jsonl --llm-only-run runs/tau2/<llm_only run>   # stream + held-out curve
 
 Artifacts land in `runs/tau2/<stamp>-<domain>-<split>/`: `manifest.json` (models requested and echoed, seeds,
 task ids, credentials present by name, realised Jev/LLM stats), `<arm>/results.json` (tau2's own format, so
@@ -39,10 +44,10 @@ with `labels.jsonl` (hand-check list), `replay.jsonl`, `report.json`, `report.md
 
 | Arm | Agent | Per turn |
 |---|---|---|
-| `llm_only` | tau2's stock `llm_agent` on `--agent-llm` (default `anthropic/claude-sonnet-5`) | 1 LLM call with policy, tools and full history |
+| `llm_only` | tau2's stock `llm_agent` on `--agent-llm` (default `anthropic/claude-sonnet-5`, or `openai/gpt-5.5` through the proxy with `--llm-backend codex`) | 1 LLM call with policy, tools and full history |
 | `jev_only` | `examples.tau2.seeds.jev_only_seed()` | compile (python), 1 Jev request, route, decision, guard (python); no LLM |
-| `routed` | `examples.tau2.seeds.routed_seed()` | the same, plus menu (llm) → menu_q → menu_pick (Jev) on the narrow path, or agent (one native tool-calling turn) on the escalate path |
-| `routed_evolved` | `--evolved-spec` (a candidate from an evolution run) or the routed seed with a loop-B policy fitted on `--policy-steps` | as routed |
+| `routed` | `examples.tau2.seeds.routed_seed(policy=...)` with the table from `--policy` | the same; a code row takes the step with no model call, Jev's pick is kept when its probability clears the cluster's τ, otherwise agent (one native tool-calling turn) |
+| `routed_evolved` | `--evolved-spec` (a candidate from an evolution run) or the routed seed with a table fitted on `--policy-steps` | as routed |
 
 `examples/tau2/agent.py` wraps a `Runtime` as a tau2 `HalfDuplexAgent`; `examples/tau2/adapter.py`
 exposes the same thing through the evaluator contract for evolution.
@@ -54,12 +59,17 @@ exposes the same thing through the evaluator contract for evolution.
 - `turn latency` is wall time per agent turn. `model-only ms` sums the Jev and LLM node times; `sandbox ms`
   sums the sandboxed-Python node times. Python nodes run in a warm worker, so a turn costs a few
   milliseconds of sandbox time after the first one.
-- The routing table (from `steps.jsonl`): `Jev share` is the fraction of steps whose realised path was closed;
-  `narrow` and `escalate` the rest; `low conf` the share where Jev picked closed below τ; `fall-through` the share where Jev picked closed but the paraphrase disagreed;
-  `code override` the share where the compiler flagged the step open and overrode a closed pick; `guard fallback`
-  the share where a menu or agent output was unusable and the guard fell back to the closed decision (the realised
-  path is then closed although the LLM was called); `agreement` the paraphrase agreement rate; `guard` the count of guard interventions (write gate, bad arguments, invalid menu or
-  agent output).
-- The user simulator and the NL-assertion judge default to `anthropic/claude-sonnet-4-5-20250929` because
-  the OpenAI account on this machine has no credit. The manifest records both the model used and tau2's
-  default. Numbers from different user simulators are not comparable.
+- The routing table (from `steps.jsonl`): `Jev share` is the fraction of steps whose realised path was closed
+  (a code row or an accepted Jev pick); `escalate` the fraction the LLM took; `low conf` the share where Jev's
+  probability on its pick was below the cluster's τ (or the cluster is marked never); `code override` the share
+  where the compiler flagged the step open (no listed option covers the request, or a request remains with only
+  replies listed); `guard` the count of guard interventions (write gate, bad arguments, unusable agent output).
+  `summary.json` carries the same by source (`structural`, `learned`, `jev`, `low_confidence`, `code_override`,
+  `trajectory`), which is where the code / Jev / LLM shares in the README come from.
+- The user simulator and the NL-assertion judge default to `anthropic/claude-sonnet-4-5-20250929` (tau2's
+  official gpt-4.1 was not available here); with `--llm-backend codex` they run on gpt-5.5 through the proxy.
+  The manifest records the model used and tau2's default. Numbers from different user simulators are not
+  comparable; the README's table is the gpt-5.5 environment. Two runs launched in the same second get
+  distinct directories (`<stamp>-1-...`).
+- A cost under `--llm-backend codex` is imputed: the subscription bills nothing, so tokens are priced at
+  gpt-5.5's list price for every arm alike (`cost_imputed` in the manifest).
