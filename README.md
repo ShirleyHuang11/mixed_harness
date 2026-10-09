@@ -104,19 +104,14 @@ How to read the table:
 |---|---|---|---|
 | LLM only: the benchmark's standard agent, every turn is an LLM call | 0.807 | 1.00× | 0 / 0 / 100% |
 | Jev only: every turn is a Jev pick, no LLM at all | 0.167 | 0.01× | 0 / 100% / 0 |
-| Mixed Harness, before learning: the table holds only Jev's thresholds | 0.76 | 0.73× | 9% / 23% / 67% |
-| Mixed Harness, after learning 42 rows from its own records | 0.746 | 0.57× | 29% / 23% / 49% |
-| Mixed Harness, current: the same table, two gaps in the hand-written option list closed | 0.789 | 0.62× | 28% / 18% / 54% |
+| Mixed Harness: code, Jev and the LLM share the turns as the learned table says | 0.789 | 0.62× | 28% / 18% / 54% |
 
-The current version solves 1.8 points fewer tasks than the LLM-only agent (within noise) at 0.62× its cost.
-Of the two earlier harness rows, the first is the starting point and the second shows what learning alone
-did: 10 points of cost at no change in tasks solved. Between the last two rows the code changed, not the
-table: the hand-written list of options had never included the two address-change tools, so on those turns
-Jev picked the nearest listed reply ("your request has been taken care of") with high probability, and a
-closing reply was offered as soon as one of several requests was done. Before that fix the harness lost 17
-tasks the LLM solved and solved 10 the LLM lost; after it, 11 and 9. Jev's own picks account for about 5% of
-lost conversations. The rows in the learned table were learned from these same 114 tasks, so the harness
-rows are in-sample numbers; the next experiment removes that.
+Mixed Harness solves 1.8 points fewer tasks than the LLM-only agent (within noise) at 0.62× its cost. Of the
+tasks the two disagree on, the harness loses 11 that the LLM solves and solves 9 that the LLM loses; Jev's own
+picks account for about 5% of lost conversations. Before the table learned its 42 rows the same harness cost
+0.73×, so learning bought 11 points of cost. The rows were learned from these same 114 tasks, so this is an
+in-sample number; the next experiment removes that. Earlier versions and every intermediate result are in
+`docs/design/tau2-four-arms.md`.
 
 **On conversations it has never seen.** The 114 tasks are split once into a stream of 76 tasks the table
 learns from and 38 held-out tasks it never sees. Each pass serves the 76 stream tasks with a new simulated
