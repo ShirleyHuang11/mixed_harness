@@ -1,12 +1,13 @@
-"""Four arms on tau2-bench, same environment, same user simulator, same tasks and seeds.
+"""The arms on tau2-bench, same environment, same user simulator, same tasks and seeds.
 
 Arms
   llm_only        tau2's stock `llm_agent` on --agent-llm (litellm name): every step escalates, one full model call
                   per turn, no Jev. The benchmark's own reference agent; the positive control.
   jev_only        examples.tau2.seeds.jev_only_seed(): every step on the closed path. Compiler, one Jev request, code
                   fills arguments, templates reply. No language model. Jev's route pick is recorded, never acted on.
-  routed          examples.tau2.seeds.routed_seed(): the router picks a path per step; the LLM is called only on the
-                  narrow and escalate paths.
+  routed          examples.tau2.seeds.routed_seed(policy=...): the table from --policy says who takes each step: a code
+                  row takes it with no model call, Jev's pick is kept when its probability clears the cluster's threshold,
+                  otherwise the LLM takes the step (one native tool-calling turn).
   routed_evolved  a spec produced by evolution of the routed seed (--evolved-spec <path>); without one, the routed
                   seed with a loop-B policy fitted on --policy-steps (step rows from an earlier run), or the plain
                   routed seed again when neither is given (the arm then duplicates `routed`, and the table says so).
