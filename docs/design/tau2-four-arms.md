@@ -318,3 +318,8 @@ request with only replies listed keeps the step open. First run of the fix on 11
 0.746), tasks lost that the LLM won 17 → 11, but cost 0.66× (from 0.57×) because the address option's
 unfillable fields and the coverage check sent 507 steps to the LLM, most of them identity and report steps
 before any write. Narrowed in the follow-up; rerun in progress.
+Narrowed fix (commit b20e147), 114 tasks: pass^1 0.789, $0.217 = 0.62×, code 28% / Jev 18% / LLM 54% (19% of
+steps open by code override: the address steps and the after-write coverage check). Tasks lost that the LLM won
+11, won that the LLM lost 9. Remaining misses: modify_user_address 4, cancel 3, order address 2, exchange 2; the
+LLM fallback still fails some address changes it now receives (asks for more information until the customer
+leaves). Next: the fallback's argument filling for address changes and a retry after a bad-arguments guard stop.

@@ -13,9 +13,9 @@ records. **For every type of state the table says who takes the step: code, Jev 
 probability on its own pick clears the threshold the table holds for that state. Every step is recorded, and
 after every batch of conversations the table is recomputed: a state type moves to code when the LLM always
 did the same thing there, to Jev when Jev's picks match the LLM's at some probability, and stays with the
-LLM otherwise.** On τ²-bench retail the harness runs at 0.57× the cost of the LLM-only agent with accuracy
-within noise of it, and on conversations it has never seen its cost falls from 0.75× to 0.60× of the LLM's
-over the first 304 conversations it serves.
+LLM otherwise.** On τ²-bench retail the harness runs at 0.62× the cost of the LLM-only agent, 1.8 points
+below it on pass^1 (noise is 9 points), and on conversations it has never seen its cost falls from 0.75× to
+0.60× of the LLM's over the first 304 conversations it serves.
 
 ## Architecture
 
@@ -97,10 +97,15 @@ arm. The decision rules, predictions and every result are in `docs/design/tau2-f
 | Jev only | 0.167 | 0.01× | 0 / 100% / 0 |
 | the harness, table with thresholds only | 0.76 | 0.73× | 9% / 23% / 67% |
 | the harness, table with 42 learned rows | 0.746 | 0.57× | 29% / 23% / 49% |
+| the same, after the option catalog was completed (address changes listed, closing only when no request remains) | 0.789 | 0.62× | 28% / 18% / 54% |
 
-One pass over the 114 tasks has a noise of 9 points on pass^1 (the same table run twice), so the accuracy
-column reads "within noise of the LLM"; the cost column and the share columns move by less than 2 points
-between repeats. The rows in the last line were learned from these same 114 tasks, so that line is an
+One pass over the 114 tasks has a noise of 9 points on pass^1 (the same table run twice); the cost column
+and the share columns move by less than 2 points between repeats. Before the catalog fix the harness lost 17
+tasks the LLM won and won 10 the LLM lost; after it, 11 and 9. The losses were traced to the hand-written
+option catalog (two address-change tools were never listed, so Jev picked the nearest listed reply with high
+probability) and to a closing reply offered as soon as one of several requests was done; Jev's own picks
+account for about 5% of lost episodes. The 5 cost points the fix adds are the address steps, now open to the
+LLM. The rows in the last line were learned from these same 114 tasks, so that line is an
 in-sample number. The next experiment removes that.
 
 **On conversations it has never seen.** The 114 tasks are split once into a stream of 76 tasks the table
