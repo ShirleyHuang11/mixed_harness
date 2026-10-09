@@ -49,7 +49,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from examples.tau2 import adapter  # noqa: E402
-from examples.tau2.seeds import SEEDS, routed_seed  # noqa: E402
+import importlib  # noqa: E402
+
+SEEDS, routed_seed = None, None   # bound by _load_seeds (default examples.tau2.seeds; --seed-module picks another version)
+
+
+def _load_seeds(name):
+    global SEEDS, routed_seed
+    mod = importlib.import_module(name)
+    SEEDS, routed_seed = mod.SEEDS, mod.routed_seed
+    return mod
 from mixedharness.jev import JevClient  # noqa: E402
 from mixedharness.llm import LLMClient  # noqa: E402
 from mixedharness.router import fit_policy, route_metrics  # noqa: E402
@@ -392,6 +401,7 @@ def main(argv=None):
     p.add_argument('--evolved-spec', default=None, help='spec JSON for the routed_evolved arm (a candidate from an evolution run)')
     p.add_argument('--policy-steps', default=None, help='steps.jsonl of an earlier run; fits a loop-B policy for routed_evolved when no --evolved-spec is given')
     p.add_argument('--policy', default=None, help='compact policy JSON (scripts/fit_policy.py) embedded in the routed arm: tau per cluster, preferred paths')
+    p.add_argument('--seed-module', default='examples.tau2.seeds', help='module holding SEEDS and routed_seed; e.g. examples.tau2.seeds_v3b for the 2026-10-05 harness')
     p.add_argument('--mock', action='store_true', help='mock Jev and LLM for the pipeline arms (plumbing only; scores are meaningless)')
     p.add_argument('--llm-backend', choices=['api', 'codex'], default='api',
                    help='codex: every LLM role (agent, user simulator, judge, harness llm nodes) goes through the ChatGPT subscription; '
@@ -400,6 +410,7 @@ def main(argv=None):
     p.add_argument('--codex-model', default='gpt-5.5')
     p.add_argument('--out', default='runs/tau2')
     args = p.parse_args(argv)
+    _load_seeds(args.seed_module)
     load_dotenv(ROOT / '.env', override=False)
     if args.llm_backend == 'codex':
         args.agent_llm = f'openai/{args.codex_model}'
@@ -468,7 +479,7 @@ def main(argv=None):
                 'nl_judge_llm': nl_judge, 'nl_judge_tau2_default': nl_judge_previous[0],
                 'llm_args_agent': llm_args_for(args.agent_llm), 'llm_args_user': llm_args_for(args.user_llm),
                 'jev_model': args.jev_model, 'jev_transport': jev.transport, 'mock': args.mock, 'routed_evolved_source': evolved_source,
-                'user': args.user, 'replay_results': args.replay_results, 'policy': args.policy,
+                'user': args.user, 'replay_results': args.replay_results, 'policy': args.policy, 'seed_module': args.seed_module,
                 'llm_backend': args.llm_backend, 'proxy_base': args.proxy_base if args.llm_backend == 'codex' else None, 'cost_imputed': args.llm_backend == 'codex',
                 'seed': args.seed, 'max_steps': args.max_steps, 'concurrency': args.concurrency, 'namespace': namespace,
                 'git': {'mixed_harness': git_head(ROOT), 'tau2_bench': git_head(Path(os.environ.get('TAU2_HOME') or Path.home() / 'tau2-bench'))},

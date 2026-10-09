@@ -116,6 +116,8 @@ def main(argv=None):
     p.add_argument('--llm-backend', choices=['api', 'codex'], default='codex')
     p.add_argument('--proxy-stream', default='http://127.0.0.1:8766/v1')
     p.add_argument('--proxy-holdout', default='http://127.0.0.1:8767/v1')
+    p.add_argument('--seed-module', default='examples.tau2.seeds', help='harness version to run (examples.tau2.seeds_v3b = the 2026-10-05 figure)')
+    p.add_argument('--tau-only', action='store_true', help='the table learns only thresholds, refit each pass from the replay plus the stream ledgers (the 2026-10-05 evolution loop)')
     args = p.parse_args(argv)
     out = Path(args.out) if args.out else ROOT / 'runs/longrun' / dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     out.mkdir(parents=True, exist_ok=True)
@@ -143,15 +145,20 @@ def main(argv=None):
     for q in range(args.passes):
         policy = out / f'policy_{q}.json'
         cmd = [PY, 'scripts/fit_policy.py', '--replay', str(replay_stream), '--out', str(policy)]
-        if steps_files:
-            cmd += ['--steps'] + steps_files
-        if ledger_files:
-            cmd += ['--ledgers'] + ledger_files
+        if args.tau_only:
+            cmd += ['--tau-only']
+            if ledger_files:
+                cmd += ['--ledger-replay'] + ledger_files
+        else:
+            if steps_files:
+                cmd += ['--steps'] + steps_files
+            if ledger_files:
+                cmd += ['--ledgers'] + ledger_files
         if run(cmd, log)[0]:
             raise SystemExit(f'fit failed in pass {q}; see {log}')
         pol = json.loads(policy.read_text())
         base = [PY, 'scripts/tau2_compare.py', '--domain', 'retail', '--split', 'base', '--arms', 'routed', '--policy', str(policy),
-                '--concurrency', str(args.concurrency), '--llm-backend', args.llm_backend]
+                '--concurrency', str(args.concurrency), '--llm-backend', args.llm_backend, '--seed-module', args.seed_module]
         s_log, h_log = out / f'stream_{q}.log', out / f'holdout_{q}.log'
         sp, sf = start(base + ['--task-ids', ','.join(stream), '--seed', str(300 + q), '--proxy-base', args.proxy_stream], s_log)
         hp, hf = start(base + ['--task-ids', ','.join(holdout), '--seed', '900', '--proxy-base', args.proxy_holdout], h_log)
@@ -169,7 +176,7 @@ def main(argv=None):
                'holdout_cost_ratio': (h_blk['cost'] / ref_holdout['cost']) if h_blk['cost'] and ref_holdout['cost'] else None,
                'holdout_pass_gap': (h_blk['pass1'] - ref_holdout['pass1']) if h_blk['pass1'] is not None and ref_holdout['pass1'] is not None else None,
                'stream_shares': {k: round(v, 3) for k, v in s_sh.items()}, 'holdout_shares': {k: round(v, 3) for k, v in h_sh.items()},
-               'code_rows': len(pol.get('defaults') or {}), 'split_rows': len(pol.get('splits') or []),
+               'seed_module': args.seed_module, 'tau_rows': len(pol.get('tau') or {}), 'code_rows': len(pol.get('defaults') or {}), 'split_rows': len(pol.get('splits') or []),
                'never_rows': sum(1 for v in (pol.get('tau') or {}).values() if v > 1.0), 'at': dt.datetime.now().isoformat()}
         append_jsonl(out / 'curve.jsonl', row)
         print(json.dumps(row), flush=True)
