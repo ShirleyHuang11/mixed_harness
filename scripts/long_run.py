@@ -118,6 +118,8 @@ def main(argv=None):
     p.add_argument('--proxy-holdout', default='http://127.0.0.1:8767/v1')
     p.add_argument('--seed-module', default='examples.tau2.seeds', help='harness version to run (examples.tau2.seeds_v3b = the 2026-10-05 figure)')
     p.add_argument('--tau-only', action='store_true', help='the table learns only thresholds, refit each pass from the replay plus the stream ledgers (the 2026-10-05 evolution loop)')
+    p.add_argument('--first-pass', type=int, default=0, help='number the first pass this way (resume)')
+    p.add_argument('--seed-stream-dirs', nargs='*', default=[], help='stream run directories of earlier passes: their steps and ledgers enter every fit (resume)')
     args = p.parse_args(argv)
     out = Path(args.out) if args.out else ROOT / 'runs/longrun' / dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     out.mkdir(parents=True, exist_ok=True)
@@ -141,8 +143,10 @@ def main(argv=None):
     ref = per_task(Path(args.llm_only_run), 'llm_only')
     ref_stream, ref_holdout = block(ref, stream), block(ref, holdout)
     print('llm_only reference: stream', ref_stream, '| holdout', ref_holdout, flush=True)
-    steps_files, ledger_files, served = [], [], 0
-    for q in range(args.passes):
+    steps_files = [str(Path(d) / 'routed' / 'steps.jsonl') for d in args.seed_stream_dirs]
+    ledger_files = [str(Path(d) / 'routed' / 'ledgers.json') for d in args.seed_stream_dirs]
+    served = len(stream) * len(args.seed_stream_dirs)
+    for q in range(args.first_pass, args.first_pass + args.passes):
         policy = out / f'policy_{q}.json'
         cmd = [PY, 'scripts/fit_policy.py', '--replay', str(replay_stream), '--out', str(policy)]
         if args.tau_only:

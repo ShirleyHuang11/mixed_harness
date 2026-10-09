@@ -23,7 +23,7 @@ from mixedharness.store import read_jsonl  # noqa: E402
 
 def replay_rows_from_ledgers(paths):
     """Replay rows from recorded routed ledgers: on every step the LLM took, Jev had already picked (the decision node's
-    output) with a probability, so the pair (Jev pick, LLM action) is an agreement observation like a stage-0 replay row.
+    action inside the recorded runtime result) with a probability, so the pair (Jev pick, LLM action) is an agreement observation like a stage-0 replay row.
     Steps Jev took are not used: the LLM's action there is unknown. Tool picks agree on the tool name; a reply agrees
     with a reply."""
     rows = []
@@ -33,7 +33,8 @@ def replay_rows_from_ledgers(paths):
                 r = e.get('routing') or {}
                 if r.get('path_source') not in ('low_confidence', 'escalate_below_tau') or r.get('confidence') is None:
                     continue
-                jev = ((e.get('decision') or {}).get('output') or {})
+                nodes = (e.get('decision') or {}).get('nodes') or {}   # the ledger's decision record is the whole runtime result
+                jev = (nodes.get('decision') or {}).get('action') or {}   # the closed-path action built from Jev's own pick
                 llm = e.get('action') or {}
                 if not jev or not llm:
                     continue
