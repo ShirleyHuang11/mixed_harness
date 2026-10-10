@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Three workers at a round table, one retail turn. Code lists what is allowed now: cancel pending order W2378156, get product details, or ask which order; a write needs the customer's yes. Jev picks cancel pending order W2378156 with probability 0.97, above the threshold 0.9, so it runs. The LLM writes a reply when nothing listed fits or Jev is not sure. After each batch of conversations the table of thresholds is refit from the records.">
-  <rect width="960" height="620" fill="#ffffff"/><defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560" viewBox="0 0 960 560" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Three workers at a round table with one retail turn on it: the customer asks to cancel order W2378156. Code lists what is allowed now: cancel the pending order, get product details, or ask which order. Jev picks cancel pending order W2378156 with probability 0.97, above the threshold 0.9, so it runs. The LLM writes a reply when nothing listed fits.">
+  <rect width="960" height="560" fill="#ffffff"/><defs>
   <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L8 5L1 9" fill="none" stroke="#6b6a63" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
   <filter id="shadow" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#1b2430" flood-opacity="0.12"/></filter>
   <filter id="soft" x="-10%" y="-10%" width="130%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#1b2430" flood-opacity="0.10"/></filter>
@@ -13,15 +13,13 @@
   <linearGradient id="bllm" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f0894a"/><stop offset="100%" stop-color="#b4521c"/></linearGradient>
 </defs>
   <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#23231f">Three workers at one table</text>
-  <text x="480" y="56" text-anchor="middle" font-size="13.5" fill="#6b6a63">One retail turn, as each worker sees it.</text>
+  
   <ellipse cx="480" cy="352" rx="172" ry="72" fill="url(#tablerim)"/>
   <ellipse cx="480" cy="340" rx="170" ry="66" fill="url(#tabletop)" stroke="#d6d0c0" stroke-width="1.5" filter="url(#soft)"/>
-  <g transform="rotate(-6 440 334)" filter="url(#soft)"><rect x="396" y="306" width="88" height="56" rx="6" fill="#ffffff" stroke="#6b6a63" stroke-width="1.2"/>
-    <text x="440" y="326" text-anchor="middle" font-size="11" font-weight="bold" fill="#23231f">the turn</text>
-    <text x="440" y="341" text-anchor="middle" font-size="9.5" fill="#6b6a63">"please cancel</text><text x="440" y="353" text-anchor="middle" font-size="9.5" fill="#6b6a63">order #W2378156"</text></g>
-  <g transform="rotate(5 532 338)" filter="url(#soft)"><rect x="494" y="312" width="80" height="54" rx="6" fill="#f6f5ff" stroke="#534ab7" stroke-width="1.2"/>
-    <text x="534" y="331" text-anchor="middle" font-size="11" font-weight="bold" fill="#534ab7">the table</text>
-    <text x="534" y="345" text-anchor="middle" font-size="9.5" fill="#534ab7">τ per state type</text><text x="534" y="357" text-anchor="middle" font-size="9.5" fill="#534ab7">refit each batch</text></g>
+  <g transform="rotate(-4 480 338)" filter="url(#soft)"><rect x="436" y="310" width="88" height="56" rx="6" fill="#ffffff" stroke="#6b6a63" stroke-width="1.2"/>
+    <text x="480" y="330" text-anchor="middle" font-size="11" font-weight="bold" fill="#23231f">the turn</text>
+    <text x="480" y="345" text-anchor="middle" font-size="9.5" fill="#6b6a63">"please cancel</text><text x="480" y="357" text-anchor="middle" font-size="9.5" fill="#6b6a63">order #W2378156"</text></g>
+  
   <g filter="url(#soft)">
   <rect x="116" y="286" width="68" height="46" rx="16" fill="url(#bcode)"/>
   <rect x="132" y="296" width="36" height="26" rx="5" fill="#ffffff" opacity="0.95"/>
@@ -35,8 +33,8 @@
   <rect x="112" y="246" width="8" height="22" rx="4" fill="#4a4a9c"/><rect x="180" y="246" width="8" height="22" rx="4" fill="#4a4a9c"/>
 </g>
   <text x="150" y="358" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">Code</text>
-  <rect x="45.0" y="368" width="210" height="26" rx="13" fill="#ffffff" stroke="#4a4a9c" stroke-width="1.4" filter="url(#soft)"/><text x="150" y="385" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a4a9c">every turn · free</text>
-  <g filter="url(#shadow)"><path d="M140 182 L150 212 L166 182 Z" fill="url(#gcode)" stroke="#4a4a9c" stroke-width="1.5" stroke-linejoin="round"/><rect x="30" y="84" width="256" height="98" rx="14" fill="url(#gcode)" stroke="#4a4a9c" stroke-width="1.5"/><rect x="31.5" y="85.5" width="253" height="95" rx="12.5" fill="url(#gcode)"/></g><text x="158.0" y="106" text-anchor="middle" font-size="12" fill="#23231f">Allowed now:</text><text x="158.0" y="122" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">cancel_pending_order(#W2378156)</text><text x="158.0" y="138" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">get_product_details(8310)</text><text x="158.0" y="154" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">reply: ask which order</text><text x="158.0" y="170" text-anchor="middle" font-size="12" fill="#23231f">a write needs the customer's yes</text>
+  
+  <g filter="url(#shadow)"><path d="M140 166 L150 212 L166 166 Z" fill="url(#gcode)" stroke="#4a4a9c" stroke-width="1.5" stroke-linejoin="round"/><rect x="30" y="84" width="256" height="82" rx="14" fill="url(#gcode)" stroke="#4a4a9c" stroke-width="1.5"/><rect x="31.5" y="85.5" width="253" height="79" rx="12.5" fill="url(#gcode)"/></g><text x="158.0" y="106" text-anchor="middle" font-size="12" fill="#23231f">Allowed now:</text><text x="158.0" y="122" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">cancel_pending_order(#W2378156)</text><text x="158.0" y="138" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">get_product_details(8310)</text><text x="158.0" y="154" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">reply: ask which order</text>
   <g filter="url(#soft)">
   <path d="M586 220 v-26 a34 34 0 0 1 68 0 v26 Z" fill="url(#bjev)"/>
   <path d="M611 180 l9 14 l9 -14 Z" fill="#ffffff"/>
@@ -50,7 +48,7 @@
   <path d="M566 188 l5 5 l10 -11" fill="none" stroke="#0f6e56" stroke-width="2.5" stroke-linecap="round" transform="rotate(-12 573 188)"/>
 </g>
   <text x="620" y="246" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">Jev</text>
-  <rect x="515.0" y="256" width="210" height="26" rx="13" fill="#ffffff" stroke="#0f6e56" stroke-width="1.4" filter="url(#soft)"/><text x="620" y="273" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f6e56">~40% of turns · 0.4 s · ~free</text>
+  
   <g filter="url(#shadow)"><path d="M698 136 L668 150 L698 158 Z" fill="url(#gjev)" stroke="#0f6e56" stroke-width="1.5" stroke-linejoin="round"/><rect x="696" y="104" width="244" height="66" rx="14" fill="url(#gjev)" stroke="#0f6e56" stroke-width="1.5"/><rect x="697.5" y="105.5" width="241" height="63" rx="12.5" fill="url(#gjev)"/></g><text x="818.0" y="126" text-anchor="middle" font-size="12" fill="#23231f">My pick:</text><text x="818.0" y="142" text-anchor="middle" font-family="Menlo, Consolas, monospace" font-size="11.5" fill="#23231f">cancel_pending_order(#W2378156)</text><text x="818.0" y="158" text-anchor="middle" font-size="12" fill="#23231f">p = 0.97 ≥ τ 0.9 → it runs</text>
   <g filter="url(#soft)">
   <path d="M746 500 v-22 a34 34 0 0 1 68 0 v22 Z" fill="url(#bllm)"/>
@@ -62,16 +60,16 @@
   <path d="M810 460 l14 -14 l6 6 l-14 14 Z" fill="#ffffff" stroke="#b4521c" stroke-width="2"/><path d="M810 460 l-3 9 l9 -3 Z" fill="#b4521c"/>
 </g>
   <text x="780" y="526" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">LLM</text>
-  <rect x="675.0" y="536" width="210" height="26" rx="13" fill="#ffffff" stroke="#b4521c" stroke-width="1.4" filter="url(#soft)"/><text x="780" y="553" text-anchor="middle" font-size="12" font-weight="bold" fill="#b4521c">~60% of turns · 2–10 s · the bill</text>
+  
   <g filter="url(#shadow)"><path d="M680 458 L734 440 L680 476 Z" fill="url(#gllm)" stroke="#b4521c" stroke-width="1.5" stroke-linejoin="round"/><rect x="420" y="436" width="262" height="82" rx="14" fill="url(#gllm)" stroke="#b4521c" stroke-width="1.5"/><rect x="421.5" y="437.5" width="259" height="79" rx="12.5" fill="url(#gllm)"/></g><text x="551.0" y="458" text-anchor="middle" font-size="12" fill="#23231f">Nothing listed fits? I write it:</text><text x="551.0" y="474" text-anchor="middle" font-size="12" fill="#23231f">“The headphones order is</text><text x="551.0" y="490" text-anchor="middle" font-size="12" fill="#23231f">#W5490111, delivered May 3. Return</text><text x="551.0" y="506" text-anchor="middle" font-size="12" fill="#23231f">it, or exchange it for another size?”</text>
   <path d="M196 270 C250 280 290 294 326 310" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
-  <path d="M596 284 C606 282 612 282 618 286" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
-  <text x="590" y="304" text-anchor="end" font-size="11" fill="#6b6a63">closed, sure</text>
+  <path d="M588 286 C600 276 606 268 612 258" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
+  
   <path d="M612 396 C660 410 700 420 742 426" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
-  <text x="690" y="398" text-anchor="end" font-size="11" fill="#6b6a63">open, or not sure</text>
-  <path d="M332 366 C290 384 240 390 206 394" fill="none" stroke="#6b6a63" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr)"/>
-  <text x="56" y="418" font-size="11" fill="#6b6a63">the chosen action is checked by code,</text>
-  <text x="56" y="432" font-size="11" fill="#6b6a63">then runs; every turn is recorded</text>
-  <rect x="190" y="576" width="580" height="36" rx="10" fill="#f6f5ff" stroke="#534ab7" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <text x="480" y="599" text-anchor="middle" font-size="12.5" fill="#534ab7">After each batch of conversations the table is refit from the records: τ per state type, or never.</text>
+  
+  
+  
+  
+  
+  
 </svg>
