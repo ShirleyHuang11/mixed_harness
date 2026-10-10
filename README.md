@@ -28,7 +28,7 @@
   cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations. A variant that
   also learns code rows reaches **0.62×** and keeps falling.
 
-![Who takes the turn: a learned rule sends it to code, a confident Jev pick takes it, anything open goes to the LLM; the table is refit after every batch](docs/media/fig_who_takes_the_turn.svg)
+![Three workers at one table: code prepares every turn and checks the result, Jev decides the closed turns it is sure about, the LLM decides the rest; the thresholds are refit after every batch](docs/media/fig_who_takes_the_turn.svg)
 
 ---
 

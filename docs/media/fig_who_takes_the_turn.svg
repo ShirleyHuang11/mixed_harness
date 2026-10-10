@@ -1,50 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="480" viewBox="0 0 960 480" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Who takes the turn: a turn arrives; if a learned rule settles it, code takes it for free; if the listed actions cover it and Jev is confident, Jev takes it in 0.4 seconds; otherwise the LLM takes it. Shares on retail: code about 10 percent, Jev about 40, the LLM about 50. After every batch of conversations the table is refit from the records.">
-  <rect width="960" height="480" fill="#ffffff"/>
-  <text x="480" y="36" text-anchor="middle" font-size="22" font-weight="bold" fill="#23231f">Who takes the turn?</text>
-  <text x="480" y="58" text-anchor="middle" font-size="13.5" fill="#6b6a63">A turn arrives (a customer message or a tool result). Code lists what the state allows, then one of three takes it.</text>
-  <rect x="400" y="76" width="160" height="44" rx="14" fill="#f1efe8" stroke="#dcdad2" stroke-width="1.5"/>
-  <text x="480" y="95" text-anchor="middle" font-size="14" font-weight="bold" fill="#23231f">a turn</text>
-  <text x="480" y="112" text-anchor="middle" font-size="12" fill="#6b6a63">+ the listed actions</text>
-  <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L8 5L1 9" fill="none" stroke="#6b6a63" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-  <path d="M430 120 C380 150 330 150 290 174" fill="none" stroke="#6b6a63" stroke-width="1.6" marker-end="url(#arr)"/>
-  <text x="330" y="144" text-anchor="end" font-size="12" fill="#6b6a63">a learned rule settles it</text>
-  <line x1="480" y1="120" x2="480" y2="174" stroke="#6b6a63" stroke-width="1.6" marker-end="url(#arr)"/>
-  <text x="490" y="156" font-size="12" fill="#6b6a63">listed, and Jev is sure</text>
-  <path d="M530 120 C580 150 630 150 670 174" fill="none" stroke="#6b6a63" stroke-width="1.6" marker-end="url(#arr)"/>
-  <text x="632" y="144" font-size="12" fill="#6b6a63">open, or Jev is not sure</text>
-  
-  <rect x="190" y="178" width="180" height="224" rx="18" fill="#ececfb" stroke="#4a4a9c" stroke-width="2"/>
-  <rect x="254.0" y="210" width="52" height="48" rx="10" fill="#ffffff" stroke="#4a4a9c" stroke-width="2"/>
-  <line x1="280.0" y1="210" x2="280.0" y2="198" stroke="#4a4a9c" stroke-width="2"/><circle cx="280.0" cy="195" r="4" fill="#4a4a9c"/>
-  <rect x="264.0" y="224" width="10" height="10" rx="2" fill="#4a4a9c"/><rect x="286.0" y="224" width="10" height="10" rx="2" fill="#4a4a9c"/>
-  <rect x="268.0" y="242" width="24" height="5" rx="2" fill="#4a4a9c"/>
-  <text x="280.0" y="296" text-anchor="middle" font-size="20" font-weight="bold" fill="#23231f">Code</text>
-  <text x="280.0" y="322" text-anchor="middle" font-size="13" fill="#6b6a63">a rule from the records</text>
-  <text x="280.0" y="340" text-anchor="middle" font-size="13" fill="#6b6a63">no model call</text>
-  <rect x="204" y="362" width="152" height="26" rx="13" fill="#ffffff" stroke="#4a4a9c" stroke-width="1.2"/>
-  <text x="280.0" y="380" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a4a9c">~10% of turns · free</text>
-  
-  <rect x="390" y="178" width="180" height="224" rx="18" fill="#e1f5ee" stroke="#0f6e56" stroke-width="2"/>
-  <circle cx="480.0" cy="236" r="27" fill="#ffffff" stroke="#0f6e56" stroke-width="2"/>
-  <circle cx="470.0" cy="230" r="3.5" fill="#0f6e56"/><circle cx="490.0" cy="230" r="3.5" fill="#0f6e56"/>
-  <path d="M469.0 244 Q480.0 254 491.0 244" fill="none" stroke="#0f6e56" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="514.0" cy="214" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="2"/><line x1="514.0" y1="214" x2="514.0" y2="207" stroke="#0f6e56" stroke-width="2"/><line x1="514.0" y1="214" x2="519.0" y2="216" stroke="#0f6e56" stroke-width="2"/>
-  <text x="480.0" y="296" text-anchor="middle" font-size="20" font-weight="bold" fill="#23231f">Jev</text>
-  <text x="480.0" y="322" text-anchor="middle" font-size="13" fill="#6b6a63">picks a listed action</text>
-  <text x="480.0" y="340" text-anchor="middle" font-size="13" fill="#6b6a63">kept if p ≥ τ</text>
-  <rect x="404" y="362" width="152" height="26" rx="13" fill="#ffffff" stroke="#0f6e56" stroke-width="1.2"/>
-  <text x="480.0" y="380" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f6e56">~40% · 0.4 s · ~free</text>
-  
-  <rect x="590" y="178" width="180" height="224" rx="18" fill="#faece7" stroke="#993c1d" stroke-width="2"/>
-  <path d="M650.0 246 a16 16 0 0 1 4 -30 a20 20 0 0 1 38 -8 a16 16 0 0 1 22 22 a14 14 0 0 1 -6 26 Z" fill="#ffffff" stroke="#993c1d" stroke-width="2"/>
-  <circle cx="670.0" cy="234" r="3.5" fill="#993c1d"/><circle cx="690.0" cy="234" r="3.5" fill="#993c1d"/>
-  <path d="M671.0 246 Q680.0 253 689.0 246" fill="none" stroke="#993c1d" stroke-width="2.5" stroke-linecap="round"/>
-  <text x="680.0" y="296" text-anchor="middle" font-size="20" font-weight="bold" fill="#23231f">LLM</text>
-  <text x="680.0" y="322" text-anchor="middle" font-size="13" fill="#6b6a63">writes the turn itself</text>
-  <text x="680.0" y="340" text-anchor="middle" font-size="13" fill="#6b6a63">tools, plans, free text</text>
-  <rect x="604" y="362" width="152" height="26" rx="13" fill="#ffffff" stroke="#993c1d" stroke-width="1.2"/>
-  <text x="680.0" y="380" text-anchor="middle" font-size="12" font-weight="bold" fill="#993c1d">~50% · 2–10 s · the bill</text>
-  <rect x="150" y="420" width="660" height="46" rx="12" fill="#f6f5ff" stroke="#534ab7" stroke-width="1.4" stroke-dasharray="5 4"/>
-  <text x="480" y="440" text-anchor="middle" font-size="13.5" font-weight="bold" fill="#534ab7">Every turn is recorded. After each batch of conversations the table is refit:</text>
-  <text x="480" y="458" text-anchor="middle" font-size="12.5" fill="#534ab7">turns where Jev matched the LLM move to Jev; turns the LLM always handled the same way move to code.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="600" viewBox="0 0 960 600" font-family="Helvetica, Arial, sans-serif" role="img" aria-label="Three workers at a round table handle every turn. Code, a robot, lists the actions the state allows, fills their arguments and checks the chosen action before it runs. Jev, a judge with a stopwatch, picks a listed action when the turn is closed and it is sure, about 40 percent of turns in 0.4 seconds. The LLM, a cloud, takes the turns no listed action covers or where Jev is not sure, about 60 percent. On the table: the current turn and the thresholds table, refit after every batch of conversations.">
+  <rect width="960" height="600" fill="#ffffff"/><defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M1 1L8 5L1 9" fill="none" stroke="#6b6a63" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+  <text x="480" y="34" text-anchor="middle" font-size="22" font-weight="bold" fill="#23231f">Three workers at one table</text>
+  <text x="480" y="56" text-anchor="middle" font-size="13.5" fill="#6b6a63">Every turn lands on the table. Code prepares it and checks the result; Jev or the LLM decides it.</text>
+  <ellipse cx="480" cy="348" rx="170" ry="70" fill="#e9e6dc" stroke="#d6d2c6" stroke-width="2"/>
+  <ellipse cx="480" cy="340" rx="170" ry="66" fill="#f7f5ef" stroke="#dcdad2" stroke-width="1.5"/>
+  <g transform="rotate(-6 440 334)"><rect x="402" y="308" width="76" height="52" rx="6" fill="#ffffff" stroke="#6b6a63" stroke-width="1.2"/>
+    <text x="440" y="329" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#23231f">the turn</text>
+    <text x="440" y="344" text-anchor="middle" font-size="10" fill="#6b6a63">message or</text><text x="440" y="356" text-anchor="middle" font-size="10" fill="#6b6a63">tool result</text></g>
+  <g transform="rotate(5 530 338)"><rect x="492" y="312" width="76" height="52" rx="6" fill="#f6f5ff" stroke="#534ab7" stroke-width="1.2"/>
+    <text x="530" y="330" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#534ab7">the table</text>
+    <text x="530" y="344" text-anchor="middle" font-size="10" fill="#534ab7">τ per state type</text><text x="530" y="356" text-anchor="middle" font-size="10" fill="#534ab7">refit each batch</text></g>
+  <!-- Code, left -->
+  <rect x="120" y="284" width="60" height="30" rx="10" fill="#4a4a9c" opacity="0.15"/>
+  <rect x="124" y="236" width="52" height="48" rx="10" fill="#ffffff" stroke="#4a4a9c" stroke-width="2"/>
+  <line x1="150" y1="236" x2="150" y2="224" stroke="#4a4a9c" stroke-width="2"/><circle cx="150" cy="221" r="4" fill="#4a4a9c"/>
+  <rect x="134" y="250" width="10" height="10" rx="2" fill="#4a4a9c"/><rect x="156" y="250" width="10" height="10" rx="2" fill="#4a4a9c"/>
+  <rect x="138" y="268" width="24" height="5" rx="2" fill="#4a4a9c"/>
+  <text x="150" y="338" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">Code</text>
+  <rect x="50.0" y="350" width="200" height="24" rx="12" fill="#ffffff" stroke="#4a4a9c" stroke-width="1.2"/><text x="150" y="366" text-anchor="middle" font-size="12" font-weight="bold" fill="#4a4a9c">every turn · free</text>
+  <path d="M140 200 L150 226 L166 200 Z" fill="#ffffff" stroke="#4a4a9c" stroke-width="1.5" stroke-linejoin="round"/><rect x="40" y="86" width="236" height="114" rx="12" fill="#ffffff" stroke="#4a4a9c" stroke-width="1.5"/><rect x="41" y="87" width="234" height="112" rx="11" fill="#ffffff"/><text x="158.0" y="108" text-anchor="middle" font-size="12" fill="#23231f">Here is what this state allows:</text><text x="158.0" y="124" text-anchor="middle" font-size="12" fill="#23231f">these tools (arguments filled),</text><text x="158.0" y="140" text-anchor="middle" font-size="12" fill="#23231f">these records, these replies.</text><text x="158.0" y="156" text-anchor="middle" font-size="12" fill="#23231f">And I check every action</text><text x="158.0" y="172" text-anchor="middle" font-size="12" fill="#23231f">before it runs: no write</text><text x="158.0" y="188" text-anchor="middle" font-size="12" fill="#23231f">without the customer's yes.</text>
+  <!-- Jev, top right -->
+  <rect x="590" y="187" width="60" height="30" rx="10" fill="#0f6e56" opacity="0.15"/>
+  <circle cx="620" cy="160" r="27" fill="#ffffff" stroke="#0f6e56" stroke-width="2"/>
+  <circle cx="610" cy="154" r="3.5" fill="#0f6e56"/><circle cx="630" cy="154" r="3.5" fill="#0f6e56"/>
+  <path d="M609 168 Q620 178 631 168" fill="none" stroke="#0f6e56" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="654" cy="138" r="11" fill="#ffffff" stroke="#0f6e56" stroke-width="2"/><line x1="654" y1="138" x2="654" y2="131" stroke="#0f6e56" stroke-width="2"/><line x1="654" y1="138" x2="659" y2="140" stroke="#0f6e56" stroke-width="2"/>
+  <text x="620" y="238" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">Jev</text>
+  <rect x="520.0" y="250" width="200" height="24" rx="12" fill="#ffffff" stroke="#0f6e56" stroke-width="1.2"/><text x="620" y="266" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f6e56">~40% of turns · 0.4 s · ~free</text>
+  <path d="M698 150 L660 160 L698 172 Z" fill="#ffffff" stroke="#0f6e56" stroke-width="1.5" stroke-linejoin="round"/><rect x="696" y="108" width="230" height="82" rx="12" fill="#ffffff" stroke="#0f6e56" stroke-width="1.5"/><rect x="697" y="109" width="228" height="80" rx="11" fill="#ffffff"/><text x="811.0" y="130" text-anchor="middle" font-size="12" fill="#23231f">Closed turn? I pick one of the</text><text x="811.0" y="146" text-anchor="middle" font-size="12" fill="#23231f">listed actions and say how sure</text><text x="811.0" y="162" text-anchor="middle" font-size="12" fill="#23231f">I am. If that clears τ for this</text><text x="811.0" y="178" text-anchor="middle" font-size="12" fill="#23231f">state type, my pick runs.</text>
+  <!-- LLM, bottom right -->
+  <rect x="750" y="462" width="60" height="30" rx="10" fill="#993c1d" opacity="0.15"/>
+  <path d="M750 450 a16 16 0 0 1 4 -30 a20 20 0 0 1 38 -8 a16 16 0 0 1 22 22 a14 14 0 0 1 -6 26 Z" fill="#ffffff" stroke="#993c1d" stroke-width="2"/>
+  <circle cx="770" cy="438" r="3.5" fill="#993c1d"/><circle cx="790" cy="438" r="3.5" fill="#993c1d"/>
+  <path d="M771 450 Q780 457 789 450" fill="none" stroke="#993c1d" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="780" y="514" text-anchor="middle" font-size="18" font-weight="bold" fill="#23231f">LLM</text>
+  <rect x="680.0" y="526" width="200" height="24" rx="12" fill="#ffffff" stroke="#993c1d" stroke-width="1.2"/><text x="780" y="542" text-anchor="middle" font-size="12" font-weight="bold" fill="#993c1d">~60% of turns · 2–10 s · the bill</text>
+  <path d="M688 468 L740 446 L688 486 Z" fill="#ffffff" stroke="#993c1d" stroke-width="1.5" stroke-linejoin="round"/><rect x="440" y="446" width="250" height="82" rx="12" fill="#ffffff" stroke="#993c1d" stroke-width="1.5"/><rect x="441" y="447" width="248" height="80" rx="11" fill="#ffffff"/><text x="565.0" y="468" text-anchor="middle" font-size="12" fill="#23231f">Nothing listed fits, or Jev is</text><text x="565.0" y="484" text-anchor="middle" font-size="12" fill="#23231f">not sure? I take it: I read the</text><text x="565.0" y="500" text-anchor="middle" font-size="12" fill="#23231f">whole conversation, call the</text><text x="565.0" y="516" text-anchor="middle" font-size="12" fill="#23231f">tools, write the reply.</text>
+  <!-- flow -->
+  <path d="M196 270 C250 280 290 294 326 310" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="250" y="266" font-size="11" fill="#6b6a63">prepares</text>
+  <path d="M596 282 C606 278 612 276 618 274" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="590" y="300" text-anchor="end" font-size="11" fill="#6b6a63">closed, sure</text>
+  <path d="M612 396 C660 410 700 420 742 430" fill="none" stroke="#6b6a63" stroke-width="1.4" marker-end="url(#arr)"/>
+  <text x="708" y="412" text-anchor="end" font-size="11" fill="#6b6a63">open, or not sure</text>
+  <path d="M332 362 C290 380 240 384 210 386" fill="none" stroke="#6b6a63" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+  <text x="56" y="404" font-size="11" fill="#6b6a63">the chosen action comes back to code</text>
+  <text x="56" y="418" font-size="11" fill="#6b6a63">for the check, then runs; every turn</text>
+  <text x="56" y="432" font-size="11" fill="#6b6a63">is recorded</text>
+  <rect x="40" y="556" width="880" height="36" rx="10" fill="#f6f5ff" stroke="#534ab7" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <text x="480" y="579" text-anchor="middle" font-size="12.5" fill="#534ab7">After each batch of conversations the table is refit: a state type where Jev's picks matched the LLM gets a τ it can clear; otherwise it is marked never.</text>
 </svg>
