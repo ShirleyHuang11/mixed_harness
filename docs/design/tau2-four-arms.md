@@ -353,3 +353,8 @@ refit after every batch) is the main seed again, `examples/tau2/seeds.py`, with 
 The code-row harness is kept as `examples/tau2/seeds_splits.py` with its tests and learner; it is the cheaper one
 (0.60× against 0.76× on unseen conversations after 304 served, same accuracy) and the README says so in one
 section. The reason for the choice is the figures: the main harness is the one they describe.
+
+Main harness (the figures' version with the option-catalog fix) on all 114 tasks under the gpt-5.5 simulator
+(2026-10-10, `runs/tau2/20261010-153006-retail-base`, table = thresholds from the stage-0 replay): pass^1 0.781,
+$0.262 = 0.74× llm_only, Jev 42% / LLM 58% of turns (35% below τ, 19% open by code override), 13.6 turns, 68 guard
+interventions, agreement 0.93. Prediction before the run: 0.76–0.82, 0.72–0.78×, Jev ≈ 40%: all three hit.

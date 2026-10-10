@@ -4,7 +4,7 @@
 
 <p align="center">
 <img alt="benchmark" src="https://img.shields.io/badge/benchmark-%CF%84%C2%B2--bench%20retail-4a4a9c">
-<img alt="cost" src="https://img.shields.io/badge/cost-0.75%C3%97%20of%20an%20LLM%20agent-0f6e56">
+<img alt="cost" src="https://img.shields.io/badge/cost-0.74%C3%97%20of%20an%20LLM%20agent-0f6e56">
 <img alt="accuracy" src="https://img.shields.io/badge/accuracy-within%20noise%20of%20the%20LLM-0f6e56">
 <img alt="tests" src="https://img.shields.io/badge/tests-78%20passing-534ab7">
 </p>
@@ -24,9 +24,9 @@
   clears a threshold for that type of state; otherwise the **LLM** takes the turn. Every turn is recorded.
 - **The learning.** After every batch of conversations the thresholds are refit from where Jev's picks
   matched the LLM's. No hand-tuned router: a table of thresholds, read off the records.
-- **The result.** On τ²-bench retail: tasks solved within noise of the LLM-only agent at about **0.75× its
-  cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations. A variant that
-  also learns code rows reaches **0.62×** and keeps falling.
+- **The result.** On τ²-bench retail: 0.781 of tasks solved against the LLM-only agent's 0.807 (within noise)
+  at **0.74× its cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations.
+  A variant that also learns code rows reaches **0.62×** and keeps falling.
 
 ![Three workers at one table: code prepares every turn and checks the result, Jev decides the closed turns it is sure about, the LLM decides the rest; the thresholds are refit after every batch](docs/media/fig_who_takes_the_turn.svg)
 
@@ -39,7 +39,7 @@ number is explained in the sections below and recorded in `docs/design/tau2-four
 
 | Advantage | What was measured | Number |
 |---|---|---|
-| **Cheaper than an LLM agent, same tasks solved** | cost per task relative to the benchmark's own LLM agent, and tasks solved | main harness: about 0.75× the cost, tasks solved within noise of the LLM; the code-row variant: 0.62× at 0.789 against the LLM's 0.807 |
+| **Cheaper than an LLM agent, same tasks solved** | cost per task relative to the benchmark's own LLM agent, and tasks solved | main harness: 0.74× the cost at 0.781 against the LLM's 0.807 (within noise); the code-row variant: 0.62× at 0.789 |
 | **It gets cheaper the more it is used, on conversations it has never seen** | 76 tasks served per pass, the table refit after each pass, 38 never-seen tasks scored each time | main harness: 0.80× → 0.75× over the first 152 conversations, then flat; the code-row variant: 0.75× → 0.60× over 304 conversations, accuracy unchanged |
 | **Nothing in the routing is hand-tuned** | where the thresholds come from | every threshold is the lowest value at which Jev's recorded picks matched the LLM's at least 90% of the time; state types where no threshold reaches that are marked never |
 | **Every decision is inspectable** | what a turn leaves behind | the state type, who took the turn and why, Jev's probability, the action, and later the episode's outcome; the table is a short list a person can read |
@@ -141,7 +141,7 @@ same simulated customer (gpt-5.5) with the same seed. Decision rules, prediction
 |---|---|---|---|
 | **LLM only**: the benchmark's standard agent, every turn is an LLM call | 0.807 | 1.00× | 0 / 0 / 100% |
 | **Jev only**: every turn is a Jev pick, no LLM at all | 0.167 | 0.01× | 0 / 100% / 0 |
-| **Mixed Harness**: Jev routes and picks, the LLM takes the rest | run in progress under this simulator; the held-out table below is the measurement so far | | |
+| **Mixed Harness**: Jev routes and picks, the LLM takes the rest | 0.781 | 0.74× | 0 / 42% / 58% |
 
 ### 🔁 On conversations it has never seen
 
