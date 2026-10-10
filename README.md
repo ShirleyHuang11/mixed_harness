@@ -40,9 +40,9 @@ number is explained in the sections below and recorded in `docs/design/tau2-four
 | **Cheaper than an LLM agent, same tasks solved** | cost per task relative to the benchmark's own LLM agent, and tasks solved | main harness: about 0.75× the cost, tasks solved within noise of the LLM; the code-row variant: 0.62× at 0.789 against the LLM's 0.807 |
 | **It gets cheaper the more it is used, on conversations it has never seen** | 76 tasks served per pass, the table refit after each pass, 38 never-seen tasks scored each time | main harness: 0.80× → 0.75× over the first 152 conversations, then flat; the code-row variant: 0.75× → 0.60× over 304 conversations, accuracy unchanged |
 | **Nothing in the routing is hand-tuned** | where the thresholds come from | every threshold is the lowest value at which Jev's recorded picks matched the LLM's at least 90% of the time; state types where no threshold reaches that are marked never |
-| **Every decision is inspectable** | what a step leaves behind | the state type, who took the step and why, Jev's probability, the action, and later the episode's outcome; the table is a short list a person can read |
-| **The LLM stays in the loop for what needs it** | which steps the LLM still takes | open requests, plans across several tool calls, composed replies; about 60% of steps on retail for the main harness, 50% for the variant |
-| **Jev is cheap and fast where it is trusted** | Jev's share and its agreement with the LLM | 40% of steps; on accepted picks 92% to 98% agreement, 0.4 s per step, about one hundredth of an LLM call |
+| **Every decision is inspectable** | what a turn leaves behind | the state type, who took the turn and why, Jev's probability, the action, and later the episode's outcome; the table is a short list a person can read |
+| **The LLM stays in the loop for what needs it** | which turns the LLM still takes | open requests, plans across several tool calls, composed replies; about 60% of turns on retail for the main harness, 50% for the variant |
+| **Jev is cheap and fast where it is trusted** | Jev's share and its agreement with the LLM | 40% of turns; on accepted picks 92% to 98% agreement, 0.4 s per turn, about one hundredth of an LLM call |
 
 > Not yet shown: accuracy parity with a confidence interval (one seed per point, 9 points of noise on 114
 > tasks), a second domain, and cost on a real bill rather than list-price tokens.
@@ -86,7 +86,7 @@ probability is calibrated: on 1,002 recorded closed turns it agreed with the LLM
 above, 82% between 0.90 and 0.99, and 35% below 0.90, so the probability is what the threshold reads. Its
 route answer separates closed from open turns (85% of its "closed" calls are closed) but does not say whether
 its pick is right (52% on those turns), which is why the threshold sits on the pick, not on the route answer.
-It picks well when the options are a judgment and poorly when the next step depends on a plan the
+It picks well when the options are a judgment and poorly when the next turn depends on a plan the
 conversation implies (44% in the state types right after a lookup), so those types are marked never until the
 records show otherwise.
 
@@ -201,16 +201,31 @@ skill: it establishes the task contract, writes the option lister for your tools
 stage 0 and the three arms, and fits the thresholds. The skill is `skills/mixed-harness/SKILL.md`; it works
 the same way as a plain document for Codex or any other coding agent.
 
+## 🔑 Requirements
+
+| You need | For | Notes |
+|---|---|---|
+| **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/) | the package | `uv sync --locked --extra dev` installs everything; `uv run pytest` runs on mock providers with no keys |
+| **A sandbox** | the code nodes | `bwrap` (bubblewrap) on Linux, `sandbox-exec` on macOS; `uv run mixedharness doctor` tells you which it found |
+| **`TYPESAFE_API_KEY`** | Jev | from [console.typesafe.ai](https://console.typesafe.ai/keys); direct API, about $0.04 per million tokens, ~400 ms per request. A `TYPESAFE_API_KEY_PERSONAL` is used first when set. Needed by the Jev-only arm, the harness, and stage 0 |
+| **An LLM**, one of: | the LLM-only arm, the harness's LLM turns, the simulated customer and the judge | |
+| &nbsp;&nbsp;`ANTHROPIC_API_KEY` | | the default API backend (`claude-sonnet-5`); a 114-task run of one arm is roughly $25 to $40 |
+| &nbsp;&nbsp;a Codex CLI subscription | | `--llm-backend codex`: every LLM role goes through `scripts/cli_proxy.py` (start it first); no key, no bill; about 2 hours per 114-task arm |
+| `OPENAI_API_KEY` (optional) | tau2's official simulated customer (`--user-llm gpt-4.1-2025-04-14`) | without it the simulator runs on the LLM above; numbers from different simulators are not comparable |
+| **[tau2-bench](https://github.com/sierra-research/tau2-bench)** | the benchmark | Python 3.12 in its own venv with this repo installed into it (`docs/guides/tau2.md`); only for measuring, not for using the harness on your own task |
+
+Keys go in a local `.env` next to `.env.example`; `.env` and `.env.*` are ignored by git and never read from
+anywhere else. Runs write to `runs/` (also ignored): results, ledgers, step tables, the generated table. There
+is no telemetry; the only network calls are to the providers you configured.
+
+## 🚀 Quick start
 ## 🚀 Quick start
 
     uv sync --locked --extra dev
     uv run pytest                                   # mock providers, no keys needed
     uv run mixedharness doctor                      # sandbox and credentials present
 
-Credentials go in a local `.env` (see `.env.example`): `TYPESAFE_API_KEY` for Jev (a `TYPESAFE_API_KEY_PERSONAL`
-is used first when set), `ANTHROPIC_API_KEY` for the language model, or `--llm-backend codex` to run every
-LLM role through a Codex CLI subscription behind `scripts/cli_proxy.py`. Sandboxed Python nodes run under
-`bwrap` on Linux and `sandbox-exec` on macOS.
+Credentials and the sandbox: see Requirements above.
 
     ~/tau2-bench/.venv/bin/python scripts/stage0_label_replay.py                       # labels and Jev replay on recorded LLM-only traces
     ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --tau-only --replay runs/stage0/<stamp>/replay.jsonl --ledger-replay runs/tau2/<run>/routed/ledgers.json
