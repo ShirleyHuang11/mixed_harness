@@ -30,8 +30,8 @@ Credentials, read from `mixed_harness/.env`:
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base                 # stage 2
     ~/tau2-bench/.venv/bin/python scripts/cli_proxy.py --backend codex --model gpt-5.5 --port 8765 &    # subscription instead of an API
     ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --arms routed --policy <policy.json> --llm-backend codex --proxy-base http://127.0.0.1:8765/v1
-    ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --replay runs/stage0/<stamp>/replay.jsonl --steps <routed steps.jsonl ...> --ledgers <routed ledgers.json ...> --out policy.json
-    ~/tau2-bench/.venv/bin/python scripts/long_run.py --passes 6 --replay runs/stage0/<stamp>/replay.jsonl --llm-only-run runs/tau2/<llm_only run>   # stream + held-out curve
+    ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --tau-only --replay runs/stage0/<stamp>/replay.jsonl --ledger-replay <routed ledgers.json ...> --out policy.json   # thresholds; add --steps/--ledgers without --tau-only for the code-row variant
+    ~/tau2-bench/.venv/bin/python scripts/long_run.py --passes 4 --tau-only --replay runs/stage0/<stamp>/replay.jsonl --llm-only-run runs/tau2/<llm_only run>   # stream + held-out curve
 
 Artifacts land in `runs/tau2/<stamp>-<domain>-<split>/`: `manifest.json` (models requested and echoed, seeds,
 task ids, credentials present by name, realised Jev/LLM stats), `<arm>/results.json` (tau2's own format, so
@@ -46,7 +46,7 @@ with `labels.jsonl` (hand-check list), `replay.jsonl`, `report.json`, `report.md
 |---|---|---|
 | `llm_only` | tau2's stock `llm_agent` on `--agent-llm` (default `anthropic/claude-sonnet-5`, or `openai/gpt-5.5` through the proxy with `--llm-backend codex`) | 1 LLM call with policy, tools and full history |
 | `jev_only` | `examples.tau2.seeds.jev_only_seed()` | compile (python), 1 Jev request, route, decision, guard (python); no LLM |
-| `routed` | `examples.tau2.seeds.routed_seed(policy=...)` with the table from `--policy` | the same; a code row takes the step with no model call, Jev's pick is kept when its probability clears the cluster's τ, otherwise agent (one native tool-calling turn) |
+| `routed` | `examples.tau2.seeds.routed_seed(policy=...)` with the thresholds from `--policy` | the same; Jev's route answer and its probability on the pick against the cluster's τ decide, otherwise agent (one native tool-calling turn); `--seed-module examples.tau2.seeds_splits` runs the code-row variant |
 | `routed_evolved` | `--evolved-spec` (a candidate from an evolution run) or the routed seed with a table fitted on `--policy-steps` | as routed |
 
 `examples/tau2/agent.py` wraps a `Runtime` as a tau2 `HalfDuplexAgent`; `examples/tau2/adapter.py`

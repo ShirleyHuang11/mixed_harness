@@ -345,3 +345,11 @@ Accuracy is indistinguishable (both within the held-out noise of the LLM's 0.921
 loop moves steps between Jev and the LLM only (its LLM share stays at 57-63% and its cost settles at 0.73-0.76×),
 while the current loop moves steps to code (LLM share 69% → 50%, cost 0.75× → 0.60×). On the stream the same:
 0.69 → 0.64× against 0.69 → 0.55×. The code rows are what makes the cost fall with the conversations served.
+
+### Which harness is the main one (2026-10-10)
+
+The harness in the README figures (route question to Jev, one threshold per state type, menu path off, thresholds
+refit after every batch) is the main seed again, `examples/tau2/seeds.py`, with the option-catalog fix ported.
+The code-row harness is kept as `examples/tau2/seeds_splits.py` with its tests and learner; it is the cheaper one
+(0.60× against 0.76× on unseen conversations after 304 served, same accuracy) and the README says so in one
+section. The reason for the choice is the figures: the main harness is the one they describe.

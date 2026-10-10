@@ -37,40 +37,42 @@ Python nodes run in a warm worker: one sandboxed interpreter per pool slot, star
 
 ## The routed harness
 
-`examples/tau2/seeds.py` is the worked routed harness for a multi-step tool task. One turn:
+`examples/tau2/seeds.py` is the worked routed harness for a multi-step tool task (the one in the README
+figures). One turn:
 
-    compile (python) → judge (jev) → route (python) → decision (python) ↘
-                                                   ↘ agent (agent)         → guard (python)
+    compile (python) → judge (jev) → route (python) → decision (python)                                  ↘
+                                                     ↘ menu (llm) → menu_q (python) → menu_pick (jev) ↘    → guard (python)
+                                                     ↘ agent (agent)                                    ↗
 
-- **compile** is the option lister. It parses the conversation, keeps fetched entities in memory, builds the
-  legal-action catalog A(s) from the state (tools whose arguments can be filled, known entities, templated
-  replies), lists the arguments code cannot fill (`needs`), keeps the customer's request list (action intents
-  minus completed writes), names the step's `cluster` (state type) and computes a few cheap `features`
-  (profile loaded, orders loaded, which tool just returned, did the customer say yes), consults the table
-  (`policy["defaults"]` and `policy["splits"]`) for a code row that matches, and writes the Jev questions:
-  `action` (pick one option) and `user_confirms`, plus the candidate questions (which order, which variant,
-  which payment method). When a code row matched, `questions` is null and the judge node is skipped.
-- **judge** is one Jev request over those questions; the answer to `action` comes with a probability.
-- **route** decides who takes the step, in this order: a code row (structural or learned) → the compiler's
-  `closed` flag (an open step, one whose options cannot cover the request, goes to the LLM) → Jev's own
-  probability on its pick against the table's threshold τ for the cluster (`policy["tau"]`, 0.9 by default,
-  NEVER for clusters the table marks for the LLM) → otherwise the LLM. A repeated reply escalates too.
-  Without an LLM (the Jev-only control) every path is forced closed and the pick is still recorded.
-- **decision** executes the closed path (the chosen option with code-filled arguments; a database write
-  becomes a pending confirmation first); **agent** is the LLM path, one native tool-calling turn. The path not
-  taken is skipped at no cost.
-- **guard** assembles the realised action, checks tool names and required arguments, gates database writes on
-  every path behind an explicit yes to the same details, answers repeated lookups from memory, falls back to
-  the listed default when a model's output is unusable, and returns the routing record (cluster, features,
-  who took the step and why, probability, τ) that the step table reads.
+- **compile** is the action-space compiler: it parses the conversation, keeps fetched entities in memory,
+  keeps the customer's request list (action intents minus completed writes), builds the legal-action catalog
+  A(s) from the state, fills what code can fill, lists the arguments it cannot fill (`needs`), flags the step
+  `closed` (catalog non-empty, `needs` empty, the request covered, and after a write no request left with
+  only replies listed), names its `cluster` (state type), and writes every question for the Jev request:
+  `route` (closed / escalate; `narrow` only when the menu path is on), `action`, `action_alt` (the same
+  options in reverse order, the agreement signal), `fits`, `user_confirms`, and the candidate questions.
+- **route** applies the signals in order of authority: the compiler flag (an open step cannot be closed),
+  Jev's route pick, the threshold τ for the cluster on the action pick (`policy["tau"]`; 0.9 by default,
+  NEVER for clusters the table marks for the LLM), the embedded policy's epsilon shadow share, and
+  trajectory-level escalation (the same reply repeated). Without an LLM every path is forced closed and the
+  pick is still recorded.
+- **decision** is the closed path; **menu → menu_q → menu_pick** the narrow path (off by default: the LLM
+  writes 2 to 4 candidates, Jev picks); **agent** the escalate path. Paths not taken are skipped at no cost.
+- **guard** assembles the action of the realised path, checks tool names and required arguments, gates
+  database writes on every path behind an explicit yes to the same details, falls back to the closed decision
+  when a menu or agent output is unusable, updates the trajectory counters, and returns the routing record the
+  step table reads.
 
-`mixedharness/router.py` holds the vocabulary (`PATHS`, `PATH_SOURCES`, `CODE_SOURCES`), `route_metrics` over
-step rows, and the table's learning rules: `fit_tau` (a threshold per cluster from the stage-0 replay),
-`fit_from_steps` (code rows and tightenings from the harness's own step tables, each corroborated by the
-replay), `merge_policy` and `compact_policy`, and `policy_source_literal`, which embeds the table in the seed so
-it hashes with the harness version (`routed_seed(policy=...)`). `scripts/learn_splits.py` learns the split rows
-(cluster + features → action) from recorded ledgers, with a held-out check; `scripts/fit_policy.py` runs all of
-it and writes one `policy.json`.
+`mixedharness/router.py` holds the vocabulary (`PATHS`, `PATH_SOURCES`), `route_metrics` over step rows, and
+the table's learning rules: `fit_tau` (a threshold per cluster from agreement rows: the stage-0 replay plus,
+through `scripts/fit_policy.py --ledger-replay`, every step the LLM took in recorded ledgers, where Jev's pick
+and probability sit next to the LLM's action), `merge_policy`, `compact_policy`, and `policy_source_literal`,
+which embeds the table in the seed so it hashes with the harness version (`routed_seed(policy=...)`).
+`scripts/fit_policy.py --tau-only` writes the table.
+
+`examples/tau2/seeds_splits.py` is the variant with code rows: its compiler also computes a few state features
+and consults learned rows (`policy["defaults"]`, `policy["splits"]`) before asking Jev; `fit_from_steps` and
+`scripts/learn_splits.py` learn those rows. The README's last results section measures it.
 
 `mixedharness/trace.py` is the step table: `steps_from_ledger` turns an agent ledger into one row per turn
 (cluster, flag, who took the step and why, probability, action, guard, cost, latency, reward).
