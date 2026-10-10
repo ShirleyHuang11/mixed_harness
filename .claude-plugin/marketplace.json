@@ -1,0 +1,18 @@
+{
+  "name": "mixedharness",
+  "owner": {
+    "name": "ShirleyHuang11"
+  },
+  "metadata": {
+    "description": "Mixed Harness skill: code, Jev and an LLM share the turns of a tool-using agent; the split is learned from records."
+  },
+  "plugins": [
+    {
+      "name": "mixed-harness",
+      "source": "./",
+      "description": "Author the option lister for a new tool task, run the three arms against the LLM-only agent, fit and refit the thresholds.",
+      "category": "development",
+      "tags": ["jev", "harness", "routing"]
+    }
+  ]
+}

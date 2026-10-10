@@ -1,0 +1,11 @@
+{
+  "name": "mixed-harness",
+  "version": "0.1.0",
+  "description": "Build a tool-using agent where code, Jev (TypeSafe's judgment model) and an LLM share the turns, measure it against an LLM-only agent, and learn the split from the agent's own records.",
+  "author": {
+    "name": "ShirleyHuang11"
+  },
+  "homepage": "https://github.com/ShirleyHuang11/mixed_harness",
+  "repository": "https://github.com/ShirleyHuang11/mixed_harness",
+  "keywords": ["jev", "harness", "routing", "llm", "tau2-bench"]
+}

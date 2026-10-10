@@ -183,6 +183,21 @@ better number and the more complex harness; the figures above describe the main 
 | LLM roles on a ChatGPT subscription instead of an API | done (`scripts/cli_proxy.py`, `--llm-backend codex`) |
 | Second domain | not started |
 
+## 🔌 Install in Claude Code
+
+Inside Claude Code:
+
+```text
+/plugin marketplace add https://github.com/ShirleyHuang11/mixed_harness.git
+/plugin install mixed-harness@mixedharness
+/reload-plugins
+```
+
+Then describe your task (the tools, the policy, how an episode is scored) and invoke the `mixed-harness`
+skill: it establishes the task contract, writes the option lister for your tools from the retail one, runs
+stage 0 and the three arms, and fits the thresholds. The skill is `skills/mixed-harness/SKILL.md`; it works
+the same way as a plain document for Codex or any other coding agent.
+
 ## 🚀 Quick start
 
     uv sync --locked --extra dev
@@ -209,6 +224,8 @@ LLM role through a Codex CLI subscription behind `scripts/cli_proxy.py`. Sandbox
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
 | `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
+| `skills/mixed-harness/` | the Claude Code skill: how to build and measure a harness for a new task, with an integration reference |
+| `.claude-plugin/` | plugin and marketplace manifests for `/plugin install` |
 
 The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness), a harness as a graph of
 sandboxed code and Jev calls evolved with GEPA, implemented independently here; JevHarness has no LLM at
