@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from examples.tau2 import seeds  # noqa: E402
+from examples.tau2 import seeds_splits as seeds  # noqa: E402   # the split-row harness owns state_features
 
 _NS = {}
 exec(seeds.COMMON_SOURCE, _NS)   # the compiler's helpers, including state_features

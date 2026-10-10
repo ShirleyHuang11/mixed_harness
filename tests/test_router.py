@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from examples.tau2 import seeds
+from examples.tau2 import seeds, seeds_splits
 from mixedharness import sandbox as sb
 from mixedharness.jev import JevClient
 from mixedharness.llm import LLMClient
@@ -164,7 +164,7 @@ def _statuses(result):
 @needs_sandbox
 def test_structural_step_runs_no_model_at_all():
     llm = _llm()
-    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip'), llm, _obs(HELLO))
+    result = _run(seeds_splits.routed_seed('mock-llm'), _jev('closed', 'tool:find_user_id_by_name_zip'), llm, _obs(HELLO))
     guard = result['nodes']['guard']
     assert result['output'] == {'kind': 'tool', 'name': 'find_user_id_by_name_zip', 'arguments': {'first_name': 'Yusuf', 'last_name': 'Rossi', 'zip': '19122'}}
     assert guard['routing']['path'] == 'closed' and guard['routing']['path_source'] == 'structural'   # one name pair and a zip: code decides
@@ -222,7 +222,7 @@ def test_trajectory_escalation_after_a_repeated_action():
 
 @needs_sandbox
 def test_shadow_share_flips_a_jev_decided_step():
-    shadow = seeds.routed_seed('mock-llm', policy={'epsilon': 1.0, 'clusters': {}})
+    shadow = seeds_splits.routed_seed('mock-llm', policy={'epsilon': 1.0, 'clusters': {}})
     result = _run(shadow, _jev('closed', 'tool:return_delivered_order_items', confidence=0.97), _llm(), _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
     assert routing['path_source'] == 'shadow' and routing['shadow_of'] == 'closed' and routing['path'] == 'escalate'
@@ -330,11 +330,11 @@ def test_route_uses_the_cluster_threshold_over_the_global_one():
     llm = _llm()
     cluster = 'auth|user|delivered|return'
     lax = {'epsilon': 0.0, 'prefer': {}, 'tau': {cluster: 0.6}}
-    result = _run(seeds.routed_seed('mock-llm', policy=lax), _jev('closed', 'tool:return_delivered_order_items', confidence=0.7), llm, _obs(RETURN, turn=5), AUTH)
+    result = _run(seeds_splits.routed_seed('mock-llm', policy=lax), _jev('closed', 'tool:return_delivered_order_items', confidence=0.7), llm, _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
     assert routing['cluster'] == cluster and routing['tau'] == 0.9 and routing['path'] == 'escalate'   # never laxer than the global tau
     strict = {'epsilon': 0.0, 'prefer': {}, 'tau': {cluster: NEVER}}
-    result = _run(seeds.routed_seed('mock-llm', policy=strict), _jev('closed', 'tool:return_delivered_order_items', confidence=1.0), llm, _obs(RETURN, turn=5), AUTH)
+    result = _run(seeds_splits.routed_seed('mock-llm', policy=strict), _jev('closed', 'tool:return_delivered_order_items', confidence=1.0), llm, _obs(RETURN, turn=5), AUTH)
     assert result['nodes']['guard']['routing']['path'] == 'escalate'
 
 
@@ -372,13 +372,13 @@ def test_learned_split_row_lets_code_take_the_step():
     policy = {'epsilon': 0.0, 'prefer': {}, 'tau': {}, 'defaults': {},
               'splits': [{'cluster': 'anon|user|no_order|cancel', 'split': {'user_loaded': False, 'n_mentioned': 0}, 'action': 'reply:ask_identity'}]}
     llm = _llm()
-    result = _run(seeds.routed_seed('mock-llm', policy=policy), _jev('closed', 'reply:ask_identity', confidence=0.2), llm, _obs(CANCEL_NO_ID))
+    result = _run(seeds_splits.routed_seed('mock-llm', policy=policy), _jev('closed', 'reply:ask_identity', confidence=0.2), llm, _obs(CANCEL_NO_ID))
     routing = result['nodes']['guard']['routing']
     assert routing['path'] == 'closed' and routing['path_source'] == 'learned' and result['output']['kind'] == 'message'
     assert _statuses(result)['judge'] == 'skipped' and llm.stats['calls'] == 0
     assert routing['features']['user_loaded'] is False and routing['features']['n_mentioned'] == 0 and routing['features']['last'] == 'user'
     # without the row the same step is open to Jev / the LLM
-    plain = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'reply:ask_identity', confidence=0.2), _llm(), _obs(CANCEL_NO_ID))
+    plain = _run(seeds_splits.routed_seed('mock-llm'), _jev('closed', 'reply:ask_identity', confidence=0.2), _llm(), _obs(CANCEL_NO_ID))
     assert plain['nodes']['guard']['routing']['path_source'] in ('low_confidence', 'code_override')
 
 
@@ -386,7 +386,7 @@ def test_learned_split_row_lets_code_take_the_step():
 def test_offline_features_match_runtime_features():
     """The learner recomputes state_features from a ledger entry; it must equal what the compiler recorded."""
     from scripts.learn_splits import features_of
-    result = _run(seeds.routed_seed('mock-llm'), _jev('closed', 'tool:return_delivered_order_items', confidence=0.97), _llm(), _obs(RETURN, turn=5), AUTH)
+    result = _run(seeds_splits.routed_seed('mock-llm'), _jev('closed', 'tool:return_delivered_order_items', confidence=0.97), _llm(), _obs(RETURN, turn=5), AUTH)
     routing = result['nodes']['guard']['routing']
     entry = {'observation': _obs(RETURN, turn=5), 'decision': {'memory': result['memory']}, 'routing': {k: v for k, v in routing.items() if k != 'features'}}
     f, leaky = features_of(entry)
