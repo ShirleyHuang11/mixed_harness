@@ -119,7 +119,7 @@ on its own say-so: its route answer is one signal, its probability on the pick i
 
 ## 📊 Results
 
-![The tau2-bench test: four arms on the same benchmark, one table](docs/media/fig_measurement.svg)
+![The tau2-bench test: the arms on the same benchmark, one table](docs/media/fig_measurement.svg)
 
 The benchmark is **τ²-bench retail**: 114 customer-service conversations (returns, exchanges, cancellations,
 address changes) with 16 tools and a simulated customer. A task counts as solved when the database ends in
@@ -237,7 +237,7 @@ Credentials and the sandbox: see Requirements above.
 | Path | What it holds |
 |---|---|
 | `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router (table fitting), trace, mining, seeds, evolution, freeze |
-| `examples/tau2/` | the τ²-bench adapter, the wrapper that presents the harness to the benchmark as its agent, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the split-row variant (`seeds_splits.py`), a replay user |
+| `examples/tau2/` | the τ²-bench adapter, the wrapper that presents the harness to the benchmark as its agent, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the code-row variant (`seeds_splits.py`), a replay user |
 | `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
