@@ -323,3 +323,25 @@ steps open by code override: the address steps and the after-write coverage chec
 11, won that the LLM lost 9. Remaining misses: modify_user_address 4, cancel 3, order address 2, exchange 2; the
 LLM fallback still fails some address changes it now receives (asks for more information until the customer
 leaves). Next: the fallback's argument filling for address changes and a retry after a bad-arguments guard stop.
+
+### The 2026-10-05 harness with its own evolution loop, same protocol (2026-10-09)
+
+The harness in the README figures (route question to Jev, one threshold per state type, no code rows; kept as
+`examples/tau2/seeds_v3b.py`) ran the stream + held-out protocol with the evolution loop that figure shows: after
+every pass the thresholds are refit from the stage-0 replay plus the steps the LLM took on the stream, where Jev's
+pick (recorded in the runtime result) is compared with the LLM's action (`fit_policy --tau-only --ledger-replay`).
+A first attempt compared the final action with itself (100% agreement, thresholds relaxed everywhere); it was
+discarded and passes 1-3 rerun with the correct field (agreement 65% overall, 52% below p = 0.6).
+Run: `runs/longrun/v3b-20261009-180639` (pass 0 from `v3b-20261009-132620`).
+
+| conversations served | current harness: held-out pass^1 / cost / LLM / Jev / code | 10-05 harness: held-out pass^1 / cost / LLM / Jev |
+|---|---|---|
+| 76 | 0.842 / 0.75× / 69% / 23% / 8% | 0.816 / 0.80× / 63% / 37% |
+| 152 | 0.842 / 0.66× / 57% / 24% / 19% | 0.816 / 0.75× / 57% / 43% |
+| 228 | 0.868 / 0.62× / 54% / 22% / 24% | 0.842 / 0.73× / 59% / 41% |
+| 304 | 0.816 / 0.60× / 50% / 26% / 25% | 0.895 / 0.76× / 60% / 40% |
+
+Accuracy is indistinguishable (both within the held-out noise of the LLM's 0.921). Cost separates: the 10-05
+loop moves steps between Jev and the LLM only (its LLM share stays at 57-63% and its cost settles at 0.73-0.76×),
+while the current loop moves steps to code (LLM share 69% → 50%, cost 0.75× → 0.60×). On the stream the same:
+0.69 → 0.64× against 0.69 → 0.55×. The code rows are what makes the cost fall with the conversations served.

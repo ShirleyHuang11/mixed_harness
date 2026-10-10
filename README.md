@@ -127,8 +127,20 @@ The LLM-only agent scores 0.921 on the held-out 38.
 
 Cost on unseen conversations falls at every pass; the LLM's share of steps falls from 69% to 50%; held-out
 pass^1 stays within noise of the LLM's (the held-out set is 38 tasks, so its noise is wider than 9 points).
-Two more passes are running; the flattening point of the curve is the open number. `scripts/long_run.py`
-runs the whole protocol.
+`scripts/long_run.py` runs the whole protocol.
+
+The same protocol was run on the earlier harness in the figures above (a route question to Jev, one threshold
+per state type, no code rows), with its own evolution loop: the thresholds refit after every pass from the
+steps the LLM took. Its accuracy is the same and its cost is not: the LLM's share of its steps stays at 57% to
+63% and its cost settles at 0.73× to 0.76×, because refitting thresholds moves steps between Jev and the LLM
+only. Moving steps to code is what makes the cost keep falling.
+
+| conversations served | current harness: held-out cost | earlier harness, thresholds only: held-out cost |
+|---|---|---|
+| 76 | 0.75× | 0.80× |
+| 152 | 0.66× | 0.75× |
+| 228 | 0.62× | 0.73× |
+| 304 | 0.60× | 0.76× |
 
 ## Status
 
