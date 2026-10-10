@@ -1,6 +1,6 @@
 # Mixed Harness
 
-<p align="center"><b>A tool-using agent where code, a 400 ms judgment model and an LLM share the turns, and the split is learned from the agent's own records.</b></p>
+<p align="center"><b>A harness for tool-using agents: code, a 400 ms judgment model and an LLM share the turns, and the split is learned from the harness's own records.</b></p>
 
 <p align="center">
 <img alt="benchmark" src="https://img.shields.io/badge/benchmark-%CF%84%C2%B2--bench%20retail-4a4a9c">
@@ -13,6 +13,9 @@
 
 ## ⚡ In one minute
 
+- **What it is.** A harness, not an agent: the layer around the models that lists what a turn allows, decides
+  who answers it (code, Jev or the LLM), checks the answer, records it, and learns the split. Put around a
+  task's tools and policy, the harness with Jev and an LLM is the agent that gets measured.
 - **The problem.** A customer-service agent decides something on every turn. Most decisions are small (which
   record, which item, did they say yes). An LLM agent pays a full model call for each one: ~8,300 tokens and
   2 seconds per turn on τ²-bench retail.
@@ -219,7 +222,7 @@ LLM role through a Codex CLI subscription behind `scripts/cli_proxy.py`. Sandbox
 | Path | What it holds |
 |---|---|
 | `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router (table fitting), trace, mining, seeds, evolution, freeze |
-| `examples/tau2/` | the τ²-bench adapter, the agent wrapper, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the split-row variant (`seeds_splits.py`), a replay user |
+| `examples/tau2/` | the τ²-bench adapter, the wrapper that presents the harness to the benchmark as its agent, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the split-row variant (`seeds_splits.py`), a replay user |
 | `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |

@@ -5,8 +5,10 @@ description: Build and measure a Mixed Harness for a tool-using task: code lists
 
 # Mixed Harness
 
-Turn a tool-using task into a harness where every turn is taken by code, by Jev, or by an LLM, and the split
-is read off records rather than written by hand. The package (`mixedharness/`) and the retail example
+Mixed Harness is a harness, not an agent: the layer around the models that lists what a turn allows, decides who
+answers it (code, Jev or the LLM), checks and records the answer, and learns the split from the records. Turn a
+tool-using task into one, where every turn is taken by code, by Jev, or by an LLM, and the split is read off
+records rather than written by hand. The package (`mixedharness/`) and the retail example
 (`examples/tau2/`) are the reference; this skill tells you what to ask for, what to write, and what to run.
 
 ## Establish the task before building

@@ -1,7 +1,7 @@
 {
   "name": "mixed-harness",
   "version": "0.1.0",
-  "description": "Build a tool-using agent where code, Jev (TypeSafe's judgment model) and an LLM share the turns, measure it against an LLM-only agent, and learn the split from the agent's own records.",
+  "description": "A harness for tool-using agents: code, Jev (TypeSafe's judgment model) and an LLM share the turns, the harness is measured against an LLM-only agent, and the split is learned from the harness's own records.",
   "author": {
     "name": "ShirleyHuang11"
   },

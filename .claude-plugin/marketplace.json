@@ -4,7 +4,7 @@
     "name": "ShirleyHuang11"
   },
   "metadata": {
-    "description": "Mixed Harness skill: code, Jev and an LLM share the turns of a tool-using agent; the split is learned from records."
+    "description": "Mixed Harness skill: a harness for tool-using agents in which code, Jev and an LLM share the turns; the split is learned from records."
   },
   "plugins": [
     {
