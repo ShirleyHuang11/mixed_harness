@@ -8,7 +8,8 @@ Execution happens in a **warm worker**: one sandboxed interpreter per pool slot,
 reused for later nodes. The sandbox is `bwrap` on Linux (empty root, read-only /usr and the interpreter
 prefix, no network, no host environment, tmpfs /tmp) and `sandbox-exec` on macOS. The worker sets memory,
 CPU and wall-time limits per job; a job that exceeds them, or breaks the protocol, kills the worker, and the
-next job starts a fresh one. Without a supported sandbox there is no fallback: `SandboxUnavailable`.
+next job starts a fresh one. Without a native sandbox the worker runs plain (same validated source, same isolated
+interpreter); `MIXEDHARNESS_SANDBOX=require` restores the hard failure, `=none` skips the native sandbox.
 
 Why warm: on the cluster this was built on, starting a sandboxed interpreter costs about 0.5 s; a harness
 turn with three python nodes spent more time spawning than judging. A warm worker pays that once per pool
@@ -234,12 +235,29 @@ def _darwin_command():
     return ['/usr/bin/sandbox-exec', '-p', profile, str(executable), '-I', '-S', '-B', '-c', WORKER_PROGRAM]
 
 
+def _plain_command():
+    """A worker with no OS sandbox: the same isolated interpreter (-I -S) running the same validated source. Used when
+    no native sandbox exists or MIXEDHARNESS_SANDBOX=none. The AST allow-list (validate_source) still applies, so
+    node code cannot import, open files or reach the network; what the OS sandbox adds on top (no host environment,
+    read-only filesystem, resource limits) matters when an authoring model writes node code, not for the shipped seeds."""
+    executable = Path(getattr(sys, '_base_executable', sys.executable)).resolve()
+    return [str(executable), '-I', '-S', '-B', '-c', WORKER_PROGRAM]
+
+
 def sandbox_command():
-    if sys.platform.startswith('linux'):
-        return _linux_command()
-    if sys.platform == 'darwin':
-        return _darwin_command()
-    raise SandboxUnavailable('python nodes need a native sandbox (Linux bwrap or macOS sandbox-exec)')
+    mode = os.environ.get('MIXEDHARNESS_SANDBOX', 'auto')
+    if mode == 'none':
+        return _plain_command()
+    try:
+        if sys.platform.startswith('linux'):
+            return _linux_command()
+        if sys.platform == 'darwin':
+            return _darwin_command()
+        raise SandboxUnavailable('no native sandbox on ' + sys.platform)
+    except SandboxUnavailable:
+        if mode == 'require':
+            raise
+        return _plain_command()
 
 
 def sandbox_available():
@@ -465,6 +483,7 @@ def runtime_identity():
                 'base_prefix': str(Path(sys.base_prefix).resolve()), 'available': sandbox_available()}
     if identity['available']:
         command = sandbox_command()
-        identity['sandbox'] = command[0]
-        identity['interpreter'] = command[command.index('--') + 1] if '--' in command else command[3]
+        native = command[0].endswith('bwrap') or command[0].endswith('sandbox-exec')
+        identity['sandbox'] = command[0] if native else 'none (plain worker; set MIXEDHARNESS_SANDBOX=require to insist on one)'
+        identity['interpreter'] = command[command.index('--') + 1] if '--' in command else (command[3] if native else command[0])
     return identity

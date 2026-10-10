@@ -28,6 +28,8 @@
   cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations. A variant that
   also learns code rows reaches **0.62×** and keeps falling.
 
+![Who takes the turn: a learned rule sends it to code, a confident Jev pick takes it, anything open goes to the LLM; the table is refit after every batch](docs/media/fig_who_takes_the_turn.svg)
+
 ---
 
 ## 🎁 What it gives you
@@ -203,34 +205,52 @@ the same way as a plain document for Codex or any other coding agent.
 
 ## 🔑 Requirements
 
-| You need | For | Notes |
+Three things: Python, a Jev key, an LLM.
+
+| You need | What for | Notes |
 |---|---|---|
-| **Python 3.11+** and [`uv`](https://docs.astral.sh/uv/) | the package | `uv sync --locked --extra dev` installs everything; `uv run pytest` runs on mock providers with no keys |
-| **A sandbox** | the code nodes | `bwrap` (bubblewrap) on Linux, `sandbox-exec` on macOS; `uv run mixedharness doctor` tells you which it found |
-| **`TYPESAFE_API_KEY`** | Jev | from [console.typesafe.ai](https://console.typesafe.ai/keys); direct API, about $0.04 per million tokens, ~400 ms per request. A `TYPESAFE_API_KEY_PERSONAL` is used first when set. Needed by the Jev-only arm, the harness, and stage 0 |
-| **An LLM**, one of: | the LLM-only arm, the harness's LLM turns, the simulated customer and the judge | |
-| &nbsp;&nbsp;`ANTHROPIC_API_KEY` | | the default API backend (`claude-sonnet-5`); a 114-task run of one arm is roughly $25 to $40 |
-| &nbsp;&nbsp;a Codex CLI subscription | | `--llm-backend codex`: every LLM role goes through `scripts/cli_proxy.py` (start it first); no key, no bill; about 2 hours per 114-task arm |
-| `OPENAI_API_KEY` (optional) | tau2's official simulated customer (`--user-llm gpt-4.1-2025-04-14`) | without it the simulator runs on the LLM above; numbers from different simulators are not comparable |
-| **[tau2-bench](https://github.com/sierra-research/tau2-bench)** | the benchmark | Python 3.12 in its own venv with this repo installed into it (`docs/guides/tau2.md`); only for measuring, not for using the harness on your own task |
+| **Python 3.11+** with [`uv`](https://docs.astral.sh/uv/) | the package | `uv sync --locked --extra dev`; the tests run on mock providers with no keys |
+| **`TYPESAFE_API_KEY`** | Jev, the judgment model | from [console.typesafe.ai](https://console.typesafe.ai/keys); direct API, about $0.04 per million tokens, ~400 ms per request |
+| **An LLM**: `ANTHROPIC_API_KEY`, or a Codex CLI subscription | the turns the LLM takes, and the LLM-only baseline | with a subscription, `--llm-backend codex` sends every LLM role through `scripts/cli_proxy.py`: no key, no bill |
 
-Keys go in a local `.env` next to `.env.example`; `.env` and `.env.*` are ignored by git and never read from
-anywhere else. Runs write to `runs/` (also ignored): results, ledgers, step tables, the generated table. There
-is no telemetry; the only network calls are to the providers you configured.
+Both keys go in a local `.env` (copy `.env.example`); `.env` is ignored by git.
+
+Optional:
+
+- **A native sandbox** for the code nodes: `bwrap` on Linux or `sandbox-exec` on macOS, used when present
+  (`uv run mixedharness doctor` says which). Without one the code nodes run in a plain isolated worker under the
+  same source allow-list. The native sandbox matters when an authoring model writes node code (the evolution
+  loop); for the shipped harness it is a nicety. `MIXEDHARNESS_SANDBOX=require` insists on one.
+- **[tau2-bench](https://github.com/sierra-research/tau2-bench)**, only to reproduce the numbers in this README
+  (`docs/guides/tau2.md`). Your own task needs your own tools, policy and scorer, not the benchmark.
 
 ## 🚀 Quick start
-## 🚀 Quick start
 
-    uv sync --locked --extra dev
-    uv run pytest                                   # mock providers, no keys needed
-    uv run mixedharness doctor                      # sandbox and credentials present
+**Use the package** (no keys needed for the tests):
 
-Credentials and the sandbox: see Requirements above.
+```bash
+uv sync --locked --extra dev
+uv run pytest                      # mock providers
+uv run mixedharness doctor         # which keys it found, and whether a native sandbox is present
+```
 
-    ~/tau2-bench/.venv/bin/python scripts/stage0_label_replay.py                       # labels and Jev replay on recorded LLM-only traces
-    ~/tau2-bench/.venv/bin/python scripts/fit_policy.py --tau-only --replay runs/stage0/<stamp>/replay.jsonl --ledger-replay runs/tau2/<run>/routed/ledgers.json
-    ~/tau2-bench/.venv/bin/python scripts/tau2_compare.py --domain retail --split base --arms routed --policy examples/tau2/policy.json
-    ~/tau2-bench/.venv/bin/python scripts/long_run.py --passes 4 --tau-only --replay runs/stage0/<stamp>/replay.jsonl --llm-only-run runs/tau2/<llm_only run>
+**Measure on τ²-bench** (needs the keys from Requirements and a tau2-bench venv, see `docs/guides/tau2.md`):
+
+```bash
+PY=~/tau2-bench/.venv/bin/python
+$PY scripts/tau2_compare.py --domain retail --split base --arms llm_only            # 1. the LLM-only baseline, recorded
+$PY scripts/stage0_label_replay.py                                                   # 2. label its turns, replay Jev on them
+$PY scripts/fit_policy.py --tau-only --replay runs/stage0/<stamp>/replay.jsonl \
+    --out examples/tau2/policy.json                                                  # 3. one threshold per state type
+$PY scripts/tau2_compare.py --domain retail --split base --arms jev_only,routed \
+    --policy examples/tau2/policy.json                                               # 4. the two other arms, one table
+$PY scripts/long_run.py --passes 4 --tau-only --replay runs/stage0/<stamp>/replay.jsonl \
+    --llm-only-run runs/tau2/<llm_only run>                                          # 5. learn on a stream, score held-out tasks
+```
+
+Add `--llm-backend codex --proxy-base http://127.0.0.1:8765/v1` to run every LLM role on a Codex subscription
+(start `scripts/cli_proxy.py` first). Every run writes its results, ledgers, step table and summary under
+`runs/<stamp>/`.
 
 ## 🗂 Layout
 
@@ -241,7 +261,7 @@ Credentials and the sandbox: see Requirements above.
 | `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
 | `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
-| `docs/media/` | figures: `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
+| `docs/media/` | figures: `fig_who_takes_the_turn.svg`, `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
 | `skills/mixed-harness/` | the Claude Code skill: how to build and measure a harness for a new task, with an integration reference |
 | `.claude-plugin/` | plugin and marketplace manifests for `/plugin install` |
 
