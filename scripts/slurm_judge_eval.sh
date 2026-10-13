@@ -10,6 +10,7 @@
 # the model served for that run). "not usable" -> the next model up the ladder, not more prompt tuning.
 #SBATCH -J judge-eval
 #SBATCH -p gpu_requeue
+# an 8B model in bf16 needs a whole A100 (a gpu_test MIG slice, 20 GB, went out of memory on 8B); 4B and smaller fit the slice
 #SBATCH --gres=gpu:1
 #SBATCH -c 8
 #SBATCH --mem=64G
@@ -19,6 +20,7 @@ set -u
 cd /n/home12/shirleyhuang/mixed_harness
 MODEL=${MODEL:-Qwen/Qwen3-4B}
 TAG=$(echo "$MODEL" | tr '/' '-' )
+NS=$(echo "$TAG" | tr -c 'A-Za-z0-9-\n' '-')   # cache namespaces are alphanumeric (Qwen3-1.7B has a dot)
 OUT=runs/judges/$TAG
 mkdir -p "$OUT"
 JUDGE_PY=/n/home12/shirleyhuang/.local/opt/judge-venv/bin/python
@@ -48,8 +50,9 @@ echo "judge: $JUDGE"
 
 # 1. stage-0 replay on the same LLM-only traces the Jev replay used (runs/stage0/20261006-131412)
 $TAU2_PY scripts/stage0_label_replay.py --results runs/tau2/20261001-stage2-v3a-merged/llm_only/results.json \
-    --judge "$JUDGE" --out "$OUT/stage0" --namespace "judge-$TAG-stage0" > "$OUT/stage0.log" 2>&1
+    --judge "$JUDGE" --out "$OUT/stage0" --namespace "judge-$NS-stage0" > "$OUT/stage0.log" 2>&1
 rc=$?; echo "stage0 rc $rc"; tail -n 5 "$OUT/stage0.log"
+[ $rc -eq 0 ] || { echo "stage0 failed; nothing downstream is read"; kill $SERVER; exit $rc; }
 REPLAY=$(ls -d "$OUT"/stage0/*/replay.jsonl | tail -n 1)
 
 # 2. calibrate: reliability table, temperature, kill test
@@ -60,10 +63,10 @@ TEMP=$($TAU2_PY -c "import json; print(json.load(open('$OUT/judge.json'))['tempe
 # 3. the audit of the gpt-5.5 LLM-only traces with this judge (plain and with the policy), for the README's ruler table
 TRACE=runs/tau2/20261006-235933-retail-base/llm_only/results.json
 $TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --workers 4 --judge-temperature $TEMP \
-    --namespace "judge-$TAG-audit-plain" --out "$OUT/audit-plain" > "$OUT/audit-plain.log" 2>&1
+    --namespace "judge-$NS-audit-plain" --out "$OUT/audit-plain" > "$OUT/audit-plain.log" 2>&1
 echo "audit plain rc $?"
 $TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --policy-text runs/audit/policy_retail.md --workers 4 --judge-temperature $TEMP \
-    --namespace "judge-$TAG-audit-policy" --out "$OUT/audit-policy" > "$OUT/audit-policy.log" 2>&1
+    --namespace "judge-$NS-audit-policy" --out "$OUT/audit-policy" > "$OUT/audit-policy.log" 2>&1
 echo "audit policy rc $?"
 
 # 4. the threshold table for this judge, from the calibrated replay
