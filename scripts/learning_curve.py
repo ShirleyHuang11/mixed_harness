@@ -49,6 +49,7 @@ def main(argv=None):
     p.add_argument('--num-tasks', type=int, default=None)
     p.add_argument('--task-ids', default=None)
     p.add_argument('--concurrency', type=int, default=3)
+    p.add_argument('--judge', default=None, help='judge behind jev nodes (jev, jev:<model>, logprob:<model>@<base_url>); --replay must come from the same judge')
     args = p.parse_args(argv)
     out = Path(args.out) if args.out else ROOT / 'runs/curve' / dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     out.mkdir(parents=True, exist_ok=True)
@@ -72,6 +73,8 @@ def main(argv=None):
             cmd += ['--num-tasks', str(args.num_tasks)]
         if args.task_ids:
             cmd += ['--task-ids', args.task_ids]
+        if args.judge:
+            cmd += ['--judge', args.judge]
         rc, run_dir = run(cmd, log)   # the run's own `artifacts:` line, not the newest directory: other runs may share the clock
         if rc or run_dir is None:
             raise SystemExit(f'run failed in round {r}; see {log}')

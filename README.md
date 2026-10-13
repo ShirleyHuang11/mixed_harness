@@ -249,8 +249,8 @@ uv run mixedharness doctor         # which keys it found, and whether a native s
 **Measure your own agent first** (a recorded trace and a judge; nothing else):
 
 ```bash
-uv run mixedharness audit traces.jsonl --format messages --judge jev --price-model gpt-5.5
-#   traces.jsonl: one OpenAI-style conversation per line, {"id", "tools": [...], "messages": [...]}
+uv run mixedharness audit examples/audit/traces.jsonl --format messages --judge jev --price-model gpt-5.5
+#   traces.jsonl: one OpenAI-style conversation per line, {"id", "tools": [...], "messages": [...]}; the example file shows the shape
 #   --judge logprob:Qwen/Qwen3-4B@http://127.0.0.1:8790/v1 after `python scripts/judge_server.py --model Qwen/Qwen3-4B`
 ```
 
@@ -282,6 +282,7 @@ local judge instead of Jev (`docs/guides/judges-and-audit.md` has the calibratio
 | Path | What it holds |
 |---|---|
 | `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, the judge setting (`judge.py`), the trace audit (`audit.py`), router (table fitting), trace, mining, seeds, evolution, freeze |
+| `examples/audit/` | `traces.jsonl`, two conversations in the messages format the audit reads |
 | `examples/tau2/` | the τ²-bench adapter, the wrapper that presents the harness to the benchmark as its agent, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the code-row variant (`seeds_splits.py`), a replay user |
 | `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py`, `judge_server.py`, `calibrate_judge.py` |
 | `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `judge-and-audit.md` (the pluggable judge and the audit: predictions and results), `implementation.md` |

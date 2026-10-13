@@ -66,7 +66,8 @@ mixedharness audit traces.jsonl --format messages --judge logprob:Qwen/Qwen3-4B@
 ```
 
 Formats: `tau2` is a tau2-bench `results.json`; `messages` is JSON lines of OpenAI-style conversations,
-`{"id", "tools": [tool schemas], "messages": [{"role", "content", "tool_calls", "usage"?, "cost"?}]}`. Tool
+`{"id", "tools": [tool schemas], "messages": [{"role", "content", "tool_calls", "usage"?, "cost"?}]}`
+(`examples/audit/traces.jsonl` holds two). Tool
 descriptions come from the trace's tool schemas, or from `--tools tools.json` (`{name: description}`); the
 agent's policy or system prompt can be shown to the judge with `--policy-text`. Per-turn LLM cost comes from
 the trace's own `cost`, or from its token usage at `--price-model`'s list price.

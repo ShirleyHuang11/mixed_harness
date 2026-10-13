@@ -162,3 +162,10 @@ def test_audit_curve_counts_taken_turns_and_cost():
     by = {r['tau']: r for r in c['rows']}
     assert by[0.6]['turns_taken'] == 2 and by[0.6]['agreement'] == 0.5 and by[0.6]['cost_ratio'] == pytest.approx((1.0 + 0.003) / 2.0)
     assert by[0.99]['turns_taken'] == 1 and by[0.99]['agreement'] == 1.0 and by[0.99]['tool_turns_taken'] == 1
+
+
+def test_example_traces_audit_with_the_mock_judge():
+    from pathlib import Path
+    report, rows = audit.run_audit([str(Path(__file__).resolve().parents[1] / 'examples/audit/traces.jsonl')], fmt='messages', judge_spec='mock', price_model='gpt-5.5')
+    assert report['conversations'] == 2 and report['turns'] == 10 and report['errors'] == 0 and report['curve']['priced']
+    assert {r['actual'] for r in rows} == {'tool:find_user_id_by_email', 'tool:get_order_details', 'tool:cancel_pending_order', 'reply'}
