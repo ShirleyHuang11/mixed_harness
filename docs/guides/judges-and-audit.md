@@ -69,7 +69,8 @@ The same 1,389 recorded LLM-only retail turns for every judge (the stage-0 repla
 | Qwen3-4B, log-probabilities, T = 5.0 | 52% (982 turns) | 20% / 99% | 30% (247 of 835) | 47% / 58% / 0.57x |
 
 Jev's reported probability is not calibrated on this replay (its top bin holds 77% of turns and is right on 74%
-of them) and cannot be re-tempered; its per-cluster table is what makes it usable, and that table hands over
+of them; the README's 98% in that bin is from the earlier replay of 2026-10-01, before the option lister changed)
+and cannot be re-tempered; its per-cluster table is what makes it usable, and that table hands over
 nearly twice the turns of the 4B judge. The 4B judge is calibrated in its top bin after the fit, and the bin is
 small: outside the pre-authentication clusters no threshold reaches 90% agreement, so its table leaves those
 turns to the LLM. On the audit's open 17-way choice its agreement barely moves with the threshold (47% at 0.60,
