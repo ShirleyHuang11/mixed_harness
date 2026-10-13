@@ -39,6 +39,7 @@ sys.path.insert(0, str(ROOT))
 
 from examples.tau2 import adapter, seeds  # noqa: E402
 from mixedharness.jev import JevClient  # noqa: E402
+from mixedharness.judge import make_judge, parse_judge_spec  # noqa: E402
 from mixedharness.runtime import Runtime  # noqa: E402
 from mixedharness.spec import FORMAT, validate_spec  # noqa: E402
 
@@ -150,10 +151,13 @@ def walk(sim, tool_schemas, policy, jev, runtime, max_conversation=40):
                 reason = None if closed else ('template_not_legal:' + template if template else 'open_text')
                 target = ('reply:' + template) if template else None
                 needs_review = True
+            logprobs = None
             if cx.get('questions') is None:      # a structural default: code decided, no Jev call
                 answers, act, alt, route = {}, {'choice': cx['default'], 'probabilities': {cx['default']: 1.0}}, {}, {'choice': 'structural'}
             else:
-                answers = jev.judge(cx['state'], cx['questions'], model=seeds.JEV_MODEL)['answers']
+                judged = jev.judge(cx['state'], cx['questions'], model=seeds.JEV_MODEL)
+                answers = judged['answers']
+                logprobs = judged.get('logprobs')   # the logprob judge keeps the raw label log-probabilities for calibration
                 act = answers.get('action') or {}
                 alt = answers.get('action_alt') or {}
                 route = answers.get('route') or {}
@@ -167,7 +171,9 @@ def walk(sim, tool_schemas, policy, jev, runtime, max_conversation=40):
                          'agreement': (pick == alt.get('choice')) if pick is not None and alt.get('choice') is not None else None,
                          'fits': (answers.get('fits') or {}).get('noul'),
                          'jev_correct': (pick == target) if target is not None else None,
-                         'identity_turn': llm_action['kind'] == 'tool' and llm_action['name'] in IDENTITY_TOOLS})
+                         'identity_turn': llm_action['kind'] == 'tool' and llm_action['name'] in IDENTITY_TOOLS,
+                         'judge_probs': act.get('probabilities') if act else None,
+                         'judge_logprobs': (logprobs or {}).get('action') if logprobs else None})
             reply = parse_message(message, tool_names_by_id)
             if message.tool_calls:
                 call = message.tool_calls[0]
@@ -269,6 +275,8 @@ def main(argv=None):
     p.add_argument('--results', nargs='*', default=None, help='tau2 results.json files of LLM-only runs; default: runs/tau2/*/llm_only/results.json')
     p.add_argument('--domain', default='retail')
     p.add_argument('--jev-model', default=seeds.JEV_MODEL)
+    p.add_argument('--judge', default=None, help='jev (default), jev:<model>, or logprob:<model>@<base_url>: replay the same questions on another judge')
+    p.add_argument('--judge-temperature', type=float, default=1.0)
     p.add_argument('--namespace', default=None)
     p.add_argument('--mock', action='store_true', help='mock Jev (plumbing only; the replay numbers are meaningless)')
     p.add_argument('--out', default='runs/stage0')
@@ -281,12 +289,13 @@ def main(argv=None):
     paths = args.results or sorted(glob.glob(str(ROOT / 'runs/tau2/*/llm_only/results.json')))
     if not paths:
         p.error('no LLM-only results.json found')
-    if not args.mock and not os.getenv('TYPESAFE_API_KEY'):
-        p.error('TYPESAFE_API_KEY is not set')
+    judge_spec = 'mock' if args.mock else (args.judge or f'jev:{args.jev_model}')
+    if parse_judge_spec(judge_spec)['kind'] == 'jev' and not (os.getenv('TYPESAFE_API_KEY') or os.getenv('TYPESAFE_API_KEY_PERSONAL') or os.getenv('TYPESAFE_API_KEY_personal')):
+        p.error('TYPESAFE_API_KEY is not set (or pass --judge logprob:<model>@<base_url>)')
     stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     out_dir = ROOT / args.out / stamp
     out_dir.mkdir(parents=True, exist_ok=True)
-    jev = JevClient(mock=True) if args.mock else JevClient(model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=args.namespace or f'stage0-{stamp}')
+    jev = make_judge(judge_spec, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=args.namespace or f'stage0-{stamp}', temperature=args.judge_temperature)
     env = build_environment(args.domain)
     tool_schemas = {tool.name: tool_schema(tool) for tool in env.get_tools()}
     policy = env.get_policy()
@@ -308,9 +317,10 @@ def main(argv=None):
             f.write(json.dumps({k: r[k] for k in ('source', 'task_id', 'turn', 'incoming_role', 'cluster', 'compiler_closed', 'options', 'needs', 'llm_action', 'label_closed', 'label_reason', 'target', 'needs_review')}, default=str) + '\n')
     with (out_dir / 'replay.jsonl').open('w') as f:
         for r in rows:
-            f.write(json.dumps(r, default=str) + '\n')
+            f.write(json.dumps(dict(r, judge=judge_spec), default=str) + '\n')
     rep = report(rows)
-    rep['manifest'] = {'results': paths, 'jev_model': args.jev_model, 'mock': args.mock, 'jev_stats': jev.stats, 'jev_actual_models': jev.metadata['actual_models'], 'stamp': stamp}
+    rep['manifest'] = {'results': paths, 'jev_model': args.jev_model, 'judge': judge_spec, 'judge_temperature': args.judge_temperature, 'mock': args.mock,
+                       'jev_stats': jev.stats, 'jev_actual_models': jev.metadata['actual_models'], 'stamp': stamp}
     (out_dir / 'report.json').write_text(json.dumps(rep, indent=1, default=str))
     text = render(rep)
     (out_dir / 'report.md').write_text(text)

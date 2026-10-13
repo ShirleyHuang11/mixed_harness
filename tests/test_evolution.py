@@ -85,7 +85,9 @@ def test_evolution_rejects_proposals_that_change_fixed_fields_or_are_invalid(tmp
     assert any('jev_model' in r for r in reasons) and len(reasons) == 2
 
 
-def test_evolution_aborts_on_infrastructure_failure(tmp_path):
+def test_evolution_aborts_on_infrastructure_failure(tmp_path, monkeypatch):
+    for name in ('TYPESAFE_API_KEY', 'TYPESAFE_API_KEY_PERSONAL', 'TYPESAFE_API_KEY_personal'):   # another test may have loaded .env into the process
+        monkeypatch.delenv(name, raising=False)
     store = RunStore(tmp_path / 'runs')
     with pytest.raises(EvolutionAborted):
         run_evolution(TRAIN, VAL, jev=JevClient(mock=False, api_key=None), llm=LLMClient(kind='mock'),

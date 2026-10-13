@@ -55,6 +55,7 @@ def main(argv=None):
     p.add_argument('--min-n', type=int, default=10)
     p.add_argument('--min-samples', type=int, default=8)
     p.add_argument('--epsilon', type=float, default=0.0)
+    p.add_argument('--judge-json', default=None, help='judge.json from scripts/calibrate_judge.py: the judge spec and temperature this table was fitted for, embedded as policy["judge"]')
     p.add_argument('--out', default='examples/tau2/policy.json')
     args = p.parse_args(argv)
     replay = [r for f in args.replay for r in read_jsonl(f)]
@@ -66,6 +67,11 @@ def main(argv=None):
     splits = fit_splits(load_steps(args.ledgers), min_n=args.min_n) if args.ledgers and not args.tau_only else None
     full = merge_policy(paths, tau, epsilon=args.epsilon, learned=learned, splits=splits)
     compact = compact_policy(full)
+    if args.judge_json:
+        cal = json.loads(Path(args.judge_json).read_text())
+        compact['judge'] = {'spec': cal['judge'], 'temperature': float(cal.get('temperature') or 1.0)}
+    elif replay and all(r.get('judge') for r in replay[:5]) and len({r.get('judge') for r in replay}) == 1:
+        compact['judge'] = {'spec': replay[0]['judge'], 'temperature': 1.0}
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps({**compact, 'provenance': {'replay': args.replay, 'steps': args.steps, 'target': args.target, 'min_n': args.min_n,

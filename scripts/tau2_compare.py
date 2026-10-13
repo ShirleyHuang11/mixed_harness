@@ -60,6 +60,7 @@ def _load_seeds(name):
     SEEDS, routed_seed = mod.SEEDS, mod.routed_seed
     return mod
 from mixedharness.jev import JevClient  # noqa: E402
+from mixedharness.judge import make_judge, parse_judge_spec  # noqa: E402
 from mixedharness.llm import LLMClient  # noqa: E402
 from mixedharness.router import fit_policy, route_metrics  # noqa: E402
 from mixedharness.sandbox import WorkerPool  # noqa: E402
@@ -394,6 +395,8 @@ def main(argv=None):
     p.add_argument('--user', choices=['simulator', 'replay'], default='simulator', help='replay: recorded user turns from --replay-results (plumbing only)')
     p.add_argument('--replay-results', default=None, help='an llm_only results.json whose user turns the replay user says back')
     p.add_argument('--jev-model', default='jev-1.13.0')
+    p.add_argument('--judge', default=None, help='the judge behind jev nodes: jev (default), jev:<model>, or logprob:<model>@<base_url> for any model served with log-probabilities (no TypeSafe key)')
+    p.add_argument('--judge-temperature', type=float, default=None, help='temperature on the logprob judge; default: the policy file\'s judge.temperature, else 1.0')
     p.add_argument('--concurrency', type=int, default=3)
     p.add_argument('--max-steps', type=int, default=adapter.DEFAULT_MAX_STEPS)
     p.add_argument('--seed', type=int, default=300)
@@ -452,13 +455,17 @@ def main(argv=None):
         except FileExistsError:
             out_dir = ROOT / args.out / f'{stamp}-{k}-{args.domain}-{args.split}'
     namespace = args.namespace or f'tau2-{stamp}'
+    policy_judge = (json.loads(Path(args.policy).read_text()).get('judge') if args.policy else None) or {}
+    judge_spec, temperature = 'mock', 1.0
     if args.mock:
         jev, llm = JevClient(mock=True), LLMClient(kind='mock', model='mock-llm')
     else:
         needs_jev = any(a in PIPELINE_ARMS for a in arms)
-        if needs_jev and not os.getenv('TYPESAFE_API_KEY'):
-            p.error('TYPESAFE_API_KEY is not set; the jev_only, routed and routed_evolved arms need it')
-        jev = JevClient(model=args.jev_model, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace)
+        judge_spec = args.judge or (policy_judge.get('spec') if policy_judge else None) or f'jev:{args.jev_model}'
+        if needs_jev and parse_judge_spec(judge_spec)['kind'] == 'jev' and not (os.getenv('TYPESAFE_API_KEY') or os.getenv('TYPESAFE_API_KEY_PERSONAL') or os.getenv('TYPESAFE_API_KEY_personal')):
+            p.error('TYPESAFE_API_KEY is not set; the jev_only, routed and routed_evolved arms need it (or pass --judge logprob:<model>@<base_url>)')
+        temperature = args.judge_temperature if args.judge_temperature is not None else float((policy_judge or {}).get('temperature') or 1.0)
+        jev = make_judge(judge_spec, cache_dir=str(ROOT / '.cache/jev'), cache_namespace=namespace, temperature=temperature)
         llm = LLMClient(kind='codex' if args.llm_backend == 'codex' else 'anthropic', model=args.llm_model,
                         cache_dir=str(ROOT / '.cache/llm'), cache_namespace=namespace, max_tokens=1024, timeout=180.0)
     evolved_spec, evolved_source = None, None
@@ -478,7 +485,7 @@ def main(argv=None):
                 'arms': arms, 'agent_llm': args.agent_llm, 'llm_model': args.llm_model, 'user_llm': args.user_llm,
                 'nl_judge_llm': nl_judge, 'nl_judge_tau2_default': nl_judge_previous[0],
                 'llm_args_agent': llm_args_for(args.agent_llm), 'llm_args_user': llm_args_for(args.user_llm),
-                'jev_model': args.jev_model, 'jev_transport': jev.transport, 'mock': args.mock, 'routed_evolved_source': evolved_source,
+                'jev_model': args.jev_model, 'judge': judge_spec, 'judge_temperature': temperature, 'jev_transport': jev.transport, 'mock': args.mock, 'routed_evolved_source': evolved_source,
                 'user': args.user, 'replay_results': args.replay_results, 'policy': args.policy, 'seed_module': args.seed_module,
                 'llm_backend': args.llm_backend, 'proxy_base': args.proxy_base if args.llm_backend == 'codex' else None, 'cost_imputed': args.llm_backend == 'codex',
                 'seed': args.seed, 'max_steps': args.max_steps, 'concurrency': args.concurrency, 'namespace': namespace,

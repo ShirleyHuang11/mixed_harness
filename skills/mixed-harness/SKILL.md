@@ -24,14 +24,21 @@ Read the user's request and any project material first. Ask only for what is mis
   and whether a simulated user exists. Without a scorer there is no measurement and no refit.
 - **An LLM-only baseline.** The agent the harness is measured against. If none exists, the benchmark's own
   agent or a plain tool-calling loop on the same model.
-- **Credentials and budget.** `TYPESAFE_API_KEY` for Jev (direct API); an LLM API key, or a Codex CLI
-  subscription through `scripts/cli_proxy.py` (`--llm-backend codex`). How many episodes may be run.
+- **Credentials and budget.** A judge: `TYPESAFE_API_KEY` for Jev (direct API), or any model served with
+  log-probabilities (`--judge logprob:<model>@<base_url>`; `scripts/judge_server.py` serves a transformers
+  model with no key). An LLM API key, or a Codex CLI subscription through `scripts/cli_proxy.py`
+  (`--llm-backend codex`). How many episodes may be run.
 
 State the task contract in a few lines before writing code: inputs, actions, write tools, scorer, baseline,
 budget.
 
 ## Build order
 
+0. **Measure first.** If the user has recorded traces of the agent (OpenAI-style conversations, or a tau2
+   `results.json`), run `mixedharness audit <traces> --format messages|tau2 --judge <judge>` before writing
+   anything. It reports, per threshold, the share of turns the judge would take, how often its pick matches the
+   agent's recorded action, and the trace re-priced. A small 0.90 row means the harness has little to move;
+   say so and stop. The retail traces read 56% of turns at 95% agreement and 0.50x the cost at that row.
 1. **Install.** `uv sync --locked --extra dev` in a checkout, or `uv pip install git+https://github.com/ShirleyHuang11/mixed_harness`
    into an existing environment. `uv run mixedharness doctor` checks the sandbox (`bwrap` on Linux,
    `sandbox-exec` on macOS) and which credentials are present. `uv run pytest` runs on mock providers.
@@ -51,10 +58,15 @@ budget.
    what the LLM did, scores the compiler's `closed` flag against the labels, and replays Jev on every turn to
    record its pick and probability. Check two numbers before going on: the share of closed turns (the ceiling
    of what Jev can take) and Jev's agreement with the LLM at probability 0.9 and above (should be near 90%).
-   If the compiler's flag disagrees with the labels, fix the option lister first.
+   If the compiler's flag disagrees with the labels, fix the option lister first. With a judge other than Jev,
+   run `scripts/calibrate_judge.py` on the replay next: it prints the reliability table, fits a temperature,
+   applies the kill test (the >= 0.99 bin must agree with the LLM on >= 85% of its turns and hold >= 10% of
+   closed turns) and writes a calibrated replay for the fit. A judge that fails is replaced by a larger model,
+   not a longer prompt.
 5. **Fit the thresholds.** `scripts/fit_policy.py --tau-only --replay <replay.jsonl> --out policy.json`: one
-   threshold per state type (the lowest at which Jev's picks agreed with the LLM at least 90% of the time),
-   `never` where none does.
+   threshold per state type (the lowest at which the judge's picks agreed with the LLM at least 90% of the
+   time), `never` where none does. The policy file records which judge (and temperature) it was fitted for;
+   a table is never reused across judges.
 6. **Run the three arms.** `scripts/tau2_compare.py` (or its equivalent for the task) runs LLM only, Jev only
    and the routed harness on the same tasks, same simulator, same seeds, and writes one table: tasks solved,
    cost per task relative to LLM only, who took the turns. Measure the noise first by running the same system

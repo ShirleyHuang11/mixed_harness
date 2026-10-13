@@ -47,5 +47,10 @@ turn's `routing` record and cost to a ledger, and write the step table with the 
 
 ## Credentials
 
+The judge behind `jev` nodes is `make_judge(spec)` from `mixedharness/judge.py`: `jev` (TypeSafe), `jev:<model>`,
+`logprob:<model>@<base_url>` (one chat completion per question with `max_tokens: 1` and `logprobs`, the softmax over
+the option labels is the answer), or `mock`. Every script takes `--judge`. `mixedharness audit` (`mixedharness/audit.py`)
+runs the route and action questions over a recorded trace with the agent's action as the key.
+
 `.env` in the checkout: `TYPESAFE_API_KEY` (or `TYPESAFE_API_KEY_PERSONAL`, used first), `ANTHROPIC_API_KEY`
 for the API backend. With `--llm-backend codex` no LLM key is needed; start `scripts/cli_proxy.py` first.

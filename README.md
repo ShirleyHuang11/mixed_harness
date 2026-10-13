@@ -24,6 +24,13 @@
   clears a threshold for that type of state; otherwise the **LLM** takes the turn. Every turn is recorded.
 - **The learning.** After every batch of conversations the thresholds are refit from where Jev's picks
   matched the LLM's. No hand-tuned router: a table of thresholds, read off the records.
+- **Measure before you build.** `mixedharness audit` takes a recorded trace of any tool-using agent and
+  reports how many of its turns a judge would take, how often the judge's pick matches what the agent did,
+  and what the trace would have cost. On the retail traces: at a threshold of 0.90, 56% of turns, 95%
+  agreement, half the cost.
+- **The judge is a setting.** Jev is the judge the numbers below were measured with; `--judge` points the
+  same harness at any model served with log-probabilities (vLLM, llama.cpp, or the bundled server over a
+  transformers model), so it runs with a TypeSafe key or with none.
 - **The result.** On τ²-bench retail: 0.781 of tasks solved against the LLM-only agent's 0.807 (within noise)
   at **0.74× its cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations.
   A variant that also learns code rows reaches **0.62×** and keeps falling.
@@ -45,6 +52,8 @@ number is explained in the sections below and recorded in `docs/design/tau2-four
 | **Every decision is inspectable** | what a turn leaves behind | the state type, who took the turn and why, Jev's probability, the action, and later the episode's outcome; the table is a short list a person can read |
 | **The LLM stays in the loop for what needs it** | which turns the LLM still takes | open requests, plans across several tool calls, composed replies; about 60% of turns on retail for the main harness, 50% for the variant |
 | **Jev is cheap and fast where it is trusted** | Jev's share and its agreement with the LLM | 40% of turns; on accepted picks 92% to 98% agreement, 0.4 s per turn, about one hundredth of an LLM call |
+| **You can measure your own agent before adopting anything** | `mixedharness audit` on a recorded trace: the share of turns a judge would take at each threshold, its agreement with the agent's recorded action, the trace re-priced | 114 retail conversations of the gpt-5.5 agent: at τ = 0.90, 56% of turns, 95% agreement, 0.50× the cost; at 0.99, 29%, 99%, 0.79× |
+| **Not locked to one judge** | the same harness with another judge behind the `jev` nodes | `--judge logprob:<model>@<url>` for any model served with log-probabilities; the threshold table is fitted per judge, with a kill test on its probabilities (`docs/guides/judges-and-audit.md`) |
 
 > Not yet shown: accuracy parity with a confidence interval (one seed per point, 9 points of noise on 114
 > tasks), a second domain, and cost on a real bill rather than list-price tokens.
@@ -186,6 +195,8 @@ better number and the more complex harness; the figures above describe the main 
 | Learning curve on unseen conversations | done, 4 passes (`scripts/long_run.py --tau-only`) |
 | The code-row variant (`seeds_splits.py`, `scripts/learn_splits.py`) | done, measured; not the main harness |
 | LLM roles on a ChatGPT subscription instead of an API | done (`scripts/cli_proxy.py`, `--llm-backend codex`) |
+| The judge as a setting: Jev, or any model served with log-probabilities; calibration and kill test per judge | done (`mixedharness/judge.py`, `scripts/judge_server.py`, `scripts/calibrate_judge.py`, `--judge`) |
+| The ruler: audit a recorded trace of any agent before building | done (`mixedharness audit`, `mixedharness/audit.py`) |
 | Second domain | not started |
 
 ## 🔌 Install in Claude Code
@@ -205,15 +216,16 @@ the same way as a plain document for Codex or any other coding agent.
 
 ## 🔑 Requirements
 
-Three things: Python, a Jev key, an LLM.
+Three things: Python, a judge, an LLM.
 
 | You need | What for | Notes |
 |---|---|---|
 | **Python 3.11+** with [`uv`](https://docs.astral.sh/uv/) | the package | `uv sync --locked --extra dev`; the tests run on mock providers with no keys |
-| **`TYPESAFE_API_KEY`** | Jev, the judgment model | from [console.typesafe.ai](https://console.typesafe.ai/keys); direct API, about $0.04 per million tokens, ~400 ms per request |
+| **A judge**: `TYPESAFE_API_KEY`, or a model served with log-probabilities | the picks on closed turns | Jev from [console.typesafe.ai](https://console.typesafe.ai/keys): direct API, about $0.04 per million tokens, ~400 ms per request. Or `--judge logprob:<model>@<url>` against vLLM, llama.cpp, or `scripts/judge_server.py` over any transformers model: no key |
 | **An LLM**: `ANTHROPIC_API_KEY`, or a Codex CLI subscription | the turns the LLM takes, and the LLM-only baseline | with a subscription, `--llm-backend codex` sends every LLM role through `scripts/cli_proxy.py`: no key, no bill |
 
-Both keys go in a local `.env` (copy `.env.example`); `.env` is ignored by git.
+Keys go in a local `.env` (copy `.env.example`); `.env` is ignored by git. With a local judge and a Codex
+subscription the harness runs with no key at all.
 
 Optional:
 
@@ -234,6 +246,18 @@ uv run pytest                      # mock providers
 uv run mixedharness doctor         # which keys it found, and whether a native sandbox is present
 ```
 
+**Measure your own agent first** (a recorded trace and a judge; nothing else):
+
+```bash
+uv run mixedharness audit traces.jsonl --format messages --judge jev --price-model gpt-5.5
+#   traces.jsonl: one OpenAI-style conversation per line, {"id", "tools": [...], "messages": [...]}
+#   --judge logprob:Qwen/Qwen3-4B@http://127.0.0.1:8790/v1 after `python scripts/judge_server.py --model Qwen/Qwen3-4B`
+```
+
+It prints, per threshold, the share of turns the judge would take, how often its pick matches what the agent
+did, and the trace re-priced with the LLM on the remaining turns. If the 0.90 row is small, stop here; the
+harness has nothing to move.
+
 **Measure on τ²-bench** (needs the keys from Requirements and a tau2-bench venv, see `docs/guides/tau2.md`):
 
 ```bash
@@ -249,18 +273,19 @@ $PY scripts/long_run.py --passes 4 --tau-only --replay runs/stage0/<stamp>/repla
 ```
 
 Add `--llm-backend codex --proxy-base http://127.0.0.1:8765/v1` to run every LLM role on a Codex subscription
-(start `scripts/cli_proxy.py` first). Every run writes its results, ledgers, step table and summary under
-`runs/<stamp>/`.
+(start `scripts/cli_proxy.py` first). Add `--judge logprob:<model>@<url>` to steps 2 to 5 to run them on a
+local judge instead of Jev (`docs/guides/judges-and-audit.md` has the calibration step that goes between 2 and
+3). Every run writes its results, ledgers, step table and summary under `runs/<stamp>/`.
 
 ## 🗂 Layout
 
 | Path | What it holds |
 |---|---|
-| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, router (table fitting), trace, mining, seeds, evolution, freeze |
+| `mixedharness/` | the package: spec, expressions, sandbox, runtime, Jev and LLM clients, the judge setting (`judge.py`), the trace audit (`audit.py`), router (table fitting), trace, mining, seeds, evolution, freeze |
 | `examples/tau2/` | the τ²-bench adapter, the wrapper that presents the harness to the benchmark as its agent, the routed seed (`seeds.py`) and its two controls, the fitted thresholds (`policy.json`), the code-row variant (`seeds_splits.py`), a replay user |
-| `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py` |
-| `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `implementation.md` |
-| `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table) |
+| `scripts/` | `stage0_label_replay.py`, `fit_policy.py`, `learn_splits.py`, `tau2_compare.py`, `tau2_merge.py`, `learning_curve.py`, `long_run.py`, `cli_proxy.py`, `judge_server.py`, `calibrate_judge.py` |
+| `docs/design/` | `tau2-four-arms.md` (stages, predictions, every result), `judge-and-audit.md` (the pluggable judge and the audit: predictions and results), `implementation.md` |
+| `docs/guides/` | `routed-harness.md` (reference), `tau2.md` (benchmark setup and how to read the table), `judges-and-audit.md` (choosing a judge, calibrating it, auditing your own traces) |
 | `docs/media/` | figures: `fig_who_takes_the_turn.svg`, `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
 | `skills/mixed-harness/` | the Claude Code skill: how to build and measure a harness for a new task, with an integration reference |
 | `.claude-plugin/` | plugin and marketplace manifests for `/plugin install` |

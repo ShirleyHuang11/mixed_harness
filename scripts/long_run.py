@@ -119,6 +119,8 @@ def main(argv=None):
     p.add_argument('--seed-module', default='examples.tau2.seeds', help='harness version to run (examples.tau2.seeds_v3b = the 2026-10-05 figure)')
     p.add_argument('--tau-only', action='store_true', help='the table learns only thresholds, refit each pass from the replay plus the stream ledgers (the 2026-10-05 evolution loop)')
     p.add_argument('--first-pass', type=int, default=0, help='number the first pass this way (resume)')
+    p.add_argument('--judge', default=None, help='judge behind jev nodes (jev, jev:<model>, logprob:<model>@<base_url>); --replay must come from the same judge')
+    p.add_argument('--judge-temperature', type=float, default=None)
     p.add_argument('--seed-stream-dirs', nargs='*', default=[], help='stream run directories of earlier passes: their steps and ledgers enter every fit (resume)')
     args = p.parse_args(argv)
     out = Path(args.out) if args.out else ROOT / 'runs/longrun' / dt.datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -163,6 +165,10 @@ def main(argv=None):
         pol = json.loads(policy.read_text())
         base = [PY, 'scripts/tau2_compare.py', '--domain', 'retail', '--split', 'base', '--arms', 'routed', '--policy', str(policy),
                 '--concurrency', str(args.concurrency), '--llm-backend', args.llm_backend, '--seed-module', args.seed_module]
+        if args.judge:
+            base += ['--judge', args.judge]
+        if args.judge_temperature is not None:
+            base += ['--judge-temperature', str(args.judge_temperature)]
         s_log, h_log = out / f'stream_{q}.log', out / f'holdout_{q}.log'
         sp, sf = start(base + ['--task-ids', ','.join(stream), '--seed', str(300 + q), '--proxy-base', args.proxy_stream], s_log)
         hp, hf = start(base + ['--task-ids', ','.join(holdout), '--seed', '900', '--proxy-base', args.proxy_holdout], h_log)

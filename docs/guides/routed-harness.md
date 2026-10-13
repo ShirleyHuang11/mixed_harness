@@ -12,6 +12,8 @@ A harness is a JSON graph (`mixedharness/spec.py`):
 | `python` | `source` (defines `run(obs, nodes, memory)`), `inputs` (node ids) | exactly its `inputs` | never |
 | `expression` | `expression` | node ids referenced as `nodes['id']` | never |
 | `jev` | `state` (expr), `questions` (map) or `questions_expression` (expr) | ids referenced in either | `questions_expression` is null |
+
+A `jev` node is answered by whichever judge the runtime was given: `make_judge('jev')` for Jev, `make_judge('logprob:<model>@<base_url>')` for any model served with log-probabilities (`docs/guides/judges-and-audit.md`). The node's `jev_model` names the Jev model; a log-probability judge has its own.
 | `llm` | `prompt` (expr), `schema` (JSON Schema subset), `max_tokens` | ids referenced in `prompt` | `prompt` is null |
 | `agent` | `instructions`, `context` (expr → `{policy, tools, conversation}`), `max_tokens` | ids referenced in `context` | `context` is null |
 

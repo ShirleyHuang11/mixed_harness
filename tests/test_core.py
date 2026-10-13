@@ -162,7 +162,8 @@ def test_jev_normalisation_rejects_incomplete_replies_and_missing_key(monkeypatc
     with pytest.raises(JevError):
         normalise_answers(q, {})
     assert normalise_answers(q, {'c': {'probabilities': {'a': 0.2, 'b': 0.8}}})['c']['choice'] == 'b'
-    monkeypatch.delenv('TYPESAFE_API_KEY', raising=False)
+    for name in ('TYPESAFE_API_KEY', 'TYPESAFE_API_KEY_PERSONAL', 'TYPESAFE_API_KEY_personal'):   # a doctor test may have loaded .env into the process
+        monkeypatch.delenv(name, raising=False)
     with pytest.raises(JevError, match='TYPESAFE_API_KEY'):
         JevClient().judge({'k': 1}, q)
 
@@ -214,7 +215,9 @@ def test_runtime_runs_waves_skips_null_prompt_and_carries_memory(runtime):
     assert jev_record['response']['model'] == 'mock' and jev_record['state'] == {'n': 6, 'seen': 1}
 
 
-def test_runtime_classifies_candidate_and_infrastructure_errors():
+def test_runtime_classifies_candidate_and_infrastructure_errors(monkeypatch):
+    for name in ('TYPESAFE_API_KEY', 'TYPESAFE_API_KEY_PERSONAL', 'TYPESAFE_API_KEY_personal'):   # another test may have loaded .env into the process
+        monkeypatch.delenv(name, raising=False)
     if not sb.sandbox_available():
         pytest.skip('no native sandbox on this machine')
     bad = _spec()

@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from mixedharness.evolve import run_evolution
 from mixedharness.jev import JevClient
+from mixedharness.judge import make_judge, parse_judge_spec
 from mixedharness.llm import LLMClient
 from mixedharness.reflect import Proposer
 from mixedharness.seeds import ROUTES, route_of_spec, seed_for_route
@@ -36,6 +37,7 @@ def main(argv=None):
     parser.add_argument('--validation', type=int, default=6)
     parser.add_argument('--latency-ms', type=float, default=3000, help='p95 per-decision budget')
     parser.add_argument('--jev-model', default='jev-1.13.0')
+    parser.add_argument('--judge', default=None, help='jev (default), jev:<model>, or logprob:<model>@<base_url>')
     parser.add_argument('--llm-model', default='claude-sonnet-5')
     parser.add_argument('--proposer-config', default='configs/claude_local.json')
     parser.add_argument('--runs', default='runs')
@@ -44,8 +46,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     load_dotenv(Path.cwd() / '.env', override=False)
-    if not args.mock and not os.getenv('TYPESAFE_API_KEY'):
-        parser.error('TYPESAFE_API_KEY is not set (put it in .env or the environment)')
+    judge_spec = args.judge or f'jev:{args.jev_model}'
+    if not args.mock and parse_judge_spec(judge_spec)['kind'] == 'jev' and not (os.getenv('TYPESAFE_API_KEY') or os.getenv('TYPESAFE_API_KEY_PERSONAL') or os.getenv('TYPESAFE_API_KEY_personal')):
+        parser.error('TYPESAFE_API_KEY is not set (put it in .env or the environment, or pass --judge logprob:<model>@<base_url>)')
     namespace = args.namespace or f'live-{args.task}'
     adapter = importlib.import_module(TASKS[args.task])
     task, train = adapter.load('train')
@@ -54,7 +57,7 @@ def main(argv=None):
         jev, llm = JevClient(mock=True), LLMClient(kind='mock')
         proposer = Proposer({'kind': 'mock', 'responder': lambda prompt: json.dumps(json.loads(prompt)['parent_spec'])})
     else:
-        jev = JevClient(model=args.jev_model, cache_dir='.cache/jev', cache_namespace=namespace)
+        jev = make_judge(judge_spec, cache_dir='.cache/jev', cache_namespace=namespace)
         llm = LLMClient(kind='anthropic', model=args.llm_model, cache_dir='.cache/llm', cache_namespace=namespace)
         proposer = Proposer(json.loads(Path(args.proposer_config).read_text()))
     seed = args.seed or ('jev' if task['action_space']['kind'] in ('labels', 'catalog') else 'llm')

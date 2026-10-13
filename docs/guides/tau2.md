@@ -17,7 +17,7 @@ Credentials, read from `mixed_harness/.env`:
 
 | Variable | Used by |
 |---|---|
-| `TYPESAFE_API_KEY` | Jev, for the `jev_only` and `routed` arms and for stage 0; `TYPESAFE_API_KEY_PERSONAL` is used first when set |
+| `TYPESAFE_API_KEY` | Jev, for the `jev_only` and `routed` arms and for stage 0; `TYPESAFE_API_KEY_PERSONAL` is used first when set. Not needed with `--judge logprob:<model>@<base_url>` (`docs/guides/judges-and-audit.md`) |
 | `ANTHROPIC_API_KEY` | with the default API backend: the `llm_only` arm, the harness agent node, the user simulator and the NL-assertion judge |
 | none | with `--llm-backend codex`: every LLM role runs through a Codex CLI subscription; start `scripts/cli_proxy.py` first and pass `--proxy-base` |
 | `OPENAI_API_KEY` | only if you pass `--user-llm gpt-4.1-2025-04-14`, tau2's official default |
