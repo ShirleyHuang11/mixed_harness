@@ -29,7 +29,7 @@ export HF_HUB_OFFLINE=1
 
 # torch may still be installing on the login node when this job starts; wait up to 40 minutes for it
 for i in $(seq 1 80); do
-  $JUDGE_PY -c "import torch, transformers" 2>/dev/null && break
+  $JUDGE_PY -c "import torch, transformers; torch.__version__; transformers.AutoModelForCausalLM" 2>/dev/null && break   # a half-copied install imports but has no version
   sleep 30
 done
 $JUDGE_PY -c "import torch, transformers; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())" || { echo "no torch"; exit 2; }
