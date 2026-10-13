@@ -87,3 +87,36 @@ policy).
   takes. The plain audit is the headline; the policy run is the conservative reading.
 - Agreement on every turn, no threshold: 82%. The harness's recorded Jev share (42%) sits between the 0.90 and
   0.95 rows, consistent with its per-cluster thresholds.
+
+### 2026-10-13, the Qwen3-4B log-probability judge (stage-0 replay, calibration, audit)
+
+Same 1,389 recorded LLM-only turns as the Jev replay (run 20261001-stage2-v3a-merged), 982 closed; one A100,
+the bundled transformers server, 64 minutes for the replay, calibration and both audits (`runs/judges/Qwen-Qwen3-4B/`).
+
+| | as reported (T = 1) | after calibration (T = 5.0) |
+|---|---|---|
+| >= 0.99 bin: share of closed turns / agreement with the LLM | 88% / 55% | 20% / 99% |
+| 0.90-0.99 | 6% / 31% | 46% / 43% |
+| 0.60-0.90 | 5% / 26% | 20% / 42% |
+| < 0.60 | 2% / 35% | 14% / 26% |
+| ECE | 0.46 | 0.34 |
+
+- 🎯 Kill test passed, on its lines: the calibrated >= 0.99 bin agrees with the LLM on 99% of its turns and holds
+  20% of closed turns (kill: < 85%, < 10%). The collapse from the top bin to the bottom one is 3.8x (99% vs 26%;
+  predicted 2x), so the probability carries information.
+- ❌ Overall agreement on closed turns is 52% (predicted 70-80%, kill < 60%). Raw, the model puts >= 0.99 on
+  88% of turns and is right on 55% of them; the fitted temperature sits at the top of the grid (5.0), which is the
+  fit asking to flatten further. The 4B judge is usable only through its calibrated top bin.
+- 📊 The threshold table fitted on the calibrated replay (`policy.json`, tau only) accepts 247 of 982 closed turns
+  (25%), all in the pre-authentication clusters (`anon|user|*`), at 0.91-1.00 agreement; every `auth|*` cluster
+  gets tau = 1.01 (never). Jev's table on the same replay hands over 42% of turns across the clusters.
+- ⚠️ The audit with this judge (temperature 5.0 borrowed from the stage-0 fit) reads 47% / 58% / 0.57x at tau
+  0.90 and takes no turn at 0.99 (plain; Jev: 56% / 95% / 0.50x). On the audit's 17-way choice the 4B judge's
+  agreement is flat across tau (47% at 0.60, 58% at 0.90): on open choices over every tool its probability
+  separates little. The audit's generic question is harder than the harness's clustered one, and a temperature
+  fitted on 2-6-way questions caps the reachable probability on 17-way ones; a per-question-size temperature is the
+  obvious fix and is not done here.
+
+Decision, per the table above: the kill test passed, so the routed arm runs on all 114 tasks with this judge and
+its own table (prediction: pass^1 0.74-0.80, cost 0.78-0.88x; kill pass^1 < 0.70). Qwen3-8B and Qwen3-1.7B run
+the same replay for the ladder.
