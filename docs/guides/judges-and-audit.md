@@ -28,7 +28,9 @@ python scripts/tau2_compare.py --arms routed --judge logprob:Qwen/Qwen3-4B@http:
 ```
 
 Qwen3 chat templates get `enable_thinking: false` so the first token is the answer; other chat models work as
-they are.
+they are. The temperature is a view over the judge's cached log-probabilities: a cached answer is re-read at
+the temperature the judge was made with, so a fitted temperature re-renders a replay or an audit without new
+requests (`--judge-temperature` on `mixedharness audit`; the policy file carries it for the runs).
 
 ## A judge is only as good as its probabilities
 
@@ -49,10 +51,29 @@ python scripts/fit_policy.py --replay runs/judges/qwen3-4b/stage0/<stamp>/replay
 python scripts/tau2_compare.py --arms routed --policy runs/judges/qwen3-4b/policy.json --judge logprob:Qwen/Qwen3-4B@http://127.0.0.1:8790/v1
 ```
 
-The kill test in step 2 is fixed: after calibration, the bin of turns where the judge reports a probability of
-at least 0.99 must agree with the LLM on at least 85% of them and hold at least 10% of closed turns. A judge
-that fails it cannot be handed turns by threshold, and the right next step is a larger model, not a longer
-prompt. Jev's own table on retail: 98% agreement in that bin, and the bins fall to 22% below 0.60.
+The kill test in step 2 is fixed: after the temperature fit, the bin of turns where the judge reports a
+probability of at least 0.99 must agree with the LLM on at least 85% of them and hold at least 10% of closed
+turns. A judge that fails it has no bin a threshold can trust, and the right next step is a larger model, not
+a longer prompt. Passing it is the floor: how many turns a judge takes is decided by the per-cluster table
+fitted in step 3.
+
+## Judges measured so far
+
+The same 1,389 recorded LLM-only retail turns for every judge (the stage-0 replay of run
+`20261001-stage2-v3a-merged`; Jev's replay is `runs/stage0/20261006-131412`, the open models' are under
+`runs/judges/<model>/stage0`). The last column is the audit of the 114 gpt-5.5 conversations with that judge.
+
+| judge | agreement with the LLM on closed turns | >= 0.99 bin: share of closed turns / agreement | closed turns its table hands over at >= 90% agreement | audit at tau 0.90: share / agreement / cost |
+|---|---|---|---|---|
+| Jev `jev-1.13.0`, as reported | 72% (1,002 turns) | 77% / 74% | 57% (482 of 853, clusters of 10+ turns) | 56% / 95% / 0.50x |
+| Qwen3-4B, log-probabilities, T = 5.0 | 52% (982 turns) | 20% / 99% | 30% (247 of 835) | 47% / 58% / 0.57x |
+
+Jev's reported probability is not calibrated on this replay (its top bin holds 77% of turns and is right on 74%
+of them) and cannot be re-tempered; its per-cluster table is what makes it usable, and that table hands over
+nearly twice the turns of the 4B judge. The 4B judge is calibrated in its top bin after the fit, and the bin is
+small: outside the pre-authentication clusters no threshold reaches 90% agreement, so its table leaves those
+turns to the LLM. On the audit's open 17-way choice its agreement barely moves with the threshold (47% at 0.60,
+58% at 0.90) where Jev's climbs to 99%.
 
 ## The ruler: `mixedharness audit`
 
@@ -62,7 +83,7 @@ agent's recorded action as the answer key. No compiler, no harness, no benchmark
 
 ```bash
 mixedharness audit runs/tau2/<run>/llm_only/results.json --format tau2 --judge jev
-mixedharness audit traces.jsonl --format messages --judge logprob:Qwen/Qwen3-4B@http://127.0.0.1:8790/v1 --price-model gpt-5.5
+mixedharness audit traces.jsonl --format messages --judge logprob:Qwen/Qwen3-4B@http://127.0.0.1:8790/v1 --judge-temperature 5.0 --price-model gpt-5.5
 ```
 
 Formats: `tau2` is a tau2-bench `results.json`; `messages` is JSON lines of OpenAI-style conversations,

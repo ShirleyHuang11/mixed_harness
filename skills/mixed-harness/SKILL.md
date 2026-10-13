@@ -62,7 +62,8 @@ budget.
    run `scripts/calibrate_judge.py` on the replay next: it prints the reliability table, fits a temperature,
    applies the kill test (the >= 0.99 bin must agree with the LLM on >= 85% of its turns and hold >= 10% of
    closed turns) and writes a calibrated replay for the fit. A judge that fails is replaced by a larger model,
-   not a longer prompt.
+   not a longer prompt. The fitted temperature follows the judge everywhere: the policy file carries it, and
+   `mixedharness audit --judge-temperature` applies it to an audit.
 5. **Fit the thresholds.** `scripts/fit_policy.py --tau-only --replay <replay.jsonl> --out policy.json`: one
    threshold per state type (the lowest at which the judge's picks agreed with the LLM at least 90% of the
    time), `never` where none does. The policy file records which judge (and temperature) it was fitted for;

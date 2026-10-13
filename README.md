@@ -30,7 +30,9 @@
   agreement, half the cost.
 - **The judge is a setting.** Jev is the judge the numbers below were measured with; `--judge` points the
   same harness at any model served with log-probabilities (vLLM, llama.cpp, or the bundled server over a
-  transformers model), so it runs with a TypeSafe key or with none.
+  transformers model), so it runs with a TypeSafe key or with none. One open model is measured so far:
+  Qwen3-4B, calibrated, is right on 99% of the turns it is sure of but sure of only 20% of them, and its
+  threshold table hands over half as many turns as Jev's on the same replay.
 - **The result.** On τ²-bench retail: 0.781 of tasks solved against the LLM-only agent's 0.807 (within noise)
   at **0.74× its cost**; on conversations it has never seen, cost settles near 0.75× after 150 conversations.
   A variant that also learns code rows reaches **0.62×** and keeps falling.
@@ -53,7 +55,7 @@ number is explained in the sections below and recorded in `docs/design/tau2-four
 | **The LLM stays in the loop for what needs it** | which turns the LLM still takes | open requests, plans across several tool calls, composed replies; about 60% of turns on retail for the main harness, 50% for the variant |
 | **Jev is cheap and fast where it is trusted** | Jev's share and its agreement with the LLM | 40% of turns; on accepted picks 92% to 98% agreement, 0.4 s per turn, about one hundredth of an LLM call |
 | **You can measure your own agent before adopting anything** | `mixedharness audit` on a recorded trace: the share of turns a judge would take at each threshold, its agreement with the agent's recorded action, the trace re-priced | 114 retail conversations of the gpt-5.5 agent: at τ = 0.90, 56% of turns, 95% agreement, 0.50× the cost; at 0.99, 29%, 99%, 0.79× |
-| **Not locked to one judge** | the same harness with another judge behind the `jev` nodes | `--judge logprob:<model>@<url>` for any model served with log-probabilities; the threshold table is fitted per judge, with a kill test on its probabilities (`docs/guides/judges-and-audit.md`) |
+| **Not locked to one judge** | the same harness with another judge behind the `jev` nodes | `--judge logprob:<model>@<url>` for any model served with log-probabilities; the threshold table is fitted per judge, with a kill test on its probabilities. Qwen3-4B on the same replay as Jev: passes the kill test (99% agreement in its top bin, 20% of closed turns), hands over 30% of closed turns where Jev hands over 57%, and the audit with it reads 47% / 58% / 0.57× at τ = 0.90 (`docs/guides/judges-and-audit.md`) |
 
 > Not yet shown: accuracy parity with a confidence interval (one seed per point, 9 points of noise on 114
 > tasks), a second domain, and cost on a real bill rather than list-price tokens.
@@ -221,7 +223,7 @@ Three things: Python, a judge, an LLM.
 | You need | What for | Notes |
 |---|---|---|
 | **Python 3.11+** with [`uv`](https://docs.astral.sh/uv/) | the package | `uv sync --locked --extra dev`; the tests run on mock providers with no keys |
-| **A judge**: `TYPESAFE_API_KEY`, or a model served with log-probabilities | the picks on closed turns | Jev from [console.typesafe.ai](https://console.typesafe.ai/keys): direct API, about $0.04 per million tokens, ~400 ms per request. Or `--judge logprob:<model>@<url>` against vLLM, llama.cpp, or `scripts/judge_server.py` over any transformers model: no key |
+| **A judge**: `TYPESAFE_API_KEY`, or a model served with log-probabilities | the picks on closed turns | Jev from [console.typesafe.ai](https://console.typesafe.ai/keys): direct API, about $0.04 per million tokens, ~400 ms per request. Or `--judge logprob:<model>@<url>` against vLLM, llama.cpp, or `scripts/judge_server.py` over any transformers model: no key. Measured so far: Qwen3-4B, a weaker judge than Jev (the guide has the table) |
 | **An LLM**: `ANTHROPIC_API_KEY`, or a Codex CLI subscription | the turns the LLM takes, and the LLM-only baseline | with a subscription, `--llm-backend codex` sends every LLM role through `scripts/cli_proxy.py`: no key, no bill |
 
 Keys go in a local `.env` (copy `.env.example`); `.env` is ignored by git. With a local judge and a Codex
