@@ -177,7 +177,7 @@ def curve(rows, taus=TAUS):
     return {'rows': out, 'llm_cost_total_usd': llm_total if priced else None, 'judge_cost_total_usd': judge_total, 'priced': priced}
 
 
-def run_audit(paths, *, fmt='tau2', judge_spec='jev', tools=None, price_model=None, out_dir=None, workers=4, limit=None, cache_dir=None, policy_text=None, namespace=None):
+def run_audit(paths, *, fmt='tau2', judge_spec='jev', tools=None, price_model=None, out_dir=None, workers=4, limit=None, cache_dir=None, policy_text=None, namespace=None, judge_temperature=1.0):
     price = next((v for k, v in PRICES.items() if price_model and price_model.startswith(k)), None)
     loader = conversations_from_tau2 if fmt == 'tau2' else conversations_from_messages
     conversations = [c for p in paths for c in loader(p, price)]
@@ -191,7 +191,7 @@ def run_audit(paths, *, fmt='tau2', judge_spec='jev', tools=None, price_model=No
             if desc and not tool_map.get(name):
                 tool_map[name] = desc
     stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
-    judge = make_judge(judge_spec, cache_dir=cache_dir, cache_namespace=namespace or f'audit-{stamp}')
+    judge = make_judge(judge_spec, cache_dir=cache_dir, cache_namespace=namespace or f'audit-{stamp}', temperature=judge_temperature)
     jobs = [(c, i, t) for c in conversations for i, t in enumerate(c['turns'])]
     rows = [None] * len(jobs)
     started = time.perf_counter()
@@ -208,7 +208,7 @@ def run_audit(paths, *, fmt='tau2', judge_spec='jev', tools=None, price_model=No
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(work, range(len(jobs))))
     good = [r for r in rows if r.get('route') is not None]
-    report = {'judge': judge_spec, 'format': fmt, 'paths': [str(p) for p in paths], 'conversations': len(conversations), 'turns': len(rows), 'judged': len(good),
+    report = {'judge': judge_spec, 'judge_temperature': judge_temperature, 'format': fmt, 'paths': [str(p) for p in paths], 'conversations': len(conversations), 'turns': len(rows), 'judged': len(good),
               'errors': len(rows) - len(good), 'tools': sorted(tool_map), 'price_model': price_model,
               'route_closed_share': sum(1 for r in good if r['route'] == 'closed') / len(good) if good else None,
               'agreement_all_turns': sum(1 for r in good if r['agree']) / len(good) if good else None,
@@ -228,7 +228,7 @@ def run_audit(paths, *, fmt='tau2', judge_spec='jev', tools=None, price_model=No
 
 def render(report):
     c = report['curve']
-    lines = [f"# Turn audit: {report['conversations']} conversations, {report['turns']} assistant turns, judge `{report['judge']}`", '',
+    lines = [f"# Turn audit: {report['conversations']} conversations, {report['turns']} assistant turns, judge `{report['judge']}`" + (f" at temperature {report['judge_temperature']}" if report.get('judge_temperature', 1.0) != 1.0 else ''), '',
              f"The judge's pick matches the agent's recorded action on {report['agreement_all_turns']:.0%} of all turns. "
              f"Its route answer says closed on {report['route_closed_share']:.0%} of turns"
              + (" (with every tool listed and no compiler to say which arguments are known, the route question carries little signal here; the action probability does the work)." if (report['route_closed_share'] or 0) > 0.95 else '.'), '',

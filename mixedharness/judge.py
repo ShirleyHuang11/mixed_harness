@@ -135,7 +135,19 @@ class LogprobJudge(JevClient):
         return meta
 
     def judge(self, state, questions, model=None):
-        return super().judge(state, questions, model=self.model)   # the spec's jev_model names Jev; this judge has one model
+        result = super().judge(state, questions, model=self.model)   # the spec's jev_model names Jev; this judge has one model
+        if result.get('cache_hit') and result.get('logprobs'):
+            # the cache holds the raw label log-probabilities; the temperature is a view over them, so a cached
+            # answer is re-read at this judge's temperature rather than the one it was first softmaxed at
+            answers = {}
+            for qid, question in questions.items():
+                lp = result['logprobs'].get(qid)
+                if lp is None:
+                    return result
+                _, labels, ids = question_prompt(state, question)
+                answers[qid] = answer_from_logprobs(question, ids, softmax(lp['labels'], self.temperature), labels)
+            result['answers'] = normalise_answers(questions, answers)
+        return result
 
     def _call(self, model, state, questions):
         started = time.perf_counter()

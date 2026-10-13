@@ -169,3 +169,20 @@ def test_example_traces_audit_with_the_mock_judge():
     report, rows = audit.run_audit([str(Path(__file__).resolve().parents[1] / 'examples/audit/traces.jsonl')], fmt='messages', judge_spec='mock', price_model='gpt-5.5')
     assert report['conversations'] == 2 and report['turns'] == 10 and report['errors'] == 0 and report['curve']['priced']
     assert {r['actual'] for r in rows} == {'tool:find_user_id_by_email', 'tool:get_order_details', 'tool:cancel_pending_order', 'reply'}
+
+
+def test_logprob_judge_rereads_cache_at_its_temperature(tmp_path):
+    from mixedharness.judge import make_judge
+    s = FakeServer()
+    try:
+        spec = f'logprob:fake@{s.url}'
+        state = {'x': 1}
+        questions = {'q': {'type': 'choice', 'instructions': 'pick', 'criteria': {'a': 'A', 'b': 'B', 'c': 'C'}}}
+        sharp = make_judge(spec, cache_dir=str(tmp_path), cache_namespace='t', temperature=1.0).judge(state, questions)
+        flat = make_judge(spec, cache_dir=str(tmp_path), cache_namespace='t', temperature=5.0).judge(state, questions)
+    finally:
+        s.close()
+    assert not sharp['cache_hit'] and flat['cache_hit']
+    p_sharp, p_flat = sharp['answers']['q']['probabilities'], flat['answers']['q']['probabilities']
+    assert max(p_sharp.values()) > max(p_flat.values())
+    assert abs(sum(p_flat.values()) - 1) < 1e-6

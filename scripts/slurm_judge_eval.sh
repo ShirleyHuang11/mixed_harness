@@ -55,13 +55,14 @@ REPLAY=$(ls -d "$OUT"/stage0/*/replay.jsonl | tail -n 1)
 # 2. calibrate: reliability table, temperature, kill test
 $TAU2_PY scripts/calibrate_judge.py --replay "$REPLAY" --out "$OUT/judge.json" > "$OUT/calibrate.log" 2>&1
 echo "calibrate rc $?"; cat "$OUT/calibrate.log"
+TEMP=$($TAU2_PY -c "import json; print(json.load(open('$OUT/judge.json'))['temperature'])" 2>/dev/null || echo 1.0)
 
 # 3. the audit of the gpt-5.5 LLM-only traces with this judge (plain and with the policy), for the README's ruler table
 TRACE=runs/tau2/20261006-235933-retail-base/llm_only/results.json
-$TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --workers 4 \
+$TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --workers 4 --judge-temperature $TEMP \
     --namespace "judge-$TAG-audit-plain" --out "$OUT/audit-plain" > "$OUT/audit-plain.log" 2>&1
 echo "audit plain rc $?"
-$TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --policy-text runs/audit/policy_retail.md --workers 4 \
+$TAU2_PY -m mixedharness.cli audit $TRACE --format tau2 --judge "$JUDGE" --tools runs/audit/tools_retail.json --policy-text runs/audit/policy_retail.md --workers 4 --judge-temperature $TEMP \
     --namespace "judge-$TAG-audit-policy" --out "$OUT/audit-policy" > "$OUT/audit-policy.log" 2>&1
 echo "audit policy rc $?"
 

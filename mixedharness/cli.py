@@ -30,6 +30,7 @@ def main(argv=None):
     audit.add_argument('paths', nargs='+', help='tau2 results.json files, or JSON lines of OpenAI-style conversations')
     audit.add_argument('--format', choices=['tau2', 'messages'], default='tau2')
     audit.add_argument('--judge', default='jev', help='jev (TypeSafe key), jev:<model>, logprob:<model>@<base_url> (any model served with log-probabilities), or mock')
+    audit.add_argument('--judge-temperature', type=float, default=1.0, help='temperature on a logprob judge, from scripts/calibrate_judge.py (judge.json)')
     audit.add_argument('--tools', default=None, help='JSON file {tool name: description}; otherwise tools are read from the traces')
     audit.add_argument('--price-model', default=None, help='price turns from their token usage at this model\'s list price when the trace carries no cost (e.g. gpt-5.5)')
     audit.add_argument('--policy-text', default=None, help='a file whose text is shown to the judge as the agent\'s policy')
@@ -50,7 +51,8 @@ def main(argv=None):
         tools = json.loads(Path(args.tools).read_text()) if args.tools else None
         policy_text = Path(args.policy_text).read_text() if args.policy_text else None
         report, _ = run_audit(args.paths, fmt=args.format, judge_spec=args.judge, tools=tools, price_model=args.price_model, out_dir=out,
-                              workers=args.workers, limit=args.limit, cache_dir=str(Path('.cache/jev')), policy_text=policy_text, namespace=args.namespace)
+                              workers=args.workers, limit=args.limit, cache_dir=str(Path('.cache/jev')), policy_text=policy_text, namespace=args.namespace,
+                              judge_temperature=args.judge_temperature)
         print(render(report))
         print(f'artifacts: {out}')
 
