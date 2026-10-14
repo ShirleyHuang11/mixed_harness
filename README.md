@@ -13,18 +13,19 @@
 
 ## ⚡ In one minute
 
-- **What it is.** A harness, not an agent: the layer around the models. On every turn it lists the actions
-  the state allows, decides who answers (code, Jev or the LLM), checks the answer, records it, and learns the
-  split from its own records. Wrapped around a task's tools and policy, the harness with Jev and an LLM is the
-  agent that gets measured.
-- **The problem it removes.** An LLM agent pays a full model call for every decision, and most decisions in a
-  tool-using task are small: which order, which item, did the customer say yes. On τ²-bench retail that is
-  about 8,300 tokens and 2 seconds per turn, most of it spent on turns that are a choice among a few listed
-  options.
-- **The idea.** Give the small decisions to something built for them. Code lists what the state allows.
-  **Jev**, TypeSafe's judgment model, picks from that list in 400 ms at about a hundredth of the cost of an
-  LLM call, and returns a probability with its pick. When the probability clears the threshold for that type
-  of state, the pick is used; otherwise the **LLM** takes the turn. Every turn is recorded.
+- **What it is.** A harness, not an agent: a division of labor. Three workers can take a turn, and each turn
+  goes to the cheapest one that does it right: **code** for what can be computed from the state, **Jev** for a
+  choice among listed options, the **LLM** for everything else. The harness lists the options, assigns the
+  turn, checks the answer, records it, and learns the assignment from its own records. Wrapped around a task's
+  tools and policy, the harness with Jev and an LLM is the agent that gets measured.
+- **The problem it removes.** An LLM agent has one worker, so every decision costs a full model call, and most
+  decisions in a tool-using task are small: which order, which item, did the customer say yes. On τ²-bench
+  retail that is about 8,300 tokens and 2 seconds per turn, most of it spent on turns that are a choice among
+  a few listed options.
+- **How the turn is assigned.** Code lists what the state allows. **Jev**, TypeSafe's judgment model, picks
+  from that list in 400 ms at about a hundredth of the cost of an LLM call, and returns a probability with its
+  pick. When the probability clears the threshold for that type of state, the pick is used; otherwise the
+  **LLM** takes the turn. Every turn is recorded, whoever took it.
 - **Why it is cheaper without being worse.** Jev is trusted only where the records show its picks match the
   LLM's: after every batch of conversations the thresholds are refit, one per type of state, from where Jev
   agreed with the LLM. Where it did not, the LLM keeps the turn. No hand-tuned router: a table of thresholds,
