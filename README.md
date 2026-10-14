@@ -317,8 +317,13 @@ local judge instead of Jev (`docs/guides/judges-and-audit.md` has the calibratio
 | `docs/media/` | figures: `fig_who_takes_the_turn.svg`, `fig_runtime_path.svg`, `fig_evolution_loops.svg`, `fig_measurement.svg` |
 | `skills/mixed-harness/` | the Claude Code skill: how to build and measure a harness for a new task, with an integration reference |
 | `.claude-plugin/` | plugin and marketplace manifests for `/plugin install` |
+| `LICENSE` | MIT |
 
 The execution layer follows [JevHarness](https://github.com/TianyuCodings/JevHarness), a harness as a graph of
 sandboxed code and Jev calls evolved with GEPA, implemented independently here; JevHarness has no LLM at
 runtime and authors its harness once, offline. GEPA is Agrawal et al., arXiv:2507.19457. τ²-bench is Barres
 et al., arXiv:2506.07982.
+
+## License
+
+MIT, see `LICENSE`.

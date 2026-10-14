@@ -7,6 +7,8 @@ name = "mixed-harness"
 version = "0.1.0"
 description = "Routed decision harnesses: code computes the facts, Jev judges, an LLM writes only what must be written; evolved with GEPA"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = ["gepa==0.1.4", "httpx>=0.28,<0.29", "python-dotenv>=1.1,<2", "openai>=2,<4", "anthropic>=0.70,<2"]
 
 [project.optional-dependencies]
