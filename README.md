@@ -151,14 +151,21 @@ same simulated customer (gpt-5.5) with the same seed. Decision rules, prediction
   points, so smaller differences are noise.
 - **cost**: what the agent spent on model calls, relative to the LLM-only agent (1.00×). Jev costs about one
   hundredth of an LLM call, so this column is almost entirely LLM calls.
-- **who took the turns**: the share of turns decided by code (no model call), by Jev, and by the LLM.
+- **code / Jev / LLM**: the share of turns decided by code (no model call), by Jev, and by the LLM.
 
-| system | tasks solved | cost | who took the turns: code / Jev / LLM |
+| system | tasks solved | cost | code / Jev / LLM |
 |---|---|---|---|
-| **LLM only**: the benchmark's standard agent, every turn is an LLM call | 0.807 | 1.00× | 0 / 0 / 100% |
-| **Jev only**: every turn is a Jev pick, no LLM at all | 0.167 | 0.01× | 0 / 100% / 0 |
-| **Mixed Harness**: Jev routes and picks, the LLM takes the rest | 0.781 | 0.74× | 0 / 42% / 58% |
-| **Mixed Harness, refit**: the same harness with its thresholds refit from every batch served, scored on the 38 held-out tasks it never saw after 304 conversations (LLM only on those 38: 0.921) | 0.895 | 0.76× | 0 / 40% / 60% |
+| **LLM only** | 0.807 | 1.00× | 0 / 0 / 100% |
+| **Jev only** | 0.167 | 0.01× | 0 / 100% / 0 |
+| **Mixed Harness** | 0.781 | 0.74× | 0 / 42% / 58% |
+| **Mixed Harness, refit** | 0.895 | 0.76× | 0 / 40% / 60% |
+
+- **LLM only**: the benchmark's standard agent, every turn is an LLM call.
+- **Jev only**: every turn is a Jev pick, no LLM at all.
+- **Mixed Harness**: Jev routes and picks, the LLM takes the rest; thresholds fitted once from the recorded
+  LLM-only turns.
+- **Mixed Harness, refit**: the same harness with its thresholds refit from every batch served, scored on the
+  38 held-out tasks it never saw, after 304 conversations (LLM only on those 38: 0.921).
 
 ### 🔁 On conversations it has never seen
 
