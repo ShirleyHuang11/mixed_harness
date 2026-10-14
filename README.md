@@ -1,6 +1,6 @@
 # Mixed Harness
 
-<p align="center"><b>A harness for tool-using agents: code, a 400 ms judgment model and an LLM share the turns. The split is learned from the harness's own records, and you can measure on your own agent's traces how much the judgment model would take before you build anything.</b></p>
+<p align="center"><b>A harness for tool-using agents: code, a 400 ms judgment model and an LLM share the turns. The split is learned from the harness's own records and evolves with every batch served, and you can measure on your own agent's traces how much the judgment model would take before you build anything.</b></p>
 
 <p align="center">
 <img alt="benchmark" src="https://img.shields.io/badge/benchmark-%CF%84%C2%B2--bench%20retail-4a4a9c">
@@ -31,6 +31,11 @@
   agreed with the LLM. Where it did not, the LLM keeps the turn. No hand-tuned router: a table of thresholds,
   read off the records. On retail Jev ends up taking 42% of the turns, and the cost falls to 0.74× with the
   tasks solved within noise of the LLM-only agent.
+- **It evolves.** The harness is not fitted once. Two loops read the records after every batch: a fast loop
+  refits the thresholds, and a slow loop regenerates the option lister from the tool schema, the policy and
+  the patterns the records surface. On conversations it has never seen, the held-out cost goes 0.80× → 0.75×
+  → 0.73× → 0.76× over 304 conversations at the same accuracy; the variant that also learns code rows goes
+  0.75× → 0.66× → 0.62× → 0.60× and keeps falling.
 - **Measure before you build.** `mixedharness audit` takes a recorded trace of any tool-using agent and
   reports how many of its turns a judge would take, how often the judge's pick matches what the agent did,
   and what the trace would have cost. On the retail traces: at a threshold of 0.90, 56% of turns, 95%
