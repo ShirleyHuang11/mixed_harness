@@ -15,16 +15,16 @@
 #SBATCH -c 8
 #SBATCH --mem=64G
 #SBATCH -t 06:00:00
-#SBATCH -o /n/home12/shirleyhuang/mixed_harness/runs/judges/slurm-%j.out
+#SBATCH -o runs/judges/slurm-%j.out
 set -u
-cd /n/home12/shirleyhuang/mixed_harness
+cd "${REPO:-${SLURM_SUBMIT_DIR:-.}}"   # sbatch from the repo root, or export REPO
 MODEL=${MODEL:-Qwen/Qwen3-4B}
 TAG=$(echo "$MODEL" | tr '/' '-' )
 NS=$(echo "$TAG" | tr -c 'A-Za-z0-9-\n' '-')   # cache namespaces are alphanumeric (Qwen3-1.7B has a dot)
 OUT=runs/judges/$TAG
 mkdir -p "$OUT"
-JUDGE_PY=/n/home12/shirleyhuang/.local/opt/judge-venv/bin/python
-TAU2_PY=/n/home12/shirleyhuang/tau2-bench/.venv/bin/python
+JUDGE_PY=${JUDGE_PY:-python}        # a python with torch and transformers
+TAU2_PY=${TAU2_PY:-python}          # a python with tau2-bench and this package
 PORT=$((8790 + RANDOM % 100))
 export MIXEDHARNESS_SANDBOX=${MIXEDHARNESS_SANDBOX:-auto}
 export HF_HUB_OFFLINE=1
