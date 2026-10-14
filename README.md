@@ -132,7 +132,11 @@ on its own say-so: its route answer is one signal, its probability on the pick i
 
 ## 📊 Results
 
-![The tau2-bench test: the arms on the same benchmark, one table](docs/media/fig_measurement.svg)
+![The tau2-bench test: LLM only, Jev only and Mixed Harness are the three rows of the results table; Mixed Harness with thresholds refit per batch is the held-out table](docs/media/fig_measurement.svg)
+
+The four arms in the figure are the two tables below: **LLM only**, **Jev only** and **Mixed Harness** are the
+three rows of the results table; **Mixed Harness, refit**, the same harness with its thresholds refit from
+every batch served and scored on tasks it never saw, is the held-out table that follows.
 
 The benchmark is **τ²-bench retail**: 114 customer-service conversations (returns, exchanges, cancellations,
 address changes) with 16 tools and a simulated customer. A task counts as solved when the database ends in
