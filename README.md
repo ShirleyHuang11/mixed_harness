@@ -1,6 +1,6 @@
 # Mixed Harness
 
-<p align="center"><b>A harness for tool-using agents: code, a 400 ms judgment model and an LLM share the turns. The split is learned from the harness's own records and evolves with every batch served, and you can measure on your own agent's traces how much the judgment model would take before you build anything.</b></p>
+<p align="center"><b>A harness for tool-using agents: code, Jev and an LLM share the turns. The split is learned from the harness's own records and evolves with every batch served, and you can measure on your own agent's traces how much Jev would take before you build anything.</b></p>
 
 <p align="center">
 <img alt="benchmark" src="https://img.shields.io/badge/benchmark-%CF%84%C2%B2--bench%20retail-4a4a9c">
