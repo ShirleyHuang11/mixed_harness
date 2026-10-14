@@ -13,17 +13,23 @@
 
 ## ⚡ In one minute
 
-- **What it is.** A harness, not an agent: the layer around the models that lists what a turn allows, decides
-  who answers it (code, Jev or the LLM), checks the answer, records it, and learns the split. Put around a
-  task's tools and policy, the harness with Jev and an LLM is the agent that gets measured.
-- **The problem.** A customer-service agent decides something on every turn. Most decisions are small (which
-  record, which item, did they say yes). An LLM agent pays a full model call for each one: ~8,300 tokens and
-  2 seconds per turn on τ²-bench retail.
-- **The idea.** Code lists what the current state allows. **Jev**, TypeSafe's judgment model (400 ms, a
-  probability with every answer), picks among the listed actions. The pick is used when its probability
-  clears a threshold for that type of state; otherwise the **LLM** takes the turn. Every turn is recorded.
-- **The learning.** After every batch of conversations the thresholds are refit from where Jev's picks
-  matched the LLM's. No hand-tuned router: a table of thresholds, read off the records.
+- **What it is.** A harness, not an agent: the layer around the models. On every turn it lists the actions
+  the state allows, decides who answers (code, Jev or the LLM), checks the answer, records it, and learns the
+  split from its own records. Wrapped around a task's tools and policy, the harness with Jev and an LLM is the
+  agent that gets measured.
+- **The problem it removes.** An LLM agent pays a full model call for every decision, and most decisions in a
+  tool-using task are small: which order, which item, did the customer say yes. On τ²-bench retail that is
+  about 8,300 tokens and 2 seconds per turn, most of it spent on turns that are a choice among a few listed
+  options.
+- **The idea.** Give the small decisions to something built for them. Code lists what the state allows.
+  **Jev**, TypeSafe's judgment model, picks from that list in 400 ms at about a hundredth of the cost of an
+  LLM call, and returns a probability with its pick. When the probability clears the threshold for that type
+  of state, the pick is used; otherwise the **LLM** takes the turn. Every turn is recorded.
+- **Why it is cheaper without being worse.** Jev is trusted only where the records show its picks match the
+  LLM's: after every batch of conversations the thresholds are refit, one per type of state, from where Jev
+  agreed with the LLM. Where it did not, the LLM keeps the turn. No hand-tuned router: a table of thresholds,
+  read off the records. On retail Jev ends up taking 42% of the turns, and the cost falls to 0.74× with the
+  tasks solved within noise of the LLM-only agent.
 - **Measure before you build.** `mixedharness audit` takes a recorded trace of any tool-using agent and
   reports how many of its turns a judge would take, how often the judge's pick matches what the agent did,
   and what the trace would have cost. On the retail traces: at a threshold of 0.90, 56% of turns, 95%
