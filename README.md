@@ -20,8 +20,8 @@
   tools and policy, the harness with Jev and an LLM is the agent that gets measured.
 - **The problem it removes.** An LLM agent has one worker, so every decision costs a full model call, and most
   decisions in a tool-using task are small: which order, which item, did the customer say yes. On τ²-bench
-  retail that is about 8,300 tokens and 2 seconds per turn, most of it spent on turns that are a choice among
-  a few listed options.
+  retail that is about 8,300 tokens and 2 seconds per turn. Most of those turns are a choice among a few
+  listed options.
 - **How the turn is assigned.** Code lists what the state allows. **Jev**, TypeSafe's judgment model, picks
   from that list in 400 ms at about a hundredth of the cost of an LLM call, and returns a probability with its
   pick. When the probability clears the threshold for that type of state, the pick is used; otherwise the
